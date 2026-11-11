@@ -239,11 +239,13 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: Windows Release build and 78 tests; native
-Ubuntu/WSL Release restore/build and 78 tests;
+Latest available verification: Windows Release build and 82 tests; native
+Ubuntu/WSL Release restore/build and 82 tests;
 OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
 native OpenCode 2.2.7 → Ollama 0.40.16 real-model inference with verified
 `thinking-off`/`thinking-on` variants and no duplicate native Ollama catalog row;
+the installed default OpenCode profile was rechecked after the latest discovery
+fix and returned `LLM_GLUE_CURRENT_OK` through its generated `thinking-off` route;
 isolated native Ollama add/change/remove, application restart, outage/grace/recovery,
 and native-provider restoration;
 two-account Linux system precedence;

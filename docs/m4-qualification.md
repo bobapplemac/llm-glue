@@ -74,6 +74,16 @@ foreground process was stopped cleanly after the check; the synchronized user
 artifact remains usable, but automatic future catalog refresh still requires
 the elevated service installation.
 
+After the llama.cpp discovery follow-up was committed, the installed applications
+were checked again through the normal, unmodified user profile. Ollama 0.40.16
+still exposed all three local routes, and OpenCode 2.2.7 listed exactly the three
+`llm-glue-ollama-local-ollama` entries with no native `ollama/...` duplicates.
+OpenCode selected
+`llm-glue-ollama-local-ollama/qwen3.5:4b-q4_K_M#thinking-off` and returned exactly
+`LLM_GLUE_CURRENT_OK`; its structured result reported seven output tokens and
+zero reasoning tokens. This reconfirms the currently installed default-profile
+integration rather than only the isolated harness.
+
 An additional isolated secondary Ollama 0.40.16 run used copied manifests and
 metadata plus temporary hard links to the existing immutable model blobs. It
 qualified the real composed lifecycle path without changing the production model
