@@ -94,9 +94,10 @@ forwarding, `temperature`, `top_p`, `max_tokens`, and the environment-backed
 provider Authorization header. The verified nonstandard variant field
 `enable_thinking = true` also arrived unchanged. Version 1.109.0 refuses proxy
 startup without a master key by default; the test and deployment guidance
-preserve that secure default. Central OpenCode output references the client
-credential with the documented `{env:LLM_GLUE_INFERENCE_API_KEY}` substitution. This
-captured-upstream test is not a substitute for representative
+preserve that secure default. OpenCode 2.2.7 accepted both a literal provider
+`settings.apiKey` and the documented `{env:LLM_GLUE_INFERENCE_API_KEY}`
+substitution. LLM Glue emits the literal form by default and retains the
+environment form as a server opt-out. This captured-upstream test is not a substitute for representative
 llama.cpp model inference.
 
 The same harness optionally launched OpenCode 2.2.7 with the central golden

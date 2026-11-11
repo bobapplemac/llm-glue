@@ -32,11 +32,12 @@ include; it never edits the operator's primary LiteLLM YAML. Central mode also
 requires the externally reachable LiteLLM base URL (`-LiteLlmUrl` or
 `LLM_GLUE_LITELLM_URL`). LLM Glue publishes that URL and its generated stable
 aliases to OpenCode; it must not be the private llama.cpp discovery URL.
-Each OpenCode/Paseo runtime must receive a valid LiteLLM client key as
-`LLM_GLUE_INFERENCE_API_KEY` in its process/service environment. This is a
-one-time client credential setup; generated configuration contains only the
-OpenCode `{env:...}` reference and never the key. LiteLLM's master key or a
-properly scoped virtual key may be used according to the operator's policy.
+Central installation asks for a LiteLLM client key and stores it in the protected
+LLM Glue server sidecar. The server embeds that key in authenticated OpenCode
+artifacts by default, so remote clients need only the LLM Glue server URL and
+read token. LiteLLM's master key or a properly scoped virtual key may be used.
+Set `server.embed_opencode_inference_api_key = false` to opt out; every
+OpenCode/Paseo process must then receive `LLM_GLUE_INFERENCE_API_KEY`.
 
 On Windows, a new service installation defaults to
 `%ProgramData%\LLMGlue`, keeping the executable, sidecar, state, and logs in a
@@ -49,19 +50,21 @@ when intentionally migrating. Existing `.conf` or `.toml` sidecars are validated
 and preserved without creating a competing filename.
 
 Headless PowerShell installs use `-NonInteractive` with the corresponding named
-parameters, including optional `-InferenceApiKey` for a remote OpenCode client.
-Interactive remote-client installation requests that inference key with a
-non-echoed optional prompt. When supplied, the installer persists
-`LLM_GLUE_INFERENCE_API_KEY` in the current Windows user's environment and never
-writes it into generated configuration; blank input preserves any existing user
-value. Restart OpenCode/Paseo afterward so it inherits the updated environment.
+parameters. `central-llama` requires `-InferenceApiKey` by default; use
+`-DoNotEmbedInferenceApiKey` only for separately provisioned client environments.
+The ordinary `remote-client` flow asks only for the LLM Glue URL and read token.
+For compatibility with an opt-out server, explicitly passing `-InferenceApiKey`
+still persists `LLM_GLUE_INFERENCE_API_KEY` for the current Windows user; restart
+OpenCode/Paseo afterward so it inherits the value.
 Headless Linux installs set `LLM_GLUE_NONINTERACTIVE=1`,
 `LLM_GLUE_MODE`, and applicable variables: `LLM_GLUE_SERVER_URL`,
 `LLM_GLUE_SERVER_TOKEN`, `LLM_GLUE_OLLAMA_URL`, `LLM_GLUE_LLAMA_URL`,
 `LLM_GLUE_LISTEN_URL`, `LLM_GLUE_READ_TOKEN`, `LLM_GLUE_WRITE_TOKEN`,
 `LLM_GLUE_MODEL_DIRECTORY`, `LLM_GLUE_OPENCODE_PATH`, the
 `LLM_GLUE_LITELLM_*` URL/paths/service/health settings, and
-`LLM_GLUE_INSTALL_SERVICE`. `LLM_GLUE_INSTALL_DIR` and
+`LLM_GLUE_INSTALL_SERVICE`. Central mode uses `LLM_GLUE_INFERENCE_API_KEY`; set
+`LLM_GLUE_EMBED_INFERENCE_API_KEY=0` for the environment-reference opt-out.
+`LLM_GLUE_INSTALL_DIR` and
 `LLM_GLUE_CONFIG_PATH` override destinations. Linux service installs otherwise
 use `/opt/llm-glue` and `/etc/llm-glue.conf`; foreground installs remain
 user-writable.
@@ -77,6 +80,13 @@ fixed identity read access. Never configure both literal and environment forms
 for one credential. Selecting service installation in either bootstrap registers,
 enables, and starts the service; initial target synchronization normally occurs
 within seconds and no later than the configured client polling interval.
+
+Before upgrading an older central installation, add either
+`opencode_inference_api_key = "..."` or
+`opencode_inference_api_key_environment = "..."` under `[server]`. To preserve
+the former behavior instead, add `embed_opencode_inference_api_key = false`.
+Bootstrap upgrades preserve existing configuration and never insert or rotate
+this credential automatically.
 
 Then run:
 

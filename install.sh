@@ -6,6 +6,8 @@ install_service="${LLM_GLUE_INSTALL_SERVICE:-0}"
 mode="${LLM_GLUE_MODE:-remote-client}"
 server_url="${LLM_GLUE_SERVER_URL:-https://replace-with-your-server}"
 server_token="${LLM_GLUE_SERVER_TOKEN:-}"
+inference_api_key="${LLM_GLUE_INFERENCE_API_KEY:-}"
+embed_inference_api_key="${LLM_GLUE_EMBED_INFERENCE_API_KEY:-1}"
 read_token="${LLM_GLUE_READ_TOKEN:-}"
 write_token="${LLM_GLUE_WRITE_TOKEN:-}"
 listen_url="${LLM_GLUE_LISTEN_URL:-http://0.0.0.0:8765}"
@@ -80,6 +82,7 @@ if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
       litellm_generated="$(prompt 'LLM Glue LiteLLM include path' "$litellm_generated")"
       litellm_service="$(prompt 'LiteLLM systemd service' "$litellm_service")"
       litellm_url="$(prompt 'Externally reachable LiteLLM URL for OpenCode clients' "$litellm_url")"
+      if [[ "$embed_inference_api_key" == 1 ]]; then inference_api_key="$(prompt_secret 'LiteLLM API key to embed in authenticated OpenCode artifacts')"; fi
       litellm_health="$(prompt 'LiteLLM health URL' "$litellm_health")"
       ;;
     *) echo 'invalid installation mode' >&2; exit 2 ;;
@@ -104,6 +107,11 @@ if [[ "$mode" == central-llama && ( -z "$read_token" || -z "$write_token" ) ]]; 
 fi
 if [[ "$mode" == central-llama && "$litellm_url" == http://replace-with-your-litellm:4000 ]]; then
   echo 'central-llama requires LLM_GLUE_LITELLM_URL reachable by remote OpenCode clients.' >&2
+  exit 2
+fi
+[[ "$embed_inference_api_key" == 0 || "$embed_inference_api_key" == 1 ]] || { echo 'LLM_GLUE_EMBED_INFERENCE_API_KEY must be 0 or 1.' >&2; exit 2; }
+if [[ "$mode" == central-llama && "$embed_inference_api_key" == 1 && -z "$inference_api_key" ]]; then
+  echo 'central-llama requires LLM_GLUE_INFERENCE_API_KEY by default. Set LLM_GLUE_EMBED_INFERENCE_API_KEY=0 only when every OpenCode process receives that environment variable separately.' >&2
   exit 2
 fi
 
@@ -139,7 +147,11 @@ elif [[ "$mode" == standalone-ollama ]]; then
 else
   [[ "$listen_url" =~ :([0-9]+)(/.*)?$ ]] || { echo 'LLM_GLUE_LISTEN_URL must include an explicit port' >&2; exit 2; }
   local_source="http://127.0.0.1:${BASH_REMATCH[1]}"
-  printf '%s\n' '[roles]' 'agent = true' 'server = true' 'client = true' '' '[[agent.providers]]' 'name = "local-llama"' 'type = "llama.cpp"' "url = \"$(toml_escape "$llama_url")\"" "model_directories = [\"$(toml_escape "$model_directory")\"]" 'inspect_gguf = true' 'hash_model_files = false' 'probe_mode = "loaded-only"' '' '[server]' "listen = \"$(toml_escape "$listen_url")\"" "opencode_inference_url = \"$(toml_escape "$litellm_url")\"" "read_token = \"$(toml_escape "$read_token")\"" "write_token = \"$(toml_escape "$write_token")\"" 'acknowledge_insecure_remote_http = true' 'state_directory = "/var/lib/llm-glue"' '' '[client]' "source = \"$local_source\"" "token = \"$(toml_escape "$read_token")\"" '' '[[client.targets]]' 'type = "litellm"' "path = \"$(toml_escape "$litellm_generated")\"" "primary_config_path = \"$(toml_escape "$litellm_primary")\"" "service_name = \"$(toml_escape "$litellm_service")\"" "health_url = \"$(toml_escape "$litellm_health")\"" '' '[logging]' 'file = "/var/log/llm-glue/llm-glue.log"' > "$candidate"
+  {
+    printf '%s\n' '[roles]' 'agent = true' 'server = true' 'client = true' '' '[[agent.providers]]' 'name = "local-llama"' 'type = "llama.cpp"' "url = \"$(toml_escape "$llama_url")\"" "model_directories = [\"$(toml_escape "$model_directory")\"]" 'inspect_gguf = true' 'hash_model_files = false' 'probe_mode = "loaded-only"' '' '[server]' "listen = \"$(toml_escape "$listen_url")\"" "opencode_inference_url = \"$(toml_escape "$litellm_url")\""
+    if [[ "$embed_inference_api_key" == 1 ]]; then printf 'embed_opencode_inference_api_key = true\nopencode_inference_api_key = "%s"\n' "$(toml_escape "$inference_api_key")"; else printf '%s\n' 'embed_opencode_inference_api_key = false'; fi
+    printf '%s\n' "read_token = \"$(toml_escape "$read_token")\"" "write_token = \"$(toml_escape "$write_token")\"" 'acknowledge_insecure_remote_http = true' 'state_directory = "/var/lib/llm-glue"' '' '[client]' "source = \"$local_source\"" "token = \"$(toml_escape "$read_token")\"" '' '[[client.targets]]' 'type = "litellm"' "path = \"$(toml_escape "$litellm_generated")\"" "primary_config_path = \"$(toml_escape "$litellm_primary")\"" "service_name = \"$(toml_escape "$litellm_service")\"" "health_url = \"$(toml_escape "$litellm_health")\"" '' '[logging]' 'file = "/var/log/llm-glue/llm-glue.log"'
+  } > "$candidate"
 fi
 chmod 0600 "$candidate"
 "$staged" config validate --config "$candidate"

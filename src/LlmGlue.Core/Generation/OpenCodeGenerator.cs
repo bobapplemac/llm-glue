@@ -6,7 +6,10 @@ using LlmGlue.Core.Domain;
 
 namespace LlmGlue.Core.Generation;
 
-public sealed class OpenCodeGenerator(Uri? inferenceBaseUrl = null) : IConfigurationGenerator
+public sealed class OpenCodeGenerator(
+    Uri? inferenceBaseUrl = null,
+    string? inferenceApiKey = null,
+    bool embedInferenceApiKey = true) : IConfigurationGenerator
 {
     public const string InferenceApiKeyEnvironment = "LLM_GLUE_INFERENCE_API_KEY";
     public string TargetType => "opencode";
@@ -14,6 +17,8 @@ public sealed class OpenCodeGenerator(Uri? inferenceBaseUrl = null) : IConfigura
     public ValueTask<GeneratedArtifact> GenerateAsync(DiscoverySnapshot snapshot, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (inferenceBaseUrl is not null && embedInferenceApiKey && string.IsNullOrEmpty(inferenceApiKey))
+            throw new InvalidOperationException("An inference API key is required when embedded OpenCode credentials are enabled.");
         var providers = new JsonObject();
         var deployments = GenerationHelpers.Publishable(snapshot).ToArray();
         foreach (var group in deployments.GroupBy(x => new { x.Identity.ProviderId, x.Identity.InstanceId, x.Identity.SourceEndpoint }).OrderBy(x => x.Key.ProviderId, StringComparer.Ordinal).ThenBy(x => x.Key.InstanceId, StringComparer.Ordinal))
@@ -24,7 +29,8 @@ public sealed class OpenCodeGenerator(Uri? inferenceBaseUrl = null) : IConfigura
             var endpoint = (inferenceBaseUrl?.AbsoluteUri ?? group.Key.SourceEndpoint!).TrimEnd('/');
             if (!endpoint.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)) endpoint += "/v1";
             var settings = new JsonObject { ["baseURL"] = endpoint };
-            if (inferenceBaseUrl is not null) settings["apiKey"] = $"{{env:{InferenceApiKeyEnvironment}}}";
+            if (inferenceBaseUrl is not null)
+                settings["apiKey"] = embedInferenceApiKey ? inferenceApiKey : $"{{env:{InferenceApiKeyEnvironment}}}";
             var provider = new JsonObject
             {
                 ["name"] = $"LLM Glue {group.Key.InstanceId}",
@@ -32,7 +38,7 @@ public sealed class OpenCodeGenerator(Uri? inferenceBaseUrl = null) : IConfigura
                 ["settings"] = settings,
                 ["models"] = models
             };
-            if (inferenceBaseUrl is not null) provider["env"] = new JsonArray(InferenceApiKeyEnvironment);
+            if (inferenceBaseUrl is not null && !embedInferenceApiKey) provider["env"] = new JsonArray(InferenceApiKeyEnvironment);
             providers[GenerationHelpers.Slug("llm-glue", group.Key.ProviderId, group.Key.InstanceId)] = provider;
         }
         var root = new JsonObject { ["$schema"] = "https://opencode.ai/config.json", ["providers"] = providers };

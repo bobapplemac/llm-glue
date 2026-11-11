@@ -23,6 +23,7 @@ public sealed class ConfigurationTests
             [server]
             listen = "http://127.0.0.1:8765"
             opencode_inference_url = "https://litellm.example.test"
+            opencode_inference_api_key = "test-key"
 
             [client]
             source = "http://127.0.0.1:8765"
@@ -46,6 +47,8 @@ public sealed class ConfigurationTests
             Assert.Equal("state", options.Server.StateDirectory);
             Assert.Equal(5, options.Server.ArtifactRetention);
             Assert.Equal(new Uri("https://litellm.example.test"), options.Server.OpenCodeInferenceUrl);
+            Assert.True(options.Server.EmbedOpenCodeInferenceApiKey);
+            Assert.Equal("test-key", options.Server.OpenCodeInferenceApiKey);
         }
         finally { File.Delete(path); }
     }
@@ -83,6 +86,44 @@ public sealed class ConfigurationTests
             service_name = "litellm.service"
             """);
         try { Assert.Contains("opencode_inference_url", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void RejectsCentralInferenceRouteWithoutDefaultEmbeddedCredentialSource()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = false
+            server = true
+            client = false
+            [server]
+            listen = "http://127.0.0.1:8765"
+            opencode_inference_url = "https://litellm.example.test"
+            """);
+        try { Assert.Contains("Default embedded OpenCode credentials", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void LoadsExplicitClientEnvironmentCredentialModeWithoutServerSecret()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = false
+            server = true
+            client = false
+            [server]
+            listen = "http://127.0.0.1:8765"
+            opencode_inference_url = "https://litellm.example.test"
+            embed_opencode_inference_api_key = false
+            """);
+        try
+        {
+            var options = TomlConfigLoader.Load(path);
+            Assert.False(options.Server.EmbedOpenCodeInferenceApiKey);
+            Assert.Null(options.Server.OpenCodeInferenceApiKey);
+        }
         finally { File.Delete(path); }
     }
 
@@ -142,6 +183,7 @@ public sealed class ConfigurationTests
             [server]
             listen = "http://127.0.0.1:8765"
             opencode_inference_url = "http://127.0.0.1:4000"
+            opencode_inference_api_key = "test-key"
             [client]
             source = "http://127.0.0.1:8765"
             [[client.targets]]

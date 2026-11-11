@@ -29,7 +29,7 @@ try {
     $installer = Join-Path $root 'install.ps1'
     $installerSource = Get-Content -LiteralPath $installer -Raw
     if ($installerSource -notmatch '(?s)service install --config \$config.*service start --config \$config') { throw 'Windows service bootstrap does not install and start in sequence.' }
-    if ($installerSource -notmatch "SetEnvironmentVariable\('LLM_GLUE_INFERENCE_API_KEY', \`$InferenceApiKey, 'User'\)") { throw 'Windows remote-client bootstrap does not persist the optional inference key for the current user.' }
+    if ($installerSource -match "LiteLLM inference API key for OpenCode/Paseo") { throw 'Windows remote-client bootstrap still prompts for a separately provisioned inference key.' }
     if ($installerSource -match "\[string\]\`$InstallDirectory\s*=\s*\(Join-Path\s+\`$env:LOCALAPPDATA") { throw 'Windows bootstrap still hard-codes the per-user install directory as its parameter default.' }
     if ($installerSource -notmatch "(?s)if \(\`$InstallService\).*?Join-Path \`$env:ProgramData 'LLMGlue'") { throw 'Windows service bootstrap does not default new installations to ProgramData.' }
     if ($installerSource -notmatch "(?s)legacyInstallationExists.*?Preserving existing per-user service installation") { throw 'Windows bootstrap does not preserve an existing legacy per-user service installation.' }
@@ -60,11 +60,12 @@ try {
     if (-not (Select-String -Quiet -SimpleMatch '[[agent.providers]]' (Join-Path $standalone 'llm-glue.conf'))) { throw 'Standalone provider was not generated.' }
 
     $central = Join-Path $temporary 'central'
-    & $installer -NonInteractive -Mode central-llama -InstallDirectory $central -ReadToken test-read -WriteToken test-write -ListenUrl http://0.0.0.0:9876 -LiteLlmUrl http://litellm.test:4000 -ModelDirectory (Join-Path $temporary 'models') -LiteLlmGeneratedPath (Join-Path $temporary 'generated.yaml') -LiteLlmPrimaryPath (Join-Path $temporary 'litellm.yaml')
+    & $installer -NonInteractive -Mode central-llama -InstallDirectory $central -ReadToken test-read -WriteToken test-write -InferenceApiKey test-inference -ListenUrl http://0.0.0.0:9876 -LiteLlmUrl http://litellm.test:4000 -ModelDirectory (Join-Path $temporary 'models') -LiteLlmGeneratedPath (Join-Path $temporary 'generated.yaml') -LiteLlmPrimaryPath (Join-Path $temporary 'litellm.yaml')
     & (Join-Path $central 'llm-glue.exe') config validate --config (Join-Path $central 'llm-glue.conf')
     if (-not (Select-String -Quiet -SimpleMatch 'source = "http://127.0.0.1:9876"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central loopback source did not follow the listen port.' }
     if (-not (Select-String -Quiet -SimpleMatch 'type = "litellm"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central LiteLLM target was not generated.' }
     if (-not (Select-String -Quiet -SimpleMatch 'opencode_inference_url = "http://litellm.test:4000"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central OpenCode route does not use LiteLLM.' }
+    if (-not (Select-String -Quiet -SimpleMatch 'opencode_inference_api_key = "test-inference"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central server did not receive the inference key for authenticated artifact embedding.' }
     Write-Host 'PowerShell bootstrap configuration matrix passed.'
 } finally {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }

@@ -128,7 +128,7 @@ else
 
 static void AddServer(IServiceCollection services, GlueOptions options)
 {
-    services.AddSingleton<IConfigurationGenerator>(_ => new OpenCodeGenerator(options.Server.OpenCodeInferenceUrl));
+    services.AddSingleton<IConfigurationGenerator>(_ => CreateOpenCodeGenerator(options));
     services.AddSingleton<IConfigurationGenerator>(_ => new LiteLlmGenerator());
     services.AddSingleton(new ArtifactStore(options.Server.ArtifactRetention));
     services.AddSingleton(new CatalogStateRepository(ResolveConfigPath(options, options.Server.StateDirectory), options.Server.ArtifactRetention));
@@ -142,6 +142,13 @@ static void AddServer(IServiceCollection services, GlueOptions options)
         ResolveSecret(options.Server.WriteToken, options.Server.WriteTokenEnvironment, "Server write token"),
         options.Server.Listen.IsLoopback));
 }
+
+static OpenCodeGenerator CreateOpenCodeGenerator(GlueOptions options) => new(
+    options.Server.OpenCodeInferenceUrl,
+    options.Server.EmbedOpenCodeInferenceApiKey
+        ? ResolveSecret(options.Server.OpenCodeInferenceApiKey, options.Server.OpenCodeInferenceApiKeyEnvironment, "OpenCode inference API key")
+        : null,
+    options.Server.EmbedOpenCodeInferenceApiKey);
 
 static void AddAgent(IServiceCollection services, GlueOptions options)
 {

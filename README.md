@@ -79,6 +79,10 @@ llama.cpp/LiteLLM host. They validate the candidate sidecar before installation,
 preserve an existing sidecar, and retain the previous executable for rollback.
 Central mode requires a LiteLLM URL reachable by OpenCode clients so generated
 catalogs follow the required OpenCode → LiteLLM → llama.cpp path.
+Remote OpenCode clients normally need only that server URL and the LLM Glue read
+token. The central server embeds its configured LiteLLM key in the authenticated
+OpenCode artifact by default; operators can opt out and provision
+`LLM_GLUE_INFERENCE_API_KEY` to every OpenCode process instead.
 See [installation](docs/installation.md) before using the network-pipe form.
 
 OpenCode destination scope is explicit: configure the system file for a global
@@ -108,6 +112,9 @@ retain diagnostic visibility while omitting matches from generated catalogs.
 The HTTP server defaults to loopback. Bearer authentication is mandatory on
 non-loopback listeners, and bare remote HTTP requires an explicit insecure
 transport acknowledgement because bearer tokens do not provide encryption.
-Generated artifacts never embed provider credentials.
+LiteLLM artifacts never embed provider credentials. Authenticated OpenCode
+artifacts intentionally carry the LiteLLM client key by default for single-token
+client provisioning, so protect the LLM Glue read token, transport, server state,
+and installed OpenCode JSONC accordingly.
 
 Copyright and licensing are provided under the repository's MIT license.

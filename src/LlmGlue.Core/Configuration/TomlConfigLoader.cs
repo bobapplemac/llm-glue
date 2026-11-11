@@ -41,11 +41,14 @@ public static class TomlConfigLoader
             PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");
-        CheckKeys(server, "server", "listen", "opencode_inference_url", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
+        CheckKeys(server, "server", "listen", "opencode_inference_url", "embed_opencode_inference_api_key", "opencode_inference_api_key_environment", "opencode_inference_api_key", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
         var openCodeInferenceUrl = OptionalString(server, "opencode_inference_url");
         var serverOptions = new ServerOptions(
             AbsoluteUri(String(server, "listen", "http://127.0.0.1:8765"), "server.listen"),
             openCodeInferenceUrl is null ? null : HttpUri(openCodeInferenceUrl, "server.opencode_inference_url"),
+            Bool(server, "embed_opencode_inference_api_key", true),
+            OptionalString(server, "opencode_inference_api_key_environment"),
+            OptionalString(server, "opencode_inference_api_key"),
             OptionalString(server, "read_token_environment"), OptionalString(server, "write_token_environment"),
             OptionalString(server, "read_token"), OptionalString(server, "write_token"),
             Bool(server, "acknowledge_insecure_remote_http", false),
@@ -77,9 +80,11 @@ public static class TomlConfigLoader
         if (roleOptions.Agent && !roleOptions.Server && agentOptions.SubmitTo is null)
             throw new ConfigurationException("Agent-only role requires agent.submit_to.");
         ValidateSecretChoice("agent write token", agentOptions.WriteTokenEnvironment, agentOptions.WriteToken);
+        ValidateSecretChoice("OpenCode inference API key", serverOptions.OpenCodeInferenceApiKeyEnvironment, serverOptions.OpenCodeInferenceApiKey);
         ValidateSecretChoice("server read token", serverOptions.ReadTokenEnvironment, serverOptions.ReadToken);
         ValidateSecretChoice("server write token", serverOptions.WriteTokenEnvironment, serverOptions.WriteToken);
         ValidateSecretChoice("client token", tokenEnvironment, token);
+        ValidateOpenCodeInferenceSecret(serverOptions);
         if (agentOptions.SubmitTo is not null && !agentOptions.SubmitTo.IsLoopback && agentOptions.WriteTokenEnvironment is null && agentOptions.WriteToken is null)
             throw new ConfigurationException("Remote agent.submit_to requires agent.write_token_environment or a protected agent.write_token.");
         if (roleOptions.Server && agentOptions.SubmitTo is not null)
@@ -92,6 +97,17 @@ public static class TomlConfigLoader
 
         return new GlueOptions(roleOptions, agentOptions, serverOptions,
             new ClientOptions(sourceUri, tokenEnvironment, token, PositiveInt(client, "poll_interval_seconds", 30), targets), loggingOptions, fullPath, baseDirectory);
+    }
+
+    private static void ValidateOpenCodeInferenceSecret(ServerOptions server)
+    {
+        var hasSecretSource = server.OpenCodeInferenceApiKeyEnvironment is not null || server.OpenCodeInferenceApiKey is not null;
+        if (server.OpenCodeInferenceUrl is null && hasSecretSource)
+            throw new ConfigurationException("OpenCode inference API key settings require server.opencode_inference_url.");
+        if (server.OpenCodeInferenceUrl is not null && server.EmbedOpenCodeInferenceApiKey && !hasSecretSource)
+            throw new ConfigurationException("Default embedded OpenCode credentials require server.opencode_inference_api_key or server.opencode_inference_api_key_environment. Set embed_opencode_inference_api_key = false only when every OpenCode process receives LLM_GLUE_INFERENCE_API_KEY separately.");
+        if (!server.EmbedOpenCodeInferenceApiKey && hasSecretSource)
+            throw new ConfigurationException("OpenCode inference API key settings cannot be combined with embed_opencode_inference_api_key = false; clients must provide LLM_GLUE_INFERENCE_API_KEY in that mode.");
     }
 
     private static void ValidateUniqueTargetPaths(IReadOnlyList<TargetOptions> targets, string baseDirectory)

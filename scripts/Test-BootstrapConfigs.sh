@@ -34,10 +34,11 @@ run_mode remote-client env LLM_GLUE_SERVER_URL=https://changed.example LLM_GLUE_
 run_mode standalone-ollama env LLM_GLUE_OLLAMA_URL=http://127.0.0.1:11434 LLM_GLUE_OPENCODE_PATH="$tmp/opencode.json"
 grep -Fq '[[agent.providers]]' "$tmp/standalone-ollama/llm-glue.conf"
 
-run_mode central-llama env LLM_GLUE_READ_TOKEN=test-read LLM_GLUE_WRITE_TOKEN=test-write LLM_GLUE_LISTEN_URL=http://0.0.0.0:9876 LLM_GLUE_LITELLM_URL=http://litellm.test:4000 LLM_GLUE_MODEL_DIRECTORY="$tmp/models" LLM_GLUE_LITELLM_GENERATED="$tmp/generated.yaml" LLM_GLUE_LITELLM_PRIMARY="$tmp/litellm.yaml"
+run_mode central-llama env LLM_GLUE_READ_TOKEN=test-read LLM_GLUE_WRITE_TOKEN=test-write LLM_GLUE_INFERENCE_API_KEY=test-inference LLM_GLUE_LISTEN_URL=http://0.0.0.0:9876 LLM_GLUE_LITELLM_URL=http://litellm.test:4000 LLM_GLUE_MODEL_DIRECTORY="$tmp/models" LLM_GLUE_LITELLM_GENERATED="$tmp/generated.yaml" LLM_GLUE_LITELLM_PRIMARY="$tmp/litellm.yaml"
 grep -Fq 'source = "http://127.0.0.1:9876"' "$tmp/central-llama/llm-glue.conf"
 grep -Fq 'type = "litellm"' "$tmp/central-llama/llm-glue.conf"
 grep -Fq 'opencode_inference_url = "http://litellm.test:4000"' "$tmp/central-llama/llm-glue.conf"
+grep -Fq 'opencode_inference_api_key = "test-inference"' "$tmp/central-llama/llm-glue.conf"
 
 cp -- "$tmp/release/SHA256SUMS" "$tmp/release/SHA256SUMS.valid"
 sed -E 's/^[0-9a-f]{64}/0000000000000000000000000000000000000000000000000000000000000000/' "$tmp/release/SHA256SUMS.valid" > "$tmp/release/SHA256SUMS"

@@ -1,6 +1,6 @@
 # ADR 0005: Central OpenCode traffic routes through LiteLLM
 
-Status: accepted, 2026-11-11
+Status: accepted, 2026-11-11; credential-delivery portion superseded by ADR 0017
 
 ## Context
 
@@ -29,6 +29,10 @@ authentication. The generated artifact discloses only the fixed environment
 variable name, never the credential. The provider also declares that variable in
 its `env` list; live OpenCode 2.2.7 execution showed this metadata is required for
 the custom provider to be considered routable.
+
+ADR 0017 later changed the default to a literal key in the authenticated
+OpenCode artifact for single-token client provisioning. This environment form
+remains the explicit server opt-out.
 
 ## Consequences
 

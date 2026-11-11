@@ -6,11 +6,8 @@
       "package": "@opencode/ai/providers/openai-compatible",
       "settings": {
         "baseURL": "https://litellm.example.test/v1",
-        "apiKey": "{env:LLM_GLUE_INFERENCE_API_KEY}"
+        "apiKey": "test-inference-key"
       },
-      "env": [
-        "LLM_GLUE_INFERENCE_API_KEY"
-      ],
       "models": {
         "qwen-model": {
           "modelID": "llama-cpp-lab-qwen-model",

@@ -41,7 +41,7 @@ public sealed class GenerationTests
     [Fact]
     public async Task CentralOpenCodeArtifactRoutesStableAliasThroughLiteLlm()
     {
-        var artifact = await new OpenCodeGenerator(new Uri("https://litellm.example.test"))
+        var artifact = await new OpenCodeGenerator(new Uri("https://litellm.example.test"), "test-inference-key")
             .GenerateAsync(Snapshot(), TestContext.Current.CancellationToken);
         ArtifactValidator.Validate(artifact);
         using var json = JsonDocument.Parse(artifact.Content);
@@ -49,8 +49,8 @@ public sealed class GenerationTests
         Assert.True(JsonElement.DeepEquals(expected.RootElement, json.RootElement));
         var provider = json.RootElement.GetProperty("providers").GetProperty("llm-glue-llama-cpp-lab");
         Assert.Equal("https://litellm.example.test/v1", provider.GetProperty("settings").GetProperty("baseURL").GetString());
-        Assert.Equal("{env:LLM_GLUE_INFERENCE_API_KEY}", provider.GetProperty("settings").GetProperty("apiKey").GetString());
-        Assert.Equal("LLM_GLUE_INFERENCE_API_KEY", provider.GetProperty("env")[0].GetString());
+        Assert.Equal("test-inference-key", provider.GetProperty("settings").GetProperty("apiKey").GetString());
+        Assert.False(provider.TryGetProperty("env", out _));
         Assert.Equal("llama-cpp-lab-qwen-model", provider.GetProperty("models").GetProperty("qwen-model").GetProperty("modelID").GetString());
         Assert.DoesNotContain("integration-secret", Encoding.UTF8.GetString(artifact.Content), StringComparison.Ordinal);
     }
@@ -72,9 +72,20 @@ public sealed class GenerationTests
         using var directJson = JsonDocument.Parse(direct.Content);
         Assert.Equal("ollama", Assert.Single(directJson.RootElement.GetProperty("disabled_providers").EnumerateArray()).GetString());
 
-        var central = await new OpenCodeGenerator(new Uri("https://litellm.example.test")).GenerateAsync(snapshot, TestContext.Current.CancellationToken);
+        var central = await new OpenCodeGenerator(new Uri("https://litellm.example.test"), "test-inference-key").GenerateAsync(snapshot, TestContext.Current.CancellationToken);
         using var centralJson = JsonDocument.Parse(central.Content);
         Assert.False(centralJson.RootElement.TryGetProperty("disabled_providers", out _));
+    }
+
+    [Fact]
+    public async Task CentralOpenCodeArtifactCanUseClientEnvironmentWhenEmbeddingIsDisabled()
+    {
+        var artifact = await new OpenCodeGenerator(new Uri("https://litellm.example.test"), embedInferenceApiKey: false)
+            .GenerateAsync(Snapshot(), TestContext.Current.CancellationToken);
+        using var json = JsonDocument.Parse(artifact.Content);
+        var provider = json.RootElement.GetProperty("providers").GetProperty("llm-glue-llama-cpp-lab");
+        Assert.Equal("{env:LLM_GLUE_INFERENCE_API_KEY}", provider.GetProperty("settings").GetProperty("apiKey").GetString());
+        Assert.Equal("LLM_GLUE_INFERENCE_API_KEY", provider.GetProperty("env")[0].GetString());
     }
 
     [Fact]

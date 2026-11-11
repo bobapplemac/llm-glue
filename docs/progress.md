@@ -1,5 +1,26 @@
 # Progress
 
+## Post-r4 authenticated OpenCode credential provisioning
+
+- Central servers now embed their configured LiteLLM client key in authenticated
+  OpenCode artifacts by default. `opencode_inference_api_key` and its environment
+  source form are mutually exclusive; a central configuration fails closed when
+  default embedding has no available source.
+- `embed_opencode_inference_api_key = false` preserves the prior
+  `{env:LLM_GLUE_INFERENCE_API_KEY}` behavior. LiteLLM artifacts and diagnostic
+  surfaces remain credential-free.
+- Remote-client bootstrap now asks only for the LLM Glue URL/read token. Central
+  bootstrap collects the LiteLLM key, and both platform matrices cover generated
+  configuration. Existing server sidecars are preserved and require an explicit
+  source or opt-out before upgrading.
+- ADR 0017, the specification, architecture, installation, compatibility,
+  security, README, examples, and agent guidance describe the new trust boundary.
+- Verification: `dotnet build` completed with zero warnings/errors; all 134 .NET
+  tests passed. Fresh r0 self-contained Windows and Linux binaries passed their
+  mocked-release bootstrap matrices, including candidate config validation,
+  central key embedding, remote-client single-token setup, existing-sidecar
+  preservation, and checksum rejection.
+
 Last updated: 2026-11-11
 
 The requirement-level gate audit is maintained in `docs/completion-audit.md`.

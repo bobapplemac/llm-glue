@@ -42,6 +42,9 @@ public sealed record ModelPathMapping(string ProviderPrefix, string LocalDirecto
 public sealed record ServerOptions(
     Uri Listen,
     Uri? OpenCodeInferenceUrl,
+    bool EmbedOpenCodeInferenceApiKey,
+    string? OpenCodeInferenceApiKeyEnvironment,
+    string? OpenCodeInferenceApiKey,
     string? ReadTokenEnvironment,
     string? WriteTokenEnvironment,
     string? ReadToken,

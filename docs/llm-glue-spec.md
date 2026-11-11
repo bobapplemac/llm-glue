@@ -59,7 +59,7 @@ All three capabilities are optional and composable, including `agent,server,clie
 8. Clients download only changed artifacts, safely update their locally configured paths and retain a last-known-good copy.
 9. Avoid misrepresenting unsupported or unverified capabilities. In particular, no invented reasoning levels, context size or sampling values.
 10. Recover from outages, partial writes, invalid configs, stale discovery and reload failures without deleting functional configuration.
-11. Do not expose secrets through generated artifacts or diagnostic logs.
+11. Do not expose secrets through diagnostic logs or unauthenticated endpoints. Authenticated OpenCode artifacts embed the configured LiteLLM client key by default for single-token client provisioning; LiteLLM artifacts remain credential-free and a server opt-out restores client environment substitution.
 12. Support existing OpenCode/Paseo user settings without clobbering unrelated configuration.
 13. Be relocatable: executable and its single sidecar configuration may be moved together to any writable directory without reinstalling program dependencies or relying on a canonical application directory.
 14. Support self-installation and uninstallation of the Windows service or systemd unit, plus foreground long-running console mode and ordinary CLI commands.
@@ -154,6 +154,7 @@ Model names alone are unreliable identification; match publisher/revision/family
 ### 6.1 OpenCode
 
 - Generate schema-valid OpenCode JSON/JSONC according to the installed OpenCode version, including provider settings, model IDs, capabilities/limits and accurate named variants.
+- For central LiteLLM routing, embed the configured LiteLLM client key in the authenticated OpenCode artifact by default so remote clients need only their LLM Glue read token. Provide a server-side opt-out that emits `{env:LLM_GLUE_INFERENCE_API_KEY}` instead. Never include the key in logs, diagnostics, inventory/status responses, or LiteLLM artifacts.
 - Preserve thinking On/Off, reasoning effort/budget and model-family recommended sampling where supported by the backend and request path.
 - Distinguish model request parameters from runtime/server settings (GPU layers, KV cache, MTP are not interchangeable with OpenCode variants).
 - Support remote LiteLLM models and local direct Ollama with deterministic provider namespaces; detect and report collisions.
@@ -306,9 +307,9 @@ Ship self-contained, single-file publishes for `linux-x64` and `win-x64` where .
 - Separate read-only discovery credentials from artifact download and Agent inventory publication permissions. Prepare an authorization boundary for v2 management, but do not expose remote execution endpoints in v1.
 - **Approved v1 authentication policy:** API bearer-token authentication is **mandatory for non-loopback connections**, including remote Agent submission and remote Client artifact download. Authentication is optional only for loopback-only deployments. Determine endpoint permissions by role: remote read operations must be authenticated; inventory submissions need separate write authorization. Reject missing/invalid tokens with a non-leaking response, support token rotation, and never log tokens. Prevent proxy/header misconfiguration from accidentally treating non-loopback requests as loopback. A reverse proxy does not remove the server's remote authentication requirement by default.
 - Keep API token material in one sidecar file only if file permissions can protect it; prefer references to environment variables or OS credential stores when appropriate. Password encryption at rest is not intrinsically useful if the decryption key is shipped beside the config. Document the threat model before selecting optional encryption.
-- Use file permissions on configs and generated artifacts; do not embed provider credentials in downloaded client configurations.
+- Use restrictive file permissions on server configs/state and generated targets. Authenticated OpenCode configuration intentionally embeds the LiteLLM client credential by default; document that the LLM Glue read token protects access to it and support a client-environment opt-out.
 - Agent-side exclusion patterns operate before export or remote submission and support exact model names plus documented `*`/`?` matching. Server-side exclusion rules operate by exact model ID, display name and provider-qualified ID, with an explicit wildcard model-pattern field. Default is no exclusions. Agent-hidden models do not leave the host; server-hidden models remain visible in operator diagnostics with their exclusion reason, but not in published client catalogs. Never delete underlying model files as a result of an exclusion.
-- Do not expose raw model files, arbitrary filesystem paths, environment variables or provider API keys through HTTP. Generated client config references secrets through supported environment substitution.
+- Do not expose raw model files, arbitrary filesystem paths, environment variables or provider API keys through diagnostics or unauthenticated HTTP. The authenticated OpenCode artifact is the sole v1 exception for its configured LiteLLM client key; opt-out mode references it through supported environment substitution.
 - Validate requests, limit payload sizes, prevent path traversal, sanitize logs and redact secrets.
 - No arbitrary process execution from remote requests. Local target activation uses an allowlisted adapter and explicit configured service identity.
 - Polling is idempotent and interruptible. Use cancellation tokens, timeouts, retry with exponential backoff/jitter, circuit-breaker behavior and stale inventory TTL/grace handling.
@@ -348,7 +349,7 @@ Implement role composition, configuration parsing, model/deployment/capability t
 
 Implement catalog reconciliation, stale/grace states, conflict handling, OpenCode generator, LiteLLM generator, validation, ETags/versioned API and minimal diagnostics.
 
-**Gate:** Golden-file fixtures produce expected OpenCode/LiteLLM configs, no credential leakage; request-body variants are represented correctly; no inappropriate model entries are published.
+**Gate:** Golden-file fixtures produce expected OpenCode/LiteLLM configs; the configured test-only LiteLLM key appears only in an authenticated OpenCode artifact when embedding is enabled and never in LiteLLM output or diagnostics; request-body variants are represented correctly; no inappropriate model entries are published.
 
 ### M3 — Client updater and application targets
 

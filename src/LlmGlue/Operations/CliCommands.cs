@@ -59,6 +59,15 @@ public static class CliCommands
         Console.WriteLine($"Roles: agent={options.Roles.Agent}, server={options.Roles.Server}, client={options.Roles.Client}");
         Console.WriteLine($"Server: {options.Server.Listen}");
         Console.WriteLine($"OpenCode inference route: {(options.Server.OpenCodeInferenceUrl is null ? "direct provider endpoints" : options.Server.OpenCodeInferenceUrl)}");
+        if (options.Server.OpenCodeInferenceUrl is not null)
+        {
+            Console.WriteLine($"OpenCode inference credential delivery: {(options.Server.EmbedOpenCodeInferenceApiKey ? "embedded in authenticated artifact" : $"client environment ({OpenCodeGenerator.InferenceApiKeyEnvironment})")}");
+            if (options.Server.EmbedOpenCodeInferenceApiKey)
+            {
+                Console.WriteLine($"OpenCode inference API key: {SecretStatus(options.Server.OpenCodeInferenceApiKey, options.Server.OpenCodeInferenceApiKeyEnvironment)}");
+                failures += MissingSecret(options.Server.OpenCodeInferenceApiKey, options.Server.OpenCodeInferenceApiKeyEnvironment);
+            }
+        }
         Console.WriteLine($"Server read token: {SecretStatus(options.Server.ReadToken, options.Server.ReadTokenEnvironment)}");
         Console.WriteLine($"Server write token: {SecretStatus(options.Server.WriteToken, options.Server.WriteTokenEnvironment)}");
         failures += MissingSecret(options.Server.ReadToken, options.Server.ReadTokenEnvironment);
@@ -116,13 +125,23 @@ public static class CliCommands
     {
         IConfigurationGenerator generator = target switch
         {
-            "opencode" => new OpenCodeGenerator(options.Server.OpenCodeInferenceUrl),
+            "opencode" => CreateOpenCodeGenerator(options),
             "litellm" => new LiteLlmGenerator(),
             _ => throw new ConfigurationException("config preview target must be opencode or litellm.")
         };
         var artifact = await generator.GenerateAsync(await DiscoverSnapshotAsync(options, cancellationToken), cancellationToken);
         Console.Write(Encoding.UTF8.GetString(artifact.Content));
         return 0;
+    }
+
+    private static OpenCodeGenerator CreateOpenCodeGenerator(GlueOptions options)
+    {
+        var key = options.Server.EmbedOpenCodeInferenceApiKey
+            ? SecretResolver.Resolve(options.Server.OpenCodeInferenceApiKey, options.Server.OpenCodeInferenceApiKeyEnvironment)
+            : null;
+        if (options.Server.EmbedOpenCodeInferenceApiKey && options.Server.OpenCodeInferenceUrl is not null && string.IsNullOrEmpty(key))
+            throw new ConfigurationException("OpenCode inference API key source is configured but unavailable.");
+        return new OpenCodeGenerator(options.Server.OpenCodeInferenceUrl, key, options.Server.EmbedOpenCodeInferenceApiKey);
     }
 
     public static async Task<int> SyncOnceAsync(GlueOptions options, CancellationToken cancellationToken)

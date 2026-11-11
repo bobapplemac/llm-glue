@@ -21,7 +21,10 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
   never remove another controller's provider keys. The default built-in
   `opencode` deny policy follows the same rule: preserve identical operator-owned
   statements and every unrelated policy, and remove only an owned statement.
-- Generated artifacts must be deterministic and must not contain credentials.
+- Generated artifacts must be deterministic. LiteLLM YAML remains credential-free;
+  authenticated OpenCode artifacts embed the configured inference key by default
+  under ADR 0017. Never put real credentials in fixtures, logs, diagnostics, or
+  unauthenticated responses.
 - New Windows service bootstraps default to `%ProgramData%\LLMGlue`; non-service
   installs may remain per-user. Never silently migrate an existing installation
   or shadow an existing `.toml` sidecar with a newly generated `.conf` file.

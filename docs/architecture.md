@@ -94,9 +94,11 @@ same deterministic aliases generated into LiteLLM, while the LiteLLM include
 continues to use each private llama.cpp route. Configuration validation rejects a
 Server/LiteLLM target without this boundary. Standalone Ollama deployments omit
 the setting and continue to publish direct provider routes. Central provider
-settings reference `LLM_GLUE_INFERENCE_API_KEY` through OpenCode's `{env:...}`
-substitution and declare that environment source at provider level so OpenCode
-activates the custom provider; the secret itself never enters an artifact.
+settings embed the resolved LiteLLM client key in the authenticated OpenCode
+artifact by default, so remote clients need only their LLM Glue read token. Set
+`embed_opencode_inference_api_key = false` to restore the
+`{env:LLM_GLUE_INFERENCE_API_KEY}` provider setting and provision that variable
+to every OpenCode process. LiteLLM YAML remains credential-free in either mode.
 Each OpenCode target also defaults to an owned `provider.use` deny policy for the
 built-in `opencode` provider. Ownership schema v3 distinguishes that managed
 statement from identical or unrelated operator policies and migrates v1/v2 state.

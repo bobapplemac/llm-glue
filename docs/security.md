@@ -9,8 +9,14 @@ is inventory submission and read-only catalog/artifact retrieval.
 - Proxy headers never convert a remote peer into loopback. The unauthenticated
   loopback exception applies only when the configured Server listener is itself
   loopback; a non-loopback deployment still authenticates requests arriving from
-  a local TLS proxy. Tokens are fixed-time compared, environment-referenced where
-  practical, and never logged or embedded in generated artifacts.
+  a local TLS proxy. Tokens are fixed-time compared and never logged.
+- Authenticated OpenCode artifacts embed the LiteLLM client key by default so a
+  remote client needs only its LLM Glue read token. Possession of that token can
+  therefore retrieve the inference credential. Protect transport, server state,
+  and installed JSONC permissions, and rotate both tokens after suspected
+  disclosure. An explicit server opt-out uses the client-side
+  `LLM_GLUE_INFERENCE_API_KEY` environment variable instead. LiteLLM artifacts,
+  diagnostics, inventory, status, health, and logs never contain the key.
 - Agent-only hosts use the write credential only for canonical inventory POSTs;
   read credentials cannot authorize submission. Exact server exclusions affect
   publication only and never issue provider or filesystem operations.
@@ -43,11 +49,13 @@ is inventory submission and read-only catalog/artifact retrieval.
   generated sidecars receive owner-only Linux mode or a restricted Windows ACL.
   Existing sidecars are validated and preserved.
 
-Tokens over bare HTTP are visible to a network observer. File permissions—not
-reversible application encryption with a colocated key—protect sidecars. Operators
-must restrict sidecar/log/state access and rotate tokens after suspected exposure.
-Environment references remain preferred for interactive/managed environments.
-Headless services may instead use `read_token`, `write_token`, or `token` in the
+Tokens and embedded artifact credentials over bare HTTP are visible to a network
+observer. File permissions—not reversible application encryption with a colocated
+key—protect sidecars, retained artifacts, and installed JSONC. Operators must
+restrict sidecar/log/state/target access and rotate tokens after suspected
+exposure. Environment references remain available for managed server secrets and
+for inference credentials when embedding is disabled. Headless services may use
+`read_token`, `write_token`, or `token` in the
 single TOML sidecar when its ACL/mode protects the service identity; literal and
 environment sources are mutually exclusive. `doctor` reports only source and
 presence, never the literal value.
