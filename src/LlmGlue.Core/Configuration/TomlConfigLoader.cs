@@ -35,8 +35,9 @@ public static class TomlConfigLoader
         ValidateListen(serverOptions);
 
         var client = OptionalTable(root, "client");
-        CheckKeys(client, "client", "source", "targets");
+        CheckKeys(client, "client", "source", "token_environment", "poll_interval_seconds", "targets");
         var source = OptionalString(client, "source");
+        var tokenEnvironment = OptionalString(client, "token_environment");
         var targets = TableArray(client, "targets").Select(ReadTarget).ToArray();
 
         if (!roleOptions.Agent && !roleOptions.Server && !roleOptions.Client)
@@ -45,10 +46,12 @@ public static class TomlConfigLoader
             throw new ConfigurationException("Agent role requires at least one [[agent.providers]] entry.");
         if (roleOptions.Client && source is null && !roleOptions.Server)
             throw new ConfigurationException("Client role requires client.source unless Server is enabled in-process.");
+        if (roleOptions.Client && source is not null && !AbsoluteUri(source, "client.source").IsLoopback && tokenEnvironment is null)
+            throw new ConfigurationException("Remote client.source requires client.token_environment.");
 
         var baseDirectory = Path.GetDirectoryName(fullPath)!;
         return new GlueOptions(roleOptions, providers, serverOptions,
-            new ClientOptions(source is null ? null : AbsoluteUri(source, "client.source"), targets), fullPath, baseDirectory);
+            new ClientOptions(source is null ? null : AbsoluteUri(source, "client.source"), tokenEnvironment, PositiveInt(client, "poll_interval_seconds", 30), targets), fullPath, baseDirectory);
     }
 
     private static ProviderOptions ReadProvider(TomlTable table)
@@ -61,10 +64,15 @@ public static class TomlConfigLoader
 
     private static TargetOptions ReadTarget(TomlTable table)
     {
-        CheckKeys(table, "client.targets", "type", "path", "activation_command");
+        CheckKeys(table, "client.targets", "type", "path", "primary_config_path", "service_name", "health_url");
         var type = RequiredString(table, "type");
         if (type is not ("opencode" or "litellm")) throw new ConfigurationException($"Unsupported target type '{type}'.");
-        return new TargetOptions(type, RequiredString(table, "path"), OptionalString(table, "activation_command"));
+        var primary = OptionalString(table, "primary_config_path");
+        var service = OptionalString(table, "service_name");
+        var health = OptionalString(table, "health_url");
+        if (type == "litellm" && primary is null) throw new ConfigurationException("LiteLLM target requires primary_config_path.");
+        if (type == "litellm" && service is null) throw new ConfigurationException("LiteLLM target requires service_name for controlled activation.");
+        return new TargetOptions(type, RequiredString(table, "path"), primary, service, health is null ? null : AbsoluteUri(health, "target.health_url"));
     }
 
     private static void ValidateListen(ServerOptions server)
@@ -84,6 +92,7 @@ public static class TomlConfigLoader
     private static string String(TomlTable table, string key, string defaultValue) => OptionalString(table, key) ?? defaultValue;
     private static string? OptionalString(TomlTable table, string key) => !table.TryGetValue(key, out var value) ? null : value is string text && !string.IsNullOrWhiteSpace(text) ? text : throw new ConfigurationException($"'{key}' must be a non-empty string.");
     private static bool Bool(TomlTable table, string key, bool defaultValue) => !table.TryGetValue(key, out var value) ? defaultValue : value is bool result ? result : throw new ConfigurationException($"'{key}' must be a boolean.");
+    private static int PositiveInt(TomlTable table, string key, int defaultValue) => !table.TryGetValue(key, out var value) ? defaultValue : value is long result && result is > 0 and <= 3600 ? (int)result : throw new ConfigurationException($"'{key}' must be an integer from 1 through 3600.");
     private static IReadOnlyList<string> StringArray(TomlTable table, string key) => !table.TryGetValue(key, out var value) ? [] : value is TomlArray array && array.All(x => x is string) ? array.Cast<string>().ToArray() : throw new ConfigurationException($"'{key}' must be an array of strings.");
     private static Uri AbsoluteUri(string value, string field) => Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri : throw new ConfigurationException($"'{field}' must be an absolute URI.");
     private static void CheckKeys(TomlTable table, string scope, params string[] allowed)

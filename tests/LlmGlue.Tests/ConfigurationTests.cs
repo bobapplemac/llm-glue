@@ -28,6 +28,8 @@ public sealed class ConfigurationTests
             [[client.targets]]
             type = "litellm"
             path = "generated-models.yaml"
+            primary_config_path = "config.yaml"
+            service_name = "litellm.service"
             """);
         try
         {

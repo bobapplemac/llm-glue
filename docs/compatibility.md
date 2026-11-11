@@ -12,6 +12,7 @@ release source. Live production qualification is tracked separately.
 | llama.cpp | v0.9.0 stable target | Official server documentation/source | Direct `/v1/models`, router `/models`, and `/props` have distinct discovery roles. Runtime executable/model qualification remains pending. |
 | .NET SDK | 10.0.401 | Live | Build toolchain available on Windows. |
 | Tomlyn | 2.10.2 | Live NuGet restore/build on net10.0 | Compatible parser selected; strict binding tests are an M1 gate. |
+| YamlDotNet | 18.1.0 | Automated net10.0 target tests | LiteLLM primary/generated YAML parsing, include and alias ownership checks. |
 
 ## OpenCode 2.2.7
 

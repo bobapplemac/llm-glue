@@ -17,7 +17,10 @@ Last updated: 2026-11-10
   history, authenticated `/api/v1` publication, diagnostics and ETags. Golden and
   real Kestrel tests pass; OpenCode 2.2.7 loaded the generated artifact and retained
   the exact verified variant body without inventing modes.
-- **M3 — client/targets:** not started.
+- **M3 — client/targets:** implemented; conditional polling with bearer auth,
+  bounded downloads/backoff, destination locks, validation/staging, atomic replace,
+  no-op detection, bounded backups, reactivation rollback, scoped OpenCode merge,
+  and LiteLLM include/collision/service-health activation all have automated tests.
 - **M4 — live end-to-end:** blocked on access to Debian `labhost03`, representative
   llama.cpp model files, LiteLLM service, and additional OS accounts.
 - **M5 — release hardening:** not started. Publication is not authorized.
@@ -63,9 +66,29 @@ Last updated: 2026-11-10
 
 ## Next steps
 
-Implement M3 polling, staging, destination-filesystem atomic writes, locking,
-backup retention and rollback, plus scoped OpenCode reconciliation and LiteLLM
-include/restart targets with failure recovery tests.
+Run M4 live qualification on Debian `labhost03` and representative Windows hosts:
+real llama.cpp/LiteLLM and Ollama inference, model add/change/removal, outage and
+restart recovery, transmitted-parameter capture, two actual OS accounts, and
+OpenCode/Paseo catalog/variant visibility. Continue M5 implementation that does
+not depend on those external environments, but do not claim the M4 gate passed.
+
+## M3 acceptance checklist
+
+- [x] Conditional client polling uses ETags, bounded downloads, bearer auth,
+  exponential backoff and jitter.
+- [x] Destination-filesystem staging, process lock, flush, atomic replacement and
+  bounded backups are implemented.
+- [x] Unchanged content produces no write or activation.
+- [x] Validation failure leaves the destination untouched.
+- [x] Activation failure restores and reactivates last-known-good state.
+- [x] OpenCode scoped reconciliation preserves unrelated user/system settings and
+  removes only reserved stale provider keys.
+- [x] LiteLLM requires the operator include, preserves the primary config, rejects
+  alias collisions, parses YAML, and uses constrained service restart/health check.
+- [x] Client-only role does not bind a web listener; remote sources require a token
+  environment reference.
+- [x] 31 automated tests pass on Windows/.NET 10. Cross-platform and real-service
+  interruption qualification remains M4.
 
 ## M2 acceptance checklist
 

@@ -57,6 +57,12 @@ up, atomically renamed, activated, verified, and rolled back on failure. A local
 lock prevents concurrent reconciliation. Offline clients keep the last-known-good
 artifact.
 
+The OpenCode target parses JSON/JSONC, removes/replaces only the reserved
+`llm-glue-*` provider namespace, and retains all other properties. The LiteLLM
+target parses both YAML documents, requires the authorized include, rejects
+operator/generated alias collisions, and restarts only a syntactically constrained
+local service identity before checking its configured health URL.
+
 ## Configuration
 
 There is one human-managed TOML sidecar, `llm-glue.conf`. Explicit `--config`

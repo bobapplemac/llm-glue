@@ -18,8 +18,8 @@ public sealed record ProviderOptions(
 
 public sealed record ServerOptions(Uri Listen, string? ReadTokenEnvironment, string? WriteTokenEnvironment, bool AcknowledgeInsecureRemoteHttp);
 
-public sealed record ClientOptions(Uri? Source, IReadOnlyList<TargetOptions> Targets);
+public sealed record ClientOptions(Uri? Source, string? TokenEnvironment, int PollIntervalSeconds, IReadOnlyList<TargetOptions> Targets);
 
-public sealed record TargetOptions(string Type, string Path, string? ActivationCommand);
+public sealed record TargetOptions(string Type, string Path, string? PrimaryConfigPath, string? ServiceName, Uri? HealthUrl);
 
 public sealed class ConfigurationException(string message) : Exception(message);
