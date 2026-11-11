@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Tomlyn" Version="2.10.2" />
+  </ItemGroup>
+</Project>

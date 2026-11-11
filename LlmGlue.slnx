@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="src/LlmGlue.Core/LlmGlue.Core.csproj" />
+  <Project Path="src/LlmGlue/LlmGlue.csproj" />
+  <Project Path="tests/LlmGlue.Tests/LlmGlue.Tests.csproj" />
+</Solution>

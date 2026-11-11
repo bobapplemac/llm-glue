@@ -8,7 +8,10 @@ Last updated: 2026-11-10
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.109.0, and Ollama
   0.40.16. Live llama.cpp/model and multi-account qualification deferred to M4
   and explicitly fail closed.
-- **M1 — core domain/discovery:** not started.
+- **M1 — core domain/discovery:** implemented; build and 12 fixture/unit tests
+  pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
+  types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
+  inventory hashes. Live Ollama API shape was additionally confirmed in M0.
 - **M2 — server/generation:** not started.
 - **M3 — client/targets:** not started.
 - **M4 — live end-to-end:** blocked on access to Debian `labhost03`, representative
@@ -41,8 +44,21 @@ Last updated: 2026-11-10
   development auto-reload.
 - Capability unknowns are preserved and excluded from advertised modes.
 
+## M1 acceptance checklist
+
+- [x] Composable role/provider/target TOML parsing with strict unknown-key and
+  remote-listener security validation.
+- [x] Domain types preserve tri-state capabilities and provenance.
+- [x] Native and effective context are distinct.
+- [x] Safe GGUF v2/v3 metadata reader enforces directory and allocation bounds.
+- [x] Ollama tags/show/ps/version adapter with explicit thinking categories.
+- [x] llama.cpp direct/router/property adapter without treating files as routes.
+- [x] Deterministic, content-hashed discovery snapshots.
+- [x] Validated Linux, Windows all-in-one, and remote-client TOML examples.
+- [x] Automated tests pass; live model inference remains an M4 gate.
+
 ## Next steps
 
-Implement M1 domain types, TOML configuration loader, safe GGUF reader, Ollama and
-llama.cpp adapters, deterministic snapshots, and unit/fixture tests. Then build and
-commit the milestone before starting server generation.
+Implement M2 reconciliation, stale/grace state, conflict handling, deterministic
+OpenCode 2.x and LiteLLM generators, schema/golden tests, authenticated versioned
+API endpoints, ETags, last-known-good artifacts, and diagnostics.
