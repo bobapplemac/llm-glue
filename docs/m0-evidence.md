@@ -53,6 +53,12 @@ The live Windows-compatible probe of 0.40.16 returned one Qwen3-VL model with
 completion, vision, and tools; native context 262144; and thinking `[false]`.
 `/api/ps` was empty, so no effective loaded context was claimed.
 
+A later Qwen 3.5 4B probe verified the installed OpenAI-compatible transport:
+`reasoning_effort=none` disabled thinking and `medium` enabled it. This corrects
+the earlier conservative omission of direct-Ollama named variants; the qualified
+adapter now emits explicit `thinking-off`/`thinking-on` request profiles only for
+the verified 0.40.16-or-newer contract (ADR 0006).
+
 ## OpenCode transcript summary
 
 Two isolated user configuration roots plus a shared system root and project file
@@ -61,7 +67,9 @@ effective merged catalog: the system value won the conflicting model, and unique
 models from every layer survived. Editing the system document triggered watched
 updates and changed effective state before explicit reload. Missing explicit
 capabilities caused OpenCode to invent reasoning variants, requiring conservative
-explicit metadata. Actual second-account qualification remains pending.
+explicit metadata. A subsequent isolated WSL test repeated precedence with two
+actual Linux accounts and proved the system conflict wins while unrelated user
+models survive for each account.
 
 ## LiteLLM transcript summary
 
@@ -95,5 +103,6 @@ test fixtures and validated by the M1 configuration test suite.
 ## Remaining qualification
 
 Actual llama.cpp/Gemma/GPT-OSS/MTP inference, LiteLLM forwarding to that route,
-Debian service behavior, two real OS accounts, and OpenCode/Paseo UI behavior are
-mandatory M4 work. Until then, those behaviors are fixture/mock validated only.
+Debian service behavior, Windows multi-account behavior, and Paseo UI behavior
+are mandatory M4 work. Linux two-account precedence and native Windows OpenCode
+inference are now live-qualified.

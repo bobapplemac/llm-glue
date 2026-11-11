@@ -6,8 +6,8 @@ Last updated: 2026-11-11
 
 - **M0 — evidence/interface validation:** implementation design complete;
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.109.0, and Ollama
-  0.40.16. Live llama.cpp/model and multi-account qualification deferred to M4
-  and explicitly fail closed.
+  0.40.16. Two-account Linux precedence is live-qualified; Windows multi-account
+  and live llama.cpp/model qualification remain deferred to M4 and fail closed.
 - **M1 — core domain/discovery:** implemented; build and 12 fixture/unit tests
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
@@ -37,10 +37,13 @@ Last updated: 2026-11-11
   An elevated all-role Windows service run also passed LocalService identity,
   health, relocation/repair, restart, service rollback, and uninstall cleanup.
   Native Ollama Off/On inference, effective/native context separation, full-VRAM
-  residency, and loaded-only route probing passed for Qwen 3.5 4B. OpenCode/Paseo
-  real-model reasoning/effort behavior and the Debian llama.cpp/LiteLLM, multi-account, restart,
-  change/removal, parameter-capture, and Paseo paths remain blocked on unavailable
-  environments. Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
+  residency, and loaded-only route probing passed for Qwen 3.5 4B. The installed
+  OpenCode 2.2.7 selected a generated `thinking-on` variant and completed real
+  native inference; direct OpenAI-compatible probes verified the generated
+  `reasoning_effort` Off/On bodies. Two actual Linux accounts also passed system
+  precedence and unrelated user-setting preservation. The Debian llama.cpp/LiteLLM,
+  Windows multi-account, restart/change/removal, and Paseo paths remain blocked on
+  unavailable environments. Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
   captured mock upstream verified stable alias routing, streamed response flow,
   environment-backed client/backend authentication, `temperature`, and the binary
   `enable_thinking` field.
@@ -83,7 +86,8 @@ Last updated: 2026-11-11
 - [x] Select TOML parser and strict validation approach.
 - [x] Add sanitized fixtures/reference transcripts.
 - [ ] Qualify actual llama.cpp/Gemma/GPT-OSS/MTP request paths (M4 environment).
-- [ ] Repeat OpenCode system precedence with two actual OS accounts (M4).
+- [x] Repeat OpenCode system precedence with two actual Linux OS accounts (M4);
+  Windows multi-account qualification remains open.
 
 ## Key decisions
 
@@ -116,9 +120,9 @@ Last updated: 2026-11-11
 ## Next steps
 
 Run M4 live qualification on Debian `labhost03` and representative Windows hosts:
-real llama.cpp/LiteLLM and Ollama inference, model add/change/removal, outage and
-restart recovery, transmitted-parameter capture, two actual OS accounts, and
-OpenCode/Paseo catalog/variant visibility. Then exercise the implemented M5
+real llama.cpp/LiteLLM inference, model add/change/removal, outage and restart
+recovery, Windows multi-account behavior, and Paseo catalog/variant visibility.
+Then exercise the implemented M5
 service install/move/update/rollback/uninstall flows on both OSes and the guarded
 release preflight from a clean pushed branch. Do not publish without explicit
 authorization or claim either live gate passed beforehand.
@@ -206,9 +210,11 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Release build and 71 tests; native
-Ubuntu/WSL Release restore/build and 71 tests;
+Latest available verification: Windows Release build and 72 tests; native
+Ubuntu/WSL Release restore/build and 72 tests;
 OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
+native OpenCode 2.2.7 → Ollama 0.40.16 real-model inference with verified
+`thinking-off`/`thinking-on` variants; two-account Linux system precedence;
 PowerShell and Bash bootstrap
 matrices validate all three modes with real
 single-file binaries; r1 win-x64/linux-x64 execution and Windows/Linux service

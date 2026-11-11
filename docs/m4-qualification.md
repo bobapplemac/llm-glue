@@ -1,8 +1,8 @@
 # M4 live qualification
 
-Date: 2026-11-10
+Last updated: 2026-11-11
 
-## Standalone Windows/Ollama — partial pass
+## Standalone Windows/Ollama — functional path pass, full scenario gate partial
 
 The current Windows host ran the composed Agent + Server + Client against the
 live Ollama 0.40.16 endpoint and an isolated OpenCode system target:
@@ -32,8 +32,28 @@ reported effective context 4096 versus native context 262144 and
 load. With the model held loaded, LLM Glue's `loaded-only` policy added verified
 `ollama:bounded-route-probe` evidence only to that route and did not probe the two
 dormant routes. The model was explicitly unloaded afterward. This verifies the
-native provider contract and probe policy; real-model OpenCode/Paseo forwarding
-and Paseo UI selection remain unqualified.
+native provider contract and probe policy.
+
+On 2026-11-11, the installed native Windows OpenCode 2.2.7 executable was then
+run against an updated r1 qualification build and the installed Ollama 0.40.16.
+LLM Glue discovered `qwen3.5:4b-q4_K_M`, published and synchronized an isolated
+OpenCode target, and exposed verified `thinking-off` and `thinking-on` variants.
+OpenCode selected
+`llm-glue-ollama-windows-live/qwen3.5:4b-q4_K_M#thinking-on`, performed a real
+inference, and received exactly `LLM_GLUE_WINDOWS_OK`. Separate direct
+OpenAI-compatible probes proved `reasoning_effort=none` yielded no reasoning and
+`medium` yielded a 400-character reasoning trace. The model was unloaded and
+`/api/ps` was empty afterward. The harness used process-local OpenCode environment
+variables and repository-contained temporary paths; the user's normal config and
+system config were not modified.
+
+Reproduce the isolated Windows path with
+`scripts/Test-WindowsOllamaOpenCodeLive.ps1`; it refuses a missing binary/model,
+uses a fresh evidence directory, and preserves pre-existing model residency.
+
+This qualifies the real native discovery → publish → sync → named selection →
+inference path. Model add/change/removal, outage/restart recovery, Windows service
+use of the production OpenCode path, and Paseo UI presentation remain outstanding.
 
 ## OpenCode and LiteLLM forwarding with captured upstream — pass
 
@@ -105,13 +125,23 @@ account, or owned service directories; afterward none of its system resources
 remained. This qualifies service mechanics, not the unavailable Debian
 llama.cpp/LiteLLM inference path.
 
-## Multi-user and UI — not run
+## Multi-user precedence — Linux pass; Windows/UI pending
 
-Two actual OS accounts and Paseo are unavailable. System precedence has only the
-M0 isolated-profile evidence. Real all-users behavior and OpenCode/Paseo variant
-selection remain gate items.
+An isolated Ubuntu/WSL run created two actual OS accounts and installed the exact
+OpenCode 2.2.7 binary plus the generated system artifact temporarily. For both
+accounts, effective `/api/model` proved the system provider/model values won a
+deliberately conflicting user document, while an unrelated user-owned provider
+and model survived. Source listings included both `/etc/opencode/opencode.json`
+and the correct account file. The harness refused pre-existing account or system
+targets and cleanup left neither test accounts nor `/etc/opencode` behind.
+Reproduce on an isolated Linux/WSL host with
+`sudo scripts/Test-OpenCodeMultiUserLive.sh /path/to/opencode-2.2.7`.
+
+Equivalent Windows multi-account behavior and Paseo UI variant presentation are
+still unqualified.
 
 ## Gate status
 
-M4 is **not passed**. The available Windows catalog path is verified; the
-remaining live requirements cannot be simulated or waived.
+M4 is **not passed**. Native Windows OpenCode/Ollama inference and Linux
+multi-account precedence are verified; the remaining Debian, scenario/recovery,
+Windows multi-account, and Paseo UI requirements cannot be simulated or waived.

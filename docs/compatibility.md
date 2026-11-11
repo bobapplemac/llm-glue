@@ -6,9 +6,9 @@ release source. Live production qualification is tracked separately.
 
 | Integration | Version | Evidence | Result |
 |---|---:|---|---|
-| OpenCode | 2.2.7 | Live Windows executable, official schema/docs | System config wins conflicts; nonconflicting user/project values survive; effective models available at `/api/model`; source arrays are not effective config; watched files apply without explicit reload in this test. |
+| OpenCode | 2.2.7 | Live Windows executable, two native Linux accounts, official schema/docs | System config wins conflicts for both accounts; nonconflicting user/project values survive; effective models available at `/api/model`; source arrays are not effective config; watched files apply without explicit reload in this test. |
 | LiteLLM Proxy | 1.109.0 | Live isolated Windows install and installed source | Relative YAML includes work; lists concatenate; non-list include values replace rather than deep-merge. Development `--reload` did not watch the included file and did not reliably restart after a root edit on Windows. |
-| Ollama | 0.40.16 | Live local HTTP API and bounded inference | `/api/tags`, `/api/show`, `/api/ps`, and `/api/version` match documented shapes. Native Off/On thinking requests, effective/native context separation, full VRAM residency, and loaded-only route probing passed for Qwen 3.5 4B. |
+| Ollama | 0.40.16 | Live local HTTP API, OpenAI-compatible inference, and OpenCode 2.2.7 | `/api/tags`, `/api/show`, `/api/ps`, and `/api/version` match documented shapes. Native and `reasoning_effort` Off/On thinking, effective/native context separation, full VRAM residency, loaded-only route probing, named variant selection, and real OpenCode inference passed for Qwen 3.5 4B. |
 | llama.cpp | v0.9.0 stable target | Official server documentation/source | Direct `/v1/models`, router `/models`, and `/props` have distinct discovery roles. Runtime executable/model qualification remains pending. |
 | .NET SDK | 10.0.401 | Live | Build toolchain available on Windows. |
 | .NET SDK (Ubuntu/WSL) | 10.0.115 | Live native Linux build/test/systemd | GNU Make restore/build/test, linux-x64 execution, and isolated fixed-account systemd install/repair/rollback/uninstall passed. |
@@ -25,10 +25,12 @@ capability metadata: custom compatible models without it received invented
 low/medium/high variants during the live test. The system locations are
 `%ProgramData%\opencode\opencode.json` and `/etc/opencode/opencode.json`.
 
-Tests using two isolated user configuration roots showed system values winning
-the same provider/model key while unique system, user, and project models were
-preserved. These are simulated profiles, not two actual OS accounts; the latter
-remains an M4 qualification item.
+An isolated WSL qualification created two actual Linux accounts. For each,
+`/etc/opencode/opencode.json` won conflicting provider/model ID, name, endpoint,
+capability, and variant values while the account's unrelated provider/model was
+preserved. Both effective `/api/model` and source listings were checked. The
+harness refuses existing accounts or `/etc/opencode`, then removes only resources
+it created. This qualifies all-users precedence on Linux, not Windows.
 
 The M2 generated golden artifact was loaded by the same 2.2.7 executable. Its
 effective `/api/model` entry retained the exact `thinking-on` request body,
@@ -92,9 +94,20 @@ While loaded, `/api/ps` reported effective context 4096 and equal total/VRAM
 sizes of 3,140,495,604 bytes. A loaded-only LLM Glue discovery probe verified
 that route without waking either dormant route; the model was then unloaded.
 
+The installed OpenAI-compatible endpoint was also probed with the same model.
+`reasoning_effort = none` returned `OK` with no reasoning, while `medium` returned
+`OK` with a 400-character reasoning trace. LLM Glue therefore emits verified
+`thinking-off` (`none`) and `thinking-on` (`medium`) variants for boolean-thinking
+models on the qualified 0.40.16-or-newer contract; named efforts preserve the
+reported model-defined name. Earlier versions remain fail-closed without these
+profiles. A real installed OpenCode 2.2.7 run selected the generated
+`#thinking-on` variant and received `LLM_GLUE_WINDOWS_OK`. The isolated test did
+not modify the user's normal OpenCode configuration and unloaded the model.
+
 Sources: <https://github.com/ollama/ollama/blob/main/docs/api.md>,
 <https://github.com/ollama/ollama/blob/main/docs/openapi.yaml>, and
-<https://github.com/ollama/ollama/blob/main/docs/capabilities/thinking.mdx>.
+<https://github.com/ollama/ollama/blob/main/docs/capabilities/thinking.mdx>, and
+<https://github.com/ollama/ollama/blob/main/docs/api/openai-compatibility.mdx>.
 
 ## llama.cpp target
 
@@ -123,9 +136,11 @@ Source: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.m
 
 - Debian `labhost03`, actual llama.cpp models, MTP/draft artifacts, and LiteLLM
   service ownership are unavailable in this workspace.
-- Two real Windows/Linux OS accounts and Windows Server 2025 are not available.
+- Two-account system precedence is qualified on Linux/WSL, but not Windows or
+  Windows Server 2025.
 - Gemma and GPT-OSS runtime behavior is represented only by sanitized recorded
   fixtures until live qualification.
-- OpenCode/Paseo functional inference and variant UI require M4 deployment.
+- OpenCode functional inference and CLI variant selection are qualified on native
+  Windows; Paseo UI behavior remains unqualified.
 
 These limits do not authorize optimistic capability publication.

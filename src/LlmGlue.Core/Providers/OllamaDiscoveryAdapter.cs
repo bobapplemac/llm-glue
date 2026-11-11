@@ -26,6 +26,7 @@ public sealed class OllamaDiscoveryAdapter(HttpClient httpClient, string instanc
             var native = show.ModelInfo.Where(x => x.Key.EndsWith(".context_length", StringComparison.Ordinal) && x.Value.ValueKind == JsonValueKind.Number && x.Value.TryGetInt64(out _)).Select(x => x.Value.GetInt64()).DefaultIfEmpty().Max();
             var capabilities = show.Capabilities.ToHashSet(StringComparer.OrdinalIgnoreCase);
             var reasoning = ParseThinking(show.Thinking, now);
+            var profiles = ReasoningProfiles(reasoning, version.Version);
             long? effective = running.TryGetValue(tag.Name, out var active) ? active.ContextLength : null;
             result.Add(new ModelDeployment(
                 new ModelIdentity("ollama", instanceId, tag.Name, tag.Name, tag.Name, Family: show.Details?.Family ?? tag.Details?.Family, Quantization: show.Details?.QuantizationLevel ?? tag.Details?.QuantizationLevel, SourceEndpoint: httpClient.BaseAddress?.ToString()),
@@ -33,7 +34,7 @@ public sealed class OllamaDiscoveryAdapter(HttpClient httpClient, string instanc
                 native > 0 ? new Evidence<long>(native, "ollama:/api/show:model_info", now, VerificationState.Reported) : null,
                 effective is > 0 ? new Evidence<long>(effective.Value, "ollama:/api/ps", now, VerificationState.Observed) : null,
                 ProviderHelpers.Capabilities(capabilities.Contains("vision"), capabilities.Contains("tools"), reasoning, "ollama:/api/show:capabilities", now),
-                [], new RuntimeDetails("ollama", version.Version, effective is not null, new SortedDictionary<string, string>(StringComparer.Ordinal)), []));
+                profiles, new RuntimeDetails("ollama", version.Version, effective is not null, new SortedDictionary<string, string>(StringComparer.Ordinal)), []));
         }
         return result;
     }
@@ -45,6 +46,26 @@ public sealed class OllamaDiscoveryAdapter(HttpClient httpClient, string instanc
         var modes = values.EnumerateArray().Select(x => x.ValueKind switch { JsonValueKind.True => "on", JsonValueKind.False => "off", JsonValueKind.String => x.GetString()!, _ => string.Empty }).Where(x => x.Length != 0).Distinct(StringComparer.Ordinal).ToArray();
         var kind = modes.All(x => x is "on" or "off") ? (modes.SequenceEqual(["off"]) ? ReasoningModeKind.None : ReasoningModeKind.Boolean) : ReasoningModeKind.NamedEffort;
         return new(kind, modes, new Evidence<string>(string.Join(',', modes), "ollama:/api/show:thinking", now, VerificationState.Reported));
+    }
+
+    private static IReadOnlyList<SamplingProfile> ReasoningProfiles(ReasoningCapabilities reasoning, string version)
+    {
+        if (!Version.TryParse(version.Split('-', 2)[0], out var parsed) || parsed < new Version(0, 40, 16)) return [];
+        const string provenance = "ollama:openai-compat:reasoning_effort";
+        if (reasoning.Kind == ReasoningModeKind.Boolean)
+        {
+            return
+            [
+                new("thinking-off", [new("reasoning_effort", "none", provenance)], provenance, true),
+                new("thinking-on", [new("reasoning_effort", "medium", provenance)], provenance, true)
+            ];
+        }
+        if (reasoning.Kind == ReasoningModeKind.NamedEffort)
+        {
+            return reasoning.Modes.Select(mode =>
+                new SamplingProfile($"reasoning-{mode}", [new("reasoning_effort", mode, provenance)], provenance, true)).ToArray();
+        }
+        return [];
     }
 
     private sealed record VersionResponse(string Version);
