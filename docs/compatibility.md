@@ -78,6 +78,13 @@ allowlisted filename. It records `general.architecture`, architecture context,
 disabled by default and explicitly opt-in. This fixture-qualified metadata path
 does not qualify live multipart/MTP classification or reasoning behavior.
 
+The implemented opt-in functional probe uses `/v1/chat/completions` for llama.cpp
+and native `/api/chat` for Ollama, with bounded time and response size. Fixture
+tests verify route/text evidence, loaded-only no-load behavior, timeout, failure
+redaction, and both request contracts. It deliberately does not claim reasoning,
+tool, sampling, or LiteLLM forwarding support; those require the M4 representative
+live probes.
+
 Source: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>.
 
 ## Unqualified environments

@@ -13,7 +13,9 @@ Last updated: 2026-11-11
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
   inventory hashes. Configured llama.cpp directories now enrich only exact,
   provider-confirmed GGUF routes; full-file hashing is opt-in. Live Ollama API
-  shape was additionally confirmed in M0.
+  shape was additionally confirmed in M0. Opt-in functional text-route probes are
+  timeout/size bounded, preserve unknown non-text capabilities, and never load a
+  dormant model under `loaded-only` policy.
 - **M2 — server/generation:** implemented; reconciliation grace/conflict handling,
   deterministic OpenCode 2.x and LiteLLM generation, validation, bounded artifact
   history, authenticated `/api/v1` publication, diagnostics and ETags. Golden and
@@ -81,6 +83,9 @@ Last updated: 2026-11-11
   models, and makes expensive full-file hashing explicit opt-in.
 - [x] Ollama tags/show/ps/version adapter with explicit thinking categories.
 - [x] llama.cpp direct/router/property adapter without treating files as routes.
+- [x] Opt-in loaded-only/allow-load inference probes verify only observed text
+  routing with bounded timeout/output; failures exclude the route without leaking
+  response bodies or fabricating reasoning/tool/sampling support.
 - [x] Deterministic, content-hashed discovery snapshots.
 - [x] Validated Linux, Windows all-in-one, and remote-client TOML examples.
 - [x] Automated tests pass; live model inference remains an M4 gate.
@@ -156,8 +161,8 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Debug build and 50 tests; native
-Ubuntu/WSL Release restore/build and 50 tests; PowerShell AST and Bash syntax
+Latest available verification: clean Windows Debug build and 56 tests; native
+Ubuntu/WSL Release restore/build and 56 tests; PowerShell AST and Bash syntax
 checks; r1 win-x64/linux-x64 self-contained single-file execution; Windows and
 Linux service-install dry runs. These are implementation/packaging evidence, not
 substitutes for the unchecked live gates above.

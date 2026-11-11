@@ -149,6 +149,12 @@ static void AddDiscoveryAdapters(IServiceCollection services, GlueOptions option
                 provider.ModelDirectories.Select(path => ResolveConfigPath(options, path)).ToArray(),
                 provider.InspectGguf,
                 provider.HashModelFiles);
+        if (provider.ProbeMode != CapabilityProbeMode.Off)
+        {
+            var probeClient = new HttpClient { BaseAddress = provider.Url, Timeout = Timeout.InfiniteTimeSpan };
+            adapter = new ProbingDiscoveryAdapter(adapter, new InferenceRouteProbe(
+                probeClient, provider.Type, provider.ProbeMode, TimeSpan.FromSeconds(provider.ProbeTimeoutSeconds)));
+        }
         services.AddSingleton<IModelDiscoveryAdapter>(adapter);
     }
 }

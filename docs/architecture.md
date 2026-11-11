@@ -33,6 +33,14 @@ count; it cannot establish routing or reasoning support. Local paths are never
 placed in the network model. Whole-file SHA-256 is separately opt-in because model
 files can be very large.
 
+Functional text-route probes are also off by default. `loaded-only` probes only a
+deployment the runtime already reports loaded; `allow-load` is the explicit opt-in
+that may wake a dormant model. Each probe has its own timeout and one-token response
+limit plus a one-MiB response cap. Success adds verified text-route evidence only.
+It never infers tools, reasoning modes, sampling transport, or absence of a feature;
+failure makes that deployment unavailable for publication without exposing the
+provider response body.
+
 ## Configuration ownership
 
 OpenCode synchronization performs scoped reconciliation inside the documented

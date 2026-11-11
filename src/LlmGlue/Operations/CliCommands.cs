@@ -25,6 +25,7 @@ public static class CliCommands
         if (options.Client.TokenEnvironment is not null) Console.WriteLine($"Client token: {options.Client.TokenEnvironment} ({(string.IsNullOrEmpty(Environment.GetEnvironmentVariable(options.Client.TokenEnvironment)) ? "missing" : "set")})");
         foreach (var provider in options.Providers)
         {
+            Console.WriteLine($"Provider {provider.Name} policy: probe={provider.ProbeMode} timeout={provider.ProbeTimeoutSeconds}s, gguf={provider.InspectGguf}, full-hash={provider.HashModelFiles}");
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, provider.Type == "ollama" ? "api/version" : "v1/models");
@@ -101,7 +102,8 @@ public static class CliCommands
         var models = new List<ModelDeployment>();
         foreach (var provider in options.Providers)
         {
-            var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(15) };
+            using var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(15) };
+            using var probeClient = provider.ProbeMode == CapabilityProbeMode.Off ? null : new HttpClient { BaseAddress = provider.Url, Timeout = Timeout.InfiniteTimeSpan };
             IModelDiscoveryAdapter adapter = provider.Type == "ollama"
                 ? new OllamaDiscoveryAdapter(client, provider.Name)
                 : new LlamaCppDiscoveryAdapter(
@@ -110,6 +112,11 @@ public static class CliCommands
                     provider.ModelDirectories.Select(path => ResolvePath(options, path)).ToArray(),
                     provider.InspectGguf,
                     provider.HashModelFiles);
+            if (provider.ProbeMode != CapabilityProbeMode.Off)
+            {
+                adapter = new ProbingDiscoveryAdapter(adapter, new InferenceRouteProbe(
+                    probeClient!, provider.Type, provider.ProbeMode, TimeSpan.FromSeconds(provider.ProbeTimeoutSeconds)));
+            }
             models.AddRange(await adapter.DiscoverAsync(cancellationToken));
         }
         return DiscoverySnapshot.Create(DateTimeOffset.UtcNow, models);

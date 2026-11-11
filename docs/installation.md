@@ -58,6 +58,21 @@ and replace files there. `server.artifact_retention` defaults to five validated
 states. Linux service installations conventionally use `/var/lib/llm-glue`, while
 a portable foreground installation may use a relative `state` directory.
 
+Provider functional inference is disabled by default. For already-loaded models:
+
+```toml
+[[agent.providers]]
+type = "llama.cpp"
+name = "router"
+url = "http://127.0.0.1:8081"
+probe_mode = "loaded-only"
+probe_timeout_seconds = 30
+```
+
+`allow-load` may cause the runtime to load a dormant model and must be selected
+explicitly. These probes verify only the text route; reasoning and sampling remain
+unknown until separately qualified.
+
 Service registration requires elevation and preserves the sidecar and data on
 uninstall. Copying the executable and sidecar is supported; use `service repair`
 after relocation because OS service metadata does not follow moved files.

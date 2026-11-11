@@ -1,5 +1,7 @@
 namespace LlmGlue.Core.Configuration;
 
+public enum CapabilityProbeMode { Off, LoadedOnly, AllowLoad }
+
 public sealed record GlueOptions(
     RoleOptions Roles,
     AgentOptions Agent,
@@ -27,7 +29,9 @@ public sealed record ProviderOptions(
     Uri Url,
     IReadOnlyList<string> ModelDirectories,
     bool InspectGguf,
-    bool HashModelFiles);
+    bool HashModelFiles,
+    CapabilityProbeMode ProbeMode,
+    int ProbeTimeoutSeconds);
 
 public sealed record ServerOptions(
     Uri Listen,

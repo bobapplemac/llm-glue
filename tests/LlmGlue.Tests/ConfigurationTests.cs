@@ -39,6 +39,7 @@ public sealed class ConfigurationTests
             Assert.Equal("local-llama", options.Providers[0].Name);
             Assert.True(options.Providers[0].InspectGguf);
             Assert.False(options.Providers[0].HashModelFiles);
+            Assert.Equal(CapabilityProbeMode.Off, options.Providers[0].ProbeMode);
             Assert.Equal("litellm", Assert.Single(options.Client.Targets).Type);
             Assert.Equal("state", options.Server.StateDirectory);
             Assert.Equal(5, options.Server.ArtifactRetention);
@@ -162,6 +163,30 @@ public sealed class ConfigurationTests
             hash_model_files = true
             """);
         try { Assert.Contains("requires inspect_gguf", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void LoadsExplicitBoundedProbePolicy()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = true
+            server = true
+            client = false
+            [[agent.providers]]
+            type = "llama.cpp"
+            name = "router"
+            url = "http://127.0.0.1:8081"
+            probe_mode = "loaded-only"
+            probe_timeout_seconds = 20
+            """);
+        try
+        {
+            var provider = Assert.Single(TomlConfigLoader.Load(path).Providers);
+            Assert.Equal(CapabilityProbeMode.LoadedOnly, provider.ProbeMode);
+            Assert.Equal(20, provider.ProbeTimeoutSeconds);
+        }
         finally { File.Delete(path); }
     }
 
