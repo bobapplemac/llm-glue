@@ -111,8 +111,12 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   The PowerShell matrix was rerun successfully on 2026-11-11. Official GitHub CLI
   2.103.3 was downloaded from GitHub Releases, checksum-verified, and executed as
   a portable tool; it is not authenticated. A read-only origin fetch confirmed
-  the clean branch is ahead of `origin/main` and zero behind. Live official-release
-  update and an authenticated clean-pushed release preflight remain unqualified;
+  the clean branch is ahead of `origin/main` and zero behind. A full isolated
+  clean-clone r1 dry-run at commit `292fec7` then passed preflight and all 103
+  tests, published both self-contained RIDs locally, reported `LLM Glue r1`, and
+  generated a matching `1.1.0.0` file-version manifest plus SHA-256 package list
+  before stopping prior to tag/release creation. Live official-release update and
+  an authenticated clean-pushed release preflight remain unqualified;
   publication is not authorized. Unknown reasoning
   capability excludes a deployment from client publication rather than being
   converted to `false`.

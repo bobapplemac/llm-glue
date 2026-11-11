@@ -9,6 +9,13 @@ be clean, attached, tracking an upstream, already pushed, and exactly equal to t
 freshly fetched upstream. The next revision must increment by one and must not
 already exist as a tag or release.
 
+The latest pre-release qualification ran the complete PowerShell path in an
+isolated clean clone at commit `292fec7`: preflight, 103 tests, both self-contained
+RIDs, r1/`1.1.0.0` version checks, archives, checksums, and exact-commit manifest
+passed. `-DryRun` stopped before tag or GitHub release creation. This evidence
+does not replace the required authenticated check against the final pushed commit
+or live update/apply from the official immutable asset.
+
 Both publishers require exactly one remote named `origin`, an `origin/<branch>`
 upstream, and the pinned raw remote URL `github.com/bobapplemac/llm-glue`. This
 prevents an otherwise clean checkout from publishing the project identity from an
