@@ -1,21 +1,57 @@
 [CmdletBinding()]
 param(
     [string]$InstallDirectory = (Join-Path $env:LOCALAPPDATA 'LLMGlue'),
-    [ValidateSet('remote-client','standalone-ollama')][string]$Mode = 'remote-client',
+    [ValidateSet('remote-client','standalone-ollama','central-llama')][string]$Mode = 'remote-client',
     [string]$ServerUrl = 'https://replace-with-your-server',
+    [string]$ServerToken,
     [string]$OllamaUrl = 'http://127.0.0.1:11434',
+    [string]$LlamaUrl = 'http://127.0.0.1:8081',
+    [string]$ModelDirectory = 'D:\Models\GGUF',
+    [string]$ListenUrl = 'http://0.0.0.0:8765',
+    [string]$ReadToken,
+    [string]$WriteToken,
     [string]$OpenCodePath = 'C:\ProgramData\opencode\opencode.json',
+    [string]$LiteLlmGeneratedPath = 'C:\ProgramData\LiteLLM\llm-glue-models.yaml',
+    [string]$LiteLlmPrimaryPath = 'C:\ProgramData\LiteLLM\config.yaml',
+    [string]$LiteLlmService = 'LiteLLM',
+    [string]$LiteLlmHealthUrl = 'http://127.0.0.1:4000/health/liveliness',
     [switch]$InstallService,
     [switch]$NonInteractive
 )
 $ErrorActionPreference = 'Stop'
 if (-not $NonInteractive) {
-    $answer = Read-Host "Installation mode [remote-client/standalone-ollama] ($Mode)"
-    if ($answer) { if ($answer -notin 'remote-client','standalone-ollama') { throw 'Invalid installation mode.' }; $Mode = $answer }
-    if ($Mode -eq 'remote-client') { $answer = Read-Host "LLM Glue server URL ($ServerUrl)"; if ($answer) { $ServerUrl = $answer } }
-    else { $answer = Read-Host "Ollama URL ($OllamaUrl)"; if ($answer) { $OllamaUrl = $answer } }
-    $answer = Read-Host "OpenCode system config path ($OpenCodePath)"; if ($answer) { $OpenCodePath = $answer }
+    $answer = Read-Host "Installation mode [remote-client/standalone-ollama/central-llama] ($Mode)"
+    if ($answer) { if ($answer -notin 'remote-client','standalone-ollama','central-llama') { throw 'Invalid installation mode.' }; $Mode = $answer }
+    if ($Mode -eq 'remote-client') {
+        $answer = Read-Host "LLM Glue server URL ($ServerUrl)"; if ($answer) { $ServerUrl = $answer }
+        $secret = Read-Host 'Server read token (leave blank to use LLM_GLUE_READ_TOKEN at runtime)' -AsSecureString
+        if ($secret.Length) { $ServerToken = [Net.NetworkCredential]::new('', $secret).Password }
+        $answer = Read-Host "OpenCode system config path ($OpenCodePath)"; if ($answer) { $OpenCodePath = $answer }
+    } elseif ($Mode -eq 'standalone-ollama') {
+        $answer = Read-Host "Ollama URL ($OllamaUrl)"; if ($answer) { $OllamaUrl = $answer }
+        $answer = Read-Host "OpenCode system config path ($OpenCodePath)"; if ($answer) { $OpenCodePath = $answer }
+    } else {
+        $answer = Read-Host "llama.cpp URL ($LlamaUrl)"; if ($answer) { $LlamaUrl = $answer }
+        $answer = Read-Host "GGUF model directory ($ModelDirectory)"; if ($answer) { $ModelDirectory = $answer }
+        $answer = Read-Host "LLM Glue listen URL ($ListenUrl)"; if ($answer) { $ListenUrl = $answer }
+        $secret = Read-Host 'Remote client read token' -AsSecureString; if ($secret.Length) { $ReadToken = [Net.NetworkCredential]::new('', $secret).Password }
+        $secret = Read-Host 'Remote agent write token' -AsSecureString; if ($secret.Length) { $WriteToken = [Net.NetworkCredential]::new('', $secret).Password }
+        $answer = Read-Host "LiteLLM primary config path ($LiteLlmPrimaryPath)"; if ($answer) { $LiteLlmPrimaryPath = $answer }
+        $answer = Read-Host "LLM Glue LiteLLM include path ($LiteLlmGeneratedPath)"; if ($answer) { $LiteLlmGeneratedPath = $answer }
+        $answer = Read-Host "LiteLLM Windows service ($LiteLlmService)"; if ($answer) { $LiteLlmService = $answer }
+        $answer = Read-Host "LiteLLM health URL ($LiteLlmHealthUrl)"; if ($answer) { $LiteLlmHealthUrl = $answer }
+    }
     if (-not $InstallService) { $InstallService = (Read-Host 'Register the Windows service? [y/N]') -match '^[Yy]$' }
+}
+if ($InstallService -and $Mode -eq 'remote-client' -and -not $ServerToken) { throw 'Service-mode remote-client requires -ServerToken; Windows services do not inherit the installer environment.' }
+if ($Mode -eq 'central-llama' -and (-not $ReadToken -or -not $WriteToken)) { throw 'central-llama requires -ReadToken and -WriteToken.' }
+if ($InstallService) {
+    $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Service installation requires an elevated PowerShell session. Re-run the inspected script with Run as administrator.' }
+}
+function ConvertTo-TomlString([string]$Value) {
+    if ($Value -match "[\r\n]") { throw 'Configuration values cannot contain line breaks.' }
+    return '"' + $Value.Replace('\', '\\').Replace('"', '\"') + '"'
 }
 $Repository = 'bobapplemac/llm-glue'
 $api = "https://api.github.com/repos/$Repository/releases/latest"
@@ -39,55 +75,45 @@ try {
     if ($actual -ne $expected) { throw 'Release archive checksum verification failed.' }
     $stage = Join-Path $temporary 'stage'
     Expand-Archive -LiteralPath $archive -DestinationPath $stage
+    $stagedExecutable = Join-Path $stage 'llm-glue.exe'
+    & $stagedExecutable --version
+    if ($LASTEXITCODE -ne 0) { throw 'Checksum-verified executable failed its version check.' }
+    $config = Join-Path $InstallDirectory 'llm-glue.conf'
+    $candidate = Join-Path $temporary 'llm-glue.conf'
+    if ($Mode -eq 'remote-client') {
+        $tokenLine = if ($ServerToken) { 'token = ' + (ConvertTo-TomlString $ServerToken) } else { 'token_environment = "LLM_GLUE_READ_TOKEN"' }
+        $content = @('[roles]','agent = false','server = false','client = true','','[client]',('source = ' + (ConvertTo-TomlString $ServerUrl)),$tokenLine,'','[[client.targets]]','type = "opencode"',('path = ' + (ConvertTo-TomlString $OpenCodePath)))
+    } elseif ($Mode -eq 'standalone-ollama') {
+        $statePath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\state' } else { 'state' }
+        $logPath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\logs\llm-glue.log' } else { 'logs\llm-glue.log' }
+        $content = @('[roles]','agent = true','server = true','client = true','','[[agent.providers]]','name = "local-ollama"','type = "ollama"',('url = ' + (ConvertTo-TomlString $OllamaUrl)),'','[server]','listen = "http://127.0.0.1:8765"',('state_directory = ' + (ConvertTo-TomlString $statePath)),'','[client]','source = "http://127.0.0.1:8765"','','[[client.targets]]','type = "opencode"',('path = ' + (ConvertTo-TomlString $OpenCodePath)),'','[logging]',('file = ' + (ConvertTo-TomlString $logPath)))
+    } else {
+        $listen = [Uri]$ListenUrl
+        $localSource = "http://127.0.0.1:$($listen.Port)"
+        $statePath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\state' } else { 'state' }
+        $logPath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\logs\llm-glue.log' } else { 'logs\llm-glue.log' }
+        $content = @('[roles]','agent = true','server = true','client = true','','[[agent.providers]]','name = "local-llama"','type = "llama.cpp"',('url = ' + (ConvertTo-TomlString $LlamaUrl)),('model_directories = [' + (ConvertTo-TomlString $ModelDirectory) + ']'),'inspect_gguf = true','hash_model_files = false','probe_mode = "loaded-only"','','[server]',('listen = ' + (ConvertTo-TomlString $ListenUrl)),('read_token = ' + (ConvertTo-TomlString $ReadToken)),('write_token = ' + (ConvertTo-TomlString $WriteToken)),'acknowledge_insecure_remote_http = true',('state_directory = ' + (ConvertTo-TomlString $statePath)),'','[client]',('source = ' + (ConvertTo-TomlString $localSource)),'','[[client.targets]]','type = "litellm"',('path = ' + (ConvertTo-TomlString $LiteLlmGeneratedPath)),('primary_config_path = ' + (ConvertTo-TomlString $LiteLlmPrimaryPath)),('service_name = ' + (ConvertTo-TomlString $LiteLlmService)),('health_url = ' + (ConvertTo-TomlString $LiteLlmHealthUrl)),'','[logging]',('file = ' + (ConvertTo-TomlString $logPath)))
+    }
+    $content | Set-Content -LiteralPath $candidate -Encoding utf8NoBOM
+    & $stagedExecutable config validate --config $candidate
+    if ($LASTEXITCODE -ne 0) { throw 'Generated configuration failed validation before installation.' }
+    if (Test-Path $config) {
+        & $stagedExecutable config validate --config $config
+        if ($LASTEXITCODE -ne 0) { throw 'Existing configuration is invalid; it was not modified.' }
+        Write-Warning "Preserving existing configuration $config"
+    }
     New-Item -ItemType Directory -Force -Path $InstallDirectory | Out-Null
     $executable = Join-Path $InstallDirectory 'llm-glue.exe'
     if (Test-Path $executable) { Copy-Item -LiteralPath $executable -Destination "$executable.rollback" -Force }
-    Copy-Item -LiteralPath (Join-Path $stage 'llm-glue.exe') -Destination $executable -Force
-    $config = Join-Path $InstallDirectory 'llm-glue.conf'
+    Copy-Item -LiteralPath $stagedExecutable -Destination $executable -Force
     if (-not (Test-Path $config)) {
-        if ($Mode -eq 'remote-client') {
-            @"
-[roles]
-agent = false
-server = false
-client = true
-
-[client]
-source = "$ServerUrl"
-token_environment = "LLM_GLUE_READ_TOKEN"
-
-[[client.targets]]
-type = "opencode"
-path = '$OpenCodePath'
-"@ | Set-Content -LiteralPath $config -Encoding utf8NoBOM
-        } else {
-            @"
-[roles]
-agent = true
-server = true
-client = true
-
-[[providers]]
-name = "local-ollama"
-type = "ollama"
-url = "$OllamaUrl"
-
-[client]
-poll_interval_seconds = 30
-
-[[client.targets]]
-type = "opencode"
-path = '$OpenCodePath'
-"@ | Set-Content -LiteralPath $config -Encoding utf8NoBOM
-        }
-        Write-Warning "Created $config. Validate it before starting LLM Glue."
+        Copy-Item -LiteralPath $candidate -Destination $config
+        $currentSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        & icacls.exe $config '/inheritance:r' '/grant:r' "*$currentSid`:(F)" '*S-1-5-18:(F)' '*S-1-5-32-544:(F)' | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Could not protect the generated sidecar ACL.' }
     }
-    & $executable --version
-    if ($LASTEXITCODE -ne 0) { throw 'Installed executable failed its version check.' }
-    & $executable config validate --config $config
-    if ($LASTEXITCODE -ne 0) { throw 'Generated configuration failed validation.' }
     if ($InstallService) { & $executable service install --config $config; if ($LASTEXITCODE -ne 0) { throw 'Service installation failed.' } }
-    Write-Host "Installed $($release.tag_name) to $InstallDirectory"
+    Write-Host "Installed $($release.tag_name) to $InstallDirectory with config $config"
 } finally {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }
 }

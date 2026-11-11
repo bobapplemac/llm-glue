@@ -42,6 +42,12 @@ the Linux example discovers llama.cpp and owns only a LiteLLM include; the remot
 example is a Client-only OpenCode consumer. `remote-agent.conf` demonstrates an
 Agent-only host submitting inventory with a separate write credential.
 
+The root bootstrap scripts install a checksum-verified stable release and can
+configure a remote OpenCode client, standalone Ollama/OpenCode host, or central
+llama.cpp/LiteLLM host. They validate the candidate sidecar before installation,
+preserve an existing sidecar, and retain the previous executable for rollback.
+See [installation](docs/installation.md) before using the network-pipe form.
+
 Useful commands include `run`, `status`, `discover`, `doctor`, `config validate`,
 `config preview opencode|litellm`, `sync --once`, `service
 install|repair|start|stop|status|uninstall`, and `update check|apply|rollback`.

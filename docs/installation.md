@@ -20,18 +20,33 @@ and keeps the previous executable as `.rollback`.
 LLM_GLUE_INSTALL_DIR=$HOME/.local/lib/llm-glue ./install.sh
 ```
 
-Interactive installation asks for `remote-client` or `standalone-ollama`, the
-relevant server/provider URL, the OpenCode system path, and optional service
-registration. Headless installs set `-NonInteractive` plus PowerShell parameters,
-or `LLM_GLUE_NONINTERACTIVE=1`, `LLM_GLUE_MODE`, `LLM_GLUE_SERVER_URL`/
-`LLM_GLUE_OLLAMA_URL`, `LLM_GLUE_OPENCODE_PATH`, and
-`LLM_GLUE_INSTALL_SERVICE` on Linux. Existing configuration is never replaced.
-The generated configuration is validated before optional service registration.
-Remote-client tokens remain environment references and must be set separately.
-For a headless service without an injected environment, replace the corresponding
-`*_token_environment` key with a protected literal `token`, `read_token`, or
-`write_token` in the same sidecar. Never configure both forms for one credential;
-restrict the sidecar to its owner and fixed service identity.
+Interactive installation offers `remote-client`, `standalone-ollama`, and
+`central-llama`. It asks only for the URLs, secrets, provider/target paths, and
+optional service registration needed by that mode. The central mode configures
+llama.cpp discovery, authenticated Server publication, and the owned LiteLLM
+include; it never edits the operator's primary LiteLLM YAML.
+
+Headless PowerShell installs use `-NonInteractive` with the corresponding named
+parameters. Headless Linux installs set `LLM_GLUE_NONINTERACTIVE=1`,
+`LLM_GLUE_MODE`, and applicable variables: `LLM_GLUE_SERVER_URL`,
+`LLM_GLUE_SERVER_TOKEN`, `LLM_GLUE_OLLAMA_URL`, `LLM_GLUE_LLAMA_URL`,
+`LLM_GLUE_LISTEN_URL`, `LLM_GLUE_READ_TOKEN`, `LLM_GLUE_WRITE_TOKEN`,
+`LLM_GLUE_MODEL_DIRECTORY`, `LLM_GLUE_OPENCODE_PATH`, the
+`LLM_GLUE_LITELLM_*` paths/service/health settings, and
+`LLM_GLUE_INSTALL_SERVICE`. `LLM_GLUE_INSTALL_DIR` and
+`LLM_GLUE_CONFIG_PATH` override destinations. Linux service installs otherwise
+use `/opt/llm-glue` and `/etc/llm-glue.conf`; foreground installs remain
+user-writable.
+
+The checksum-verified staged executable and candidate configuration are validated
+before copying anything into the final location. Existing configuration is
+validated and never replaced; upgrades retain the prior executable as
+`.rollback`. Service-mode remote clients require a literal token because the
+installed service does not inherit the bootstrap environment. Interactive secret
+prompts do not echo. Generated sidecars use mode `0600` on Linux and a restricted
+owner/SYSTEM/Administrators ACL on Windows; service registration then grants its
+fixed identity read access. Never configure both literal and environment forms
+for one credential.
 
 Then run:
 

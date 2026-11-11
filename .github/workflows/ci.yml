@@ -20,6 +20,16 @@ jobs:
         run: make help
       - if: runner.os == 'Linux'
         run: bash scripts/test-release-preflight.sh
+      - if: runner.os == 'Linux'
+        run: dotnet publish src/LlmGlue/LlmGlue.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o artifacts/bootstrap-test/linux-x64
+      - if: runner.os == 'Linux'
+        run: LLM_GLUE_TEST_BINARY="$PWD/artifacts/bootstrap-test/linux-x64/llm-glue" bash scripts/Test-BootstrapConfigs.sh
       - if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/Test-ReleasePreflight.ps1
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: dotnet publish src/LlmGlue/LlmGlue.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o artifacts/bootstrap-test/win-x64
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/Test-BootstrapConfigs.ps1 -Binary artifacts/bootstrap-test/win-x64/llm-glue.exe

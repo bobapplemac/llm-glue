@@ -49,6 +49,10 @@ Last updated: 2026-11-11
   Service registration now provisions stable least-privilege identities and
   verifies exact executable, sidecar, state, log, and target access before
   registering the service; live elevated installation remains unqualified.
+  Both bootstrap scripts now cover remote-client, standalone Ollama, and central
+  llama.cpp/LiteLLM modes, validate before privileged copying, protect generated
+  sidecars, and preserve existing configuration. Isolated mocked-release matrices
+  execute and validate every generated mode on Windows and Linux.
 
 ## M0 acceptance checklist
 
@@ -150,6 +154,9 @@ authorization or claim either live gate passed beforehand.
   packaging, checksum verification, and commit/version manifest pass.
 - [x] PowerShell installer/release scripts parse successfully; dirty worktree
   preflight fails closed before any remote mutation.
+- [x] Bash and PowerShell bootstrap matrices use real published binaries with
+  mocked pinned release responses to verify checksums, all three configuration
+  modes, protected sidecars, rerun preservation, and executable rollback.
 - [x] Windows SCM/systemd install, repair, start, stop, status and uninstall are
   implemented with fixed tools, stable LocalService/`llm-glue` identities,
   path-specific permissions, and preservation defaults; install has a verified

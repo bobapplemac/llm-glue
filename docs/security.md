@@ -30,6 +30,10 @@ is inventory submission and read-only catalog/artifact retrieval.
 - Updates and installers are pinned to `bobapplemac/llm-glue`, accept stable `rN`
   releases only, and verify SHA-256 manifests. Release publication rechecks the
   upstream immediately before mutation.
+- Bootstrap installers execute and validate the checksum-verified staged binary
+  and candidate TOML before privileged copying. Secret prompts are non-echoing;
+  generated sidecars receive owner-only Linux mode or a restricted Windows ACL.
+  Existing sidecars are validated and preserved.
 
 Tokens over bare HTTP are visible to a network observer. File permissions—not
 reversible application encryption with a colocated key—protect sidecars. Operators
