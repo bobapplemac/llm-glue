@@ -14,7 +14,7 @@ need one system catalog or the same catalog in several selected user profiles.
 ## Decision
 
 - The operator selects scope by configuring each destination path explicitly.
-  `C:\ProgramData\opencode\opencode.json` is the Windows system target; a path
+  `C:\ProgramData\opencode\opencode.jsonc` is the default Windows system target; a path
   below a selected profile is a user target.
 - Multiple `[[client.targets]]` entries of type `opencode` are supported. The
   Client downloads the OpenCode artifact once per polling cycle and applies it
@@ -27,6 +27,9 @@ need one system catalog or the same catalog in several selected user profiles.
 - Every destination has its own adjacent ownership document. Existing JSON/JSONC
   is merged; only provider keys and native-provider disablements recorded for the
   artifact source are updated or removed. Unowned collisions fail closed.
+- New installations standardize on JSONC. Reconciliation preserves comments on
+  unowned syntax and emits managed-section comments; explicit legacy `.json`
+  destinations remain compatible.
 
 ## Consequences
 

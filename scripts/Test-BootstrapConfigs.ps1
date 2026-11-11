@@ -27,9 +27,10 @@ try {
 
     $installer = Join-Path $root 'install.ps1'
     $remote = Join-Path $temporary 'remote'
-    & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://catalog.example -ServerToken test-read -OpenCodePath (Join-Path $temporary 'opencode.json')
+    & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://catalog.example -ServerToken test-read
     & (Join-Path $remote 'llm-glue.exe') config validate --config (Join-Path $remote 'llm-glue.conf')
     if (-not (Select-String -Quiet -SimpleMatch 'token = "test-read"' (Join-Path $remote 'llm-glue.conf'))) { throw 'Remote token was not generated.' }
+    if (-not (Select-String -Quiet -SimpleMatch 'C:\\ProgramData\\opencode\\opencode.jsonc' (Join-Path $remote 'llm-glue.conf'))) { throw 'Remote client did not use the system JSONC default.' }
     $remoteHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $remote 'llm-glue.conf')).Hash
     & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://changed.example -ServerToken changed -OpenCodePath (Join-Path $temporary 'changed.json')
     if ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $remote 'llm-glue.conf')).Hash -ne $remoteHash) { throw 'Rerun replaced the existing sidecar.' }

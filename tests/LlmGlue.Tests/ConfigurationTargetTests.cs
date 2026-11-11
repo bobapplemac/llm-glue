@@ -23,7 +23,7 @@ public sealed class ConfigurationTargetTests
                 """, TestContext.Current.CancellationToken);
             var artifact = await new OpenCodeGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
             await new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator()).ApplyAsync(artifact, TestContext.Current.CancellationToken);
-            using var json = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            using var json = await ParseJsoncAsync(path);
             Assert.Equal("keep-me", json.RootElement.GetProperty("username").GetString());
             Assert.True(json.RootElement.TryGetProperty("mcp", out _));
             var providers = json.RootElement.GetProperty("providers");
@@ -33,7 +33,7 @@ public sealed class ConfigurationTargetTests
 
             var empty = await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, []), TestContext.Current.CancellationToken);
             await new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator()).ApplyAsync(empty, TestContext.Current.CancellationToken);
-            using var reconciled = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            using var reconciled = await ParseJsoncAsync(path);
             Assert.True(reconciled.RootElement.GetProperty("providers").TryGetProperty("llm-glue-stale", out _));
             Assert.False(reconciled.RootElement.GetProperty("providers").TryGetProperty("llm-glue-llama-cpp-lab", out _));
         }
@@ -47,7 +47,15 @@ public sealed class ConfigurationTargetTests
         try
         {
             var path = Path.Combine(directory, "opencode.json");
-            await File.WriteAllTextAsync(path, """{ "disabled_providers": ["manual"], "providers": {} }""", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(path, """
+                {
+                  "disabled_providers": [
+                    // The operator disabled this provider.
+                    "manual"
+                  ],
+                  "providers": {}
+                }
+                """, TestContext.Current.CancellationToken);
             var ollama = GenerationTests.Qualified() with
             {
                 Identity = GenerationTests.Qualified().Identity with
@@ -60,7 +68,10 @@ public sealed class ConfigurationTargetTests
             var target = new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator());
             var generated = await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [ollama]), TestContext.Current.CancellationToken);
             await target.ApplyAsync(generated, TestContext.Current.CancellationToken);
-            using (var applied = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken)))
+            var appliedText = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
+            Assert.Contains("// The operator disabled this provider.", appliedText);
+            Assert.Contains("// Managed by LLM Glue.", appliedText);
+            using (var applied = await ParseJsoncAsync(path))
                 Assert.Equal(["manual", "ollama"], applied.RootElement.GetProperty("disabled_providers").EnumerateArray().Select(x => x.GetString()!).ToArray());
             var ownershipPath = path + ".llm-glue-ownership.json";
             File.SetLastWriteTimeUtc(ownershipPath, new DateTime(2001, 2, 3, 4, 5, 6, DateTimeKind.Utc));
@@ -70,7 +81,8 @@ public sealed class ConfigurationTargetTests
 
             var empty = await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, []), TestContext.Current.CancellationToken);
             await target.ApplyAsync(empty, TestContext.Current.CancellationToken);
-            using var reconciled = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            Assert.Contains("// The operator disabled this provider.", await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
+            using var reconciled = await ParseJsoncAsync(path);
             Assert.Equal("manual", Assert.Single(reconciled.RootElement.GetProperty("disabled_providers").EnumerateArray()).GetString());
         }
         finally { Directory.Delete(directory, true); }
@@ -96,7 +108,7 @@ public sealed class ConfigurationTargetTests
             var target = new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator());
             await target.ApplyAsync(await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [ollama]), TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
             await target.ApplyAsync(await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, []), TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
-            using var reconciled = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            using var reconciled = await ParseJsoncAsync(path);
             Assert.Equal("ollama", Assert.Single(reconciled.RootElement.GetProperty("disabled_providers").EnumerateArray()).GetString());
         }
         finally { Directory.Delete(directory, true); }
@@ -123,7 +135,7 @@ public sealed class ConfigurationTargetTests
             await Assert.ThrowsAsync<InvalidOperationException>(() => new OpenCodeTarget(path, new AtomicFileInstaller(), new FailOnceActivator()).ApplyAsync(artifact, TestContext.Current.CancellationToken));
             using var ownership = JsonDocument.Parse(await File.ReadAllBytesAsync(path + ".llm-glue-ownership.json", TestContext.Current.CancellationToken));
             Assert.Empty(ownership.RootElement.GetProperty("controllers").EnumerateObject());
-            using var restored = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            using var restored = await ParseJsoncAsync(path);
             Assert.False(restored.RootElement.TryGetProperty("disabled_providers", out _));
         }
         finally { Directory.Delete(directory, true); }
@@ -148,7 +160,7 @@ public sealed class ConfigurationTargetTests
             var centralArtifact = await new OpenCodeGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
             var central = new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:http://central:8765");
             await central.ApplyAsync(centralArtifact, TestContext.Current.CancellationToken);
-            using (var applied = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken)))
+            using (var applied = await ParseJsoncAsync(path))
             {
                 var providers = applied.RootElement.GetProperty("providers");
                 Assert.True(providers.TryGetProperty("llm-glue-ollama-local", out _));
@@ -171,7 +183,7 @@ public sealed class ConfigurationTargetTests
 
             var emptyCentral = await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, []), TestContext.Current.CancellationToken);
             await central.ApplyAsync(emptyCentral, TestContext.Current.CancellationToken);
-            using var reconciled = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            using var reconciled = await ParseJsoncAsync(path);
             var finalProviders = reconciled.RootElement.GetProperty("providers");
             Assert.True(finalProviders.TryGetProperty("llm-glue-ollama-local", out _));
             Assert.False(finalProviders.TryGetProperty("llm-glue-llama-cpp-lab", out _));
@@ -223,6 +235,47 @@ public sealed class ConfigurationTargetTests
     }
 
     [Fact]
+    public async Task OpenCodePreservesOperatorCommentsAndMarksManagedSections()
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.jsonc");
+            await File.WriteAllTextAsync(path, """
+                // Operator header stays here.
+                {
+                  // This explains the user setting.
+                  "username": "keep-me", // Inline operator comment.
+                  "temperature": 1/* Inline block comment. */,
+                  "providers": {
+                    /* This provider is maintained manually. */
+                    "manual": { "name": "Manual", "models": {} },
+                  }
+                }
+                """, TestContext.Current.CancellationToken);
+            var target = new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator());
+            var artifact = await new OpenCodeGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
+
+            await target.ApplyAsync(artifact, TestContext.Current.CancellationToken);
+            var first = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
+            await target.ApplyAsync(artifact, TestContext.Current.CancellationToken);
+            var second = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
+
+            Assert.Contains("// Operator header stays here.", first);
+            Assert.Contains("// This explains the user setting.", first);
+            Assert.Contains("// Inline operator comment.", first);
+            Assert.Contains("/* Inline block comment. */", first);
+            Assert.Contains("/* This provider is maintained manually. */", first);
+            Assert.Contains("// Managed by LLM Glue.", first);
+            Assert.Equal(first, second);
+            using var parsed = await ParseJsoncAsync(path);
+            Assert.True(parsed.RootElement.GetProperty("providers").TryGetProperty("manual", out _));
+            Assert.True(parsed.RootElement.GetProperty("providers").TryGetProperty("llm-glue-llama-cpp-lab", out _));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public async Task LiteLlmRequiresIncludeAndPreservesPrimaryFile()
     {
         var directory = AtomicFileInstallerTests.TempDirectory();
@@ -267,4 +320,8 @@ public sealed class ConfigurationTargetTests
             return Task.CompletedTask;
         }
     }
+
+    private static async Task<JsonDocument> ParseJsoncAsync(string path) => JsonDocument.Parse(
+        await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken),
+        new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
 }

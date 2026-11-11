@@ -23,8 +23,9 @@ run_mode() {
   [[ "$(stat -c '%a' "$destination/llm-glue.conf")" == 600 ]]
 }
 
-run_mode remote-client env LLM_GLUE_SERVER_URL=https://catalog.example LLM_GLUE_SERVER_TOKEN=test-read LLM_GLUE_OPENCODE_PATH="$tmp/opencode.json"
+run_mode remote-client env LLM_GLUE_SERVER_URL=https://catalog.example LLM_GLUE_SERVER_TOKEN=test-read
 grep -Fq 'token = "test-read"' "$tmp/remote-client/llm-glue.conf"
+grep -Fq 'path = "/etc/opencode/opencode.jsonc"' "$tmp/remote-client/llm-glue.conf"
 remote_hash="$(sha256sum "$tmp/remote-client/llm-glue.conf")"
 run_mode remote-client env LLM_GLUE_SERVER_URL=https://changed.example LLM_GLUE_SERVER_TOKEN=changed LLM_GLUE_OPENCODE_PATH="$tmp/changed.json"
 [[ "$(sha256sum "$tmp/remote-client/llm-glue.conf")" == "$remote_hash" ]]

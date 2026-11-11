@@ -24,7 +24,9 @@ Current schema uses `providers` and supports explicit model `capabilities`,
 `reasoning`, `limit`, settings, and variants. The generator must emit explicit
 capability metadata: custom compatible models without it received invented
 low/medium/high variants during the live test. The system locations are
-`%ProgramData%\opencode\opencode.json` and `/etc/opencode/opencode.json`.
+`%ProgramData%\opencode\opencode.jsonc` and `/etc/opencode/opencode.jsonc` for
+new LLM Glue installations. OpenCode 2.2.7 live-discovered and parsed the Windows
+system `.jsonc` path with a line comment. Existing `.json` paths remain compatible.
 
 An isolated WSL qualification created two actual Linux accounts. For each,
 `/etc/opencode/opencode.json` won conflicting provider/model ID, name, endpoint,

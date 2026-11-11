@@ -13,7 +13,7 @@ not a dependable production activation mechanism.
 ## Decision
 
 1. OpenCode uses a deterministic provider namespace in the system-managed
-   document. Reconciliation parses the existing document, changes only owned
+   JSONC document. Reconciliation preserves unowned comments, parses the existing document, changes only owned
    provider/model keys, removes only previously owned stale keys after grace and
    verification, and preserves all unrelated content. User/project files are
    never written. The generator is version-gated and targets the current

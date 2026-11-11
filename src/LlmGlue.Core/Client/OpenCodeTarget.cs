@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text;
 using LlmGlue.Core.Abstractions;
 using LlmGlue.Core.Generation;
 
@@ -20,7 +21,8 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         await using var targetLock = new FileStream(destination + ".llm-glue-target.lock", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
         var generated = Parse(artifact.Content);
-        var existing = File.Exists(path) ? Parse(await File.ReadAllBytesAsync(path, cancellationToken)) : new JsonObject { ["$schema"] = "https://opencode.ai/config.json" };
+        var originalText = File.Exists(path) ? await File.ReadAllTextAsync(path, cancellationToken) : "{}";
+        var existing = File.Exists(path) ? Parse(Encoding.UTF8.GetBytes(originalText)) : new JsonObject { ["$schema"] = "https://opencode.ai/config.json" };
         var generatedProviders = generated["providers"] as JsonObject ?? throw new InvalidDataException("Generated OpenCode config has no providers.");
         JsonObject existingProviders;
         if (existing["providers"] is null) existing["providers"] = existingProviders = new JsonObject();
@@ -72,7 +74,7 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
         }
         nextOwnership.RemoveEmptyControllers();
 
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(existing, new JsonSerializerOptions { WriteIndented = true });
+        var bytes = OpenCodeJsoncWriter.Write(originalText, existing, currentOwnership.Providers, currentOwnership.DisabledProviders);
         await SaveOwnershipAsync(nextOwnership, cancellationToken);
         try
         {

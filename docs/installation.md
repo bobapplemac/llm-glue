@@ -116,8 +116,9 @@ model_path_mappings = ["/models=/srv/models/gguf"]
 The mapped canonical path must still remain inside `model_directories`.
 
 Service registration requires elevation and preserves the sidecar and data on
-uninstall. Windows installs the service as `NT AUTHORITY\\LocalService`, granting
-read/execute access to the single-file executable, read access to the sidecar,
+uninstall. Windows always uses the built-in `NT AUTHORITY\\LocalService` account;
+it does not create a dedicated Windows user. Installation grants read/execute
+access to the single-file executable, read access to the sidecar,
 and modify access only to configured state, log, and target directories. Linux
 creates or reuses the fixed, non-login `llm-glue` system account, removes all
 other-user access from the sidecar, and grants that account access only to the
@@ -129,8 +130,9 @@ and data ownership remain stable. Copying the executable and sidecar is supporte
 use `service repair` after relocation because OS service metadata does not follow
 moved files.
 
-OpenCode synchronization may create
-`<opencode-target>.llm-glue-ownership.json` beside the managed OpenCode document.
+OpenCode synchronization defaults to an `opencode.jsonc` document and may create
+`<opencode-target>.llm-glue-ownership.json` beside it. Existing `.json` targets
+remain supported when explicitly configured.
 Schema v2 records provider keys and native-provider disablements per artifact
 source, allowing local Ollama and remote central catalogs to coexist and reverse
 only their own changes. V1 state migrates automatically. Keep this
@@ -144,7 +146,7 @@ machine-wide catalog:
 ```toml
 [[client.targets]]
 type = "opencode"
-path = 'C:\ProgramData\opencode\opencode.json'
+path = 'C:\ProgramData\opencode\opencode.jsonc'
 ```
 
 Or list one target per selected user (and omit the system target):
@@ -152,11 +154,11 @@ Or list one target per selected user (and omit the system target):
 ```toml
 [[client.targets]]
 type = "opencode"
-path = 'C:\Users\Andrew\.config\opencode\opencode.json'
+path = 'C:\Users\Andrew\.config\opencode\opencode.jsonc'
 
 [[client.targets]]
 type = "opencode"
-path = 'C:\Users\OtherUser\.config\opencode\opencode.json'
+path = 'C:\Users\OtherUser\.config\opencode\opencode.jsonc'
 ```
 
 The artifact is fetched once and applied independently to each file. LLM Glue
@@ -167,6 +169,9 @@ directories. Duplicate normalized target paths are rejected. Existing JSON/JSONC
 is merged, unrelated settings remain operator-owned, and each destination's
 adjacent ownership document records exactly which provider keys and
 `disabled_providers` entries each artifact source may later change or remove.
+Operator comments on unrelated settings and providers survive reconciliation;
+LLM Glue emits a comment above each managed group. Comments within a managed
+provider value are replaced with that owned value on the next synchronization.
 Normally configure either the system target or selected user targets: when both
 define the same OpenCode keys, OpenCode's system precedence wins.
 

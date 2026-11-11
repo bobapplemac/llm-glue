@@ -9,9 +9,10 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 - **M0 — evidence/interface validation:** implementation design complete;
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,
   Ollama 0.40.16, and llama.cpp direct/router builds. Two-account Linux
-  precedence and representative central discovery are live-qualified; Windows
+  precedence, Windows 2.2.7 system-level JSONC discovery/comment parsing, and
+  representative central discovery are live-qualified; Windows
   multi-account remains deferred to M4.
-- **M1 — core domain/discovery:** implemented; the full 102-test suite
+- **M1 — core domain/discovery:** implemented; the full 103-test suite
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
   inventory hashes. Configured llama.cpp directories now enrich only
@@ -46,7 +47,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   disablements by artifact source, migrates v1 state, and fails closed on
   unowned/cross-source collisions. Explicit system or user paths are supported;
   repeated OpenCode targets fetch one artifact and apply independently, with the
-  shared ETag advancing only after every selected destination succeeds.
+  shared ETag advancing only after every selected destination succeeds. New
+  targets default to JSONC; unowned comments survive reconciliation and managed
+  groups are explicitly marked without duplicating comments on repeated sync.
 - **M4 — live end-to-end:** partial. Live Windows Ollama discovery → Server →
   Client → isolated OpenCode 2.2.7 catalog visibility passed for two models.
   An elevated all-role Windows service run also passed LocalService identity,

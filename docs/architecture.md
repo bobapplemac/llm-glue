@@ -68,6 +68,10 @@ central controllers can share one target. V1 state migrates through a legacy
 scope and transfers keys when their current source next claims them. Unowned and
 cross-source collisions fail closed. Every unrelated property is preserved;
 user and project documents are read only.
+The default destination uses the `.jsonc` extension. Reconciliation preserves
+comment-bearing raw syntax for unowned root properties, providers, and disabled
+provider entries while regenerating owned values under explicit managed comments.
+An explicitly configured legacy `.json` destination remains accepted.
 For a direct Ollama deployment, the generated document also disables OpenCode's
 built-in `ollama` provider so enriched models do not appear twice. The target
 merges `disabled_providers`, preserves unrelated and pre-existing values, and
@@ -152,8 +156,9 @@ hosting integrations. Registration stores absolute executable/config paths and i
 separate from target-service activation. Local administrative operations call
 fixed OS tools with argument lists and never a command shell.
 
-Service registration uses stable least-privilege identities: LocalService on
-Windows and the non-login `llm-glue` system account on Linux. The installer grants
+Service registration uses stable least-privilege identities: the built-in
+LocalService account on Windows (no dedicated Windows account is created) and the
+non-login `llm-glue` system account on Linux. The installer grants
 read/execute access to the executable, read access to the sidecar, and write
 access only to resolved state, log, and target directories. Linux systemd
 hardening additionally uses `ProtectSystem=strict`, `ProtectHome=read-only`, and

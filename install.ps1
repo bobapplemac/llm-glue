@@ -10,7 +10,7 @@ param(
     [string]$ListenUrl = 'http://0.0.0.0:8765',
     [string]$ReadToken,
     [string]$WriteToken,
-    [string]$OpenCodePath = 'C:\ProgramData\opencode\opencode.json',
+    [string]$OpenCodePath = 'C:\ProgramData\opencode\opencode.jsonc',
     [string]$LiteLlmGeneratedPath = 'C:\ProgramData\LiteLLM\llm-glue-models.yaml',
     [string]$LiteLlmPrimaryPath = 'C:\ProgramData\LiteLLM\config.yaml',
     [string]$LiteLlmService = 'LiteLLM',

@@ -53,8 +53,10 @@ See [installation](docs/installation.md) before using the network-pipe form.
 
 OpenCode destination scope is explicit: configure the system file for a global
 catalog, or repeat `[[client.targets]]` with one path per selected user. Existing
-JSON/JSONC is merged using an adjacent, source-scoped ownership document; LLM
-Glue never scans user profiles or claims unrelated settings.
+JSON/JSONC is merged using an adjacent, source-scoped ownership document; new
+installations default to `opencode.jsonc`, preserve operator comments, and mark
+managed groups with comments. LLM Glue never scans user profiles or claims
+unrelated settings.
 
 Useful commands include `run`, `status`, `discover`, `doctor`, `config validate`,
 `config preview opencode|litellm`, `sync --once`, `service
