@@ -23,6 +23,11 @@ jobs:
       - if: runner.os == 'Linux'
         run: dotnet publish src/LlmGlue/LlmGlue.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o artifacts/bootstrap-test/linux-x64
       - if: runner.os == 'Linux'
+        name: Run single-file binary without ICU on Debian 13 slim
+        run: |
+          docker run --rm --volume "$PWD:/repo:ro" --workdir /repo debian:13-slim artifacts/bootstrap-test/linux-x64/llm-glue --version
+          docker run --rm --volume "$PWD:/repo:ro" --workdir /repo debian:13-slim artifacts/bootstrap-test/linux-x64/llm-glue config validate --config examples/linux-llama-litellm.conf
+      - if: runner.os == 'Linux'
         run: LLM_GLUE_TEST_BINARY="$PWD/artifacts/bootstrap-test/linux-x64/llm-glue" bash scripts/Test-BootstrapConfigs.sh
       - if: runner.os == 'Windows'
         shell: pwsh

@@ -12,10 +12,11 @@ release source. Live production qualification is tracked separately.
 | llama.cpp | 8681 (`b8681-Debian`) | Live Ubuntu/WSL executable with SmolLM2 135M Q2_K plus official server docs/source | Current direct servers expose the OpenAI `data` array from both `/v1/models` and the `/models` compatibility alias; `/props` reported build, effective context, and `reasoning_format`. LLM Glue separated native/effective context and completed a bounded inference probe. Representative Debian models remain pending. |
 | .NET SDK | 10.0.401 | Live | Build toolchain available on Windows. |
 | .NET SDK (Ubuntu/WSL) | 10.0.115 | Live native Linux build/test/systemd | GNU Make restore/build/test, linux-x64 execution, and isolated fixed-account all-role systemd install/repair/rollback/uninstall passed, including OpenCode ownership-sidecar permissions. |
+| Debian | 13.5 (trixie) x64 | Live minimal WSL installation with systemd, initially without ICU | The first self-contained build exposed an undeclared ICU dependency. Invariant globalization removed it; the rebuilt single file then ran, validated the central config, and passed fixed-account all-role systemd install/start/sync/move/repair/restart/rollback/uninstall with cleanup verified. |
 | Tomlyn | 2.10.2 | Live NuGet restore/build on net10.0 | Compatible parser selected; strict binding tests are an M1 gate. |
 | YamlDotNet | 18.1.0 | Automated net10.0 target tests | LiteLLM primary/generated YAML parsing, include and alias ownership checks. |
 | NLog.Extensions.Logging | 6.2.2 | Build/test | Standard logging provider with console and bounded rolling file targets. |
-| LLM Glue development outputs | r0 qualification build | Live Windows and Ubuntu/WSL execution | Both RID outputs are single files and report `LLM Glue r0`; Assembly/File versions remain `0.0.0.0`. No release was published. |
+| LLM Glue development outputs | r0 qualification build | Live Windows, Ubuntu/WSL, and Debian 13.5 execution | Both RID outputs are single files and report `LLM Glue r0`; the Linux file runs without ICU. Assembly/File versions remain `0.0.0.0`. No release was published. |
 
 ## OpenCode 2.2.7
 

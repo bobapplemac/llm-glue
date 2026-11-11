@@ -149,6 +149,10 @@ executable directory. LLM Glue serves no static content, and this prevents
 ASP.NET from requiring directory-list permission around a portable single-file
 binary while retaining explicit configuration-relative data paths.
 
+The executable uses invariant globalization because all product contracts are
+culture-independent. This keeps the self-contained Linux file runnable on
+minimal Debian 13 without an undeclared ICU dependency; see ADR 0008.
+
 Update discovery is pinned to official stable GitHub `rN` releases. Assets are
 RID-specific and checksum-verified before staging; the current executable is
 retained as `.rollback`. Service-mode replacement coordinates the fixed SCM or

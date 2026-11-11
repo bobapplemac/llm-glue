@@ -4,6 +4,7 @@
     <AssemblyName>llm-glue</AssemblyName>
     <RootNamespace>LlmGlue</RootNamespace>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LlmGlue.Core/LlmGlue.Core.csproj" />

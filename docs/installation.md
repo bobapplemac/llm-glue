@@ -1,7 +1,10 @@
 # Installation and quick start
 
 Official release assets are self-contained single files for `win-x64` and
-`linux-x64`. No official release exists while the project remains `r0`.
+`linux-x64`. The Linux executable uses invariant globalization and does not
+require ICU; it was executed and service-qualified on Debian 13.5. Normal OS
+facilities such as glibc and systemd remain platform dependencies. No official
+release exists while the project remains `r0`.
 
 ## Bootstrap trust
 

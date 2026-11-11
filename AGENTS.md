@@ -20,6 +20,8 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
 - Generated artifacts must be deterministic and must not contain credentials.
 - Network schemas are versioned independently from the product revision.
 - Product version remains `r0` until the user authorizes the first release.
+- Keep the executable globalization-invariant so the self-contained Linux asset
+  remains runnable on minimal Debian 13 without ICU; see ADR 0008.
 - Add or update tests with every behavioral change. Mark live-environment tests
   separately from fixture/mock tests.
 - Update durable documentation and `docs/progress.md` at each milestone.

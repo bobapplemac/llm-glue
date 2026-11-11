@@ -231,9 +231,9 @@ environment. The following remain mandatory:
 - Functional inference and context/KV/runtime observation.
 - Model add, change, removal, outage, stale-grace, restart, and rollback scenarios.
 
-## Linux systemd lifecycle — pass in Ubuntu/WSL
+## Linux systemd lifecycle — pass in Ubuntu and Debian 13/WSL
 
-A native systemd instance ran the r1 Linux single-file binary under the fixed,
+A native systemd instance ran the r0 Linux single-file binary under the fixed,
 non-login `llm-glue` identity. An isolated Server configuration passed unit
 install/enable, start/HTTP health, stop, executable relocation plus `service
 repair`, restart/health, synchronous service rollback, uninstall preservation,
@@ -249,6 +249,18 @@ disablement, preserved both across executable relocation and service rollback,
 and retained them after uninstall as documented. The fixture, unit, account, and
 service directories were then removed. This qualifies systemd permissions and
 ownership-state lifecycle, not real Linux Ollama or Debian llama.cpp inference.
+
+A clean Debian 13.5 WSL installation then exposed an undeclared portability
+dependency: the self-contained binary aborted because ICU was absent. ADR 0008
+made product globalization invariant, matching the existing culture-independent
+network/configuration contracts. The rebuilt binary ran without ICU, validated
+the central llama.cpp/LiteLLM configuration, and passed the same all-role systemd
+lifecycle with fixture discovery, managed target plus ownership sidecar,
+relocation/repair, restart, synchronous rollback, uninstall preservation, and
+final service/account/directory cleanup. Python and curl were installed only for
+the qualification harness; neither is an LLM Glue runtime dependency. This
+qualifies Debian 13 service and binary mechanics, not the unavailable
+representative-model inference path on `labhost03`.
 
 ## Multi-user precedence — Linux pass; Windows/UI pending
 

@@ -77,7 +77,11 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   systemd lifecycle commands, portable console/rolling-file logs, doctor and
   operational CLI, checksum-verified stable updates/rollback, guarded equivalent
   release scripts, packaging manifests, CI, and operator/developer docs. Native
-  Windows and WSL builds/tests pass. Isolated Bash/PowerShell release matrices now
+  Windows and WSL builds/tests pass. A minimal Debian 13.5 environment exposed
+  and led to removal of the Linux binary's undeclared ICU dependency; the
+  invariant-globalization binary and full fixed-account systemd lifecycle now
+  pass there, and CI reruns the binary/config check in `debian:13-slim`.
+  Isolated Bash/PowerShell release matrices now
   qualify fail-closed Git states and a local-only partial-publication recovery path.
   Live official-release update and an authenticated clean-pushed release preflight
   remain unqualified; publication is not authorized. Unknown reasoning
@@ -87,8 +91,8 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   verifies exact executable, sidecar, state, log, and target access before
   registering the service. Elevated Windows all-role lifecycle and rollback pass
   for the pre-ADR-0007 target; a current LocalService sidecar rerun needs an
-  elevated Windows token. Native Ubuntu/WSL all-role systemd install/repair/
-  rollback/uninstall passes with ownership-sidecar access verified.
+  elevated Windows token. Native Ubuntu and Debian 13/WSL all-role systemd
+  install/repair/rollback/uninstall pass with ownership-sidecar access verified.
   Both bootstrap scripts now cover remote-client, standalone Ollama, and central
   llama.cpp/LiteLLM modes, validate before privileged copying, protect generated
   sidecars, and preserve existing configuration. Isolated mocked-release matrices
