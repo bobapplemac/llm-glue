@@ -21,13 +21,17 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
   never remove another controller's provider keys.
 - Generated artifacts must be deterministic and must not contain credentials.
 - Network schemas are versioned independently from the product revision.
-- Product version remains `r0` until the user authorizes the first release.
+- Ordinary development and test builds identify as `r0`. Only the guarded
+  publisher may assign an explicitly authorized official `rN` revision; the
+  current stable release is `r3`, with stable `AssemblyVersion` 1.0.0.0 and
+  revision-tracking `FileVersion` 1.N.0.0.
 - Keep the executable globalization-invariant so the self-contained Linux asset
   remains runnable on minimal Debian 13 without ICU; see ADR 0008.
 - Add or update tests with every behavioral change. Mark live-environment tests
   separately from fixture/mock tests.
 - Update durable documentation and `docs/progress.md` at each milestone.
-- Do not publish releases or modify inference services outside an explicitly
+- Every release revision requires explicit user authorization. Do not publish
+  through an unguarded path or modify inference services outside an explicitly
   configured local target.
 
 ## Verification

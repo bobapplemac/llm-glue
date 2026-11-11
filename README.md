@@ -4,19 +4,32 @@ LLM Glue discovers models served by llama.cpp and Ollama, normalizes evidence
 about their capabilities, publishes versioned configuration artifacts, and
 safely synchronizes those artifacts into OpenCode or LiteLLM.
 
-The official `r1` release is available from
-[GitHub Releases](https://github.com/bobapplemac/llm-glue/releases/tag/r1).
-Development builds continue to identify as `r0` until produced by the guarded
-release path. See the authoritative [product specification](docs/llm-glue-spec.md),
-[progress](docs/progress.md), and [completion audit](docs/completion-audit.md).
+The current stable release is
+[LLM Glue r3](https://github.com/bobapplemac/llm-glue/releases/tag/r3).
+Ordinary development builds identify as `r0`; the guarded release publisher
+assigns the authorized `rN` product and file versions. See the authoritative
+[product specification](docs/llm-glue-spec.md), [progress](docs/progress.md),
+and [completion audit](docs/completion-audit.md).
 
-> **Known r1 Linux upgrade issue:** do not run `update apply` from an existing
-> Linux installation. The immutable r1 updater can overwrite its running
-> single-file bundle before activation, loses the extracted executable mode, and
-> rejects persisted artifacts whose ownership header names an earlier revision.
-> Existing installations should remain on their current binary until the
-> corrective r2 release, then upgrade with the bootstrap/manual stop-copy-start
-> path. Fresh Windows remote-client installation is unaffected.
+## Quick install
+
+The bootstrap configures an interactive installation and downloads the latest
+stable checksum-verified binary. Review the
+[PowerShell script](https://raw.githubusercontent.com/bobapplemac/llm-glue/r3/install.ps1)
+or [Bash script](https://raw.githubusercontent.com/bobapplemac/llm-glue/r3/install.sh)
+and the [installation guide](docs/installation.md) first.
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/bobapplemac/llm-glue/r3/install.ps1 | iex
+```
+
+Linux Bash:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bobapplemac/llm-glue/r3/install.sh | bash
+```
 
 ## Architecture
 

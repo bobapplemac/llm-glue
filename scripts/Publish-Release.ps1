@@ -38,7 +38,8 @@ function Require-CleanReleaseState {
     if ($LASTEXITCODE -eq 0) { throw "Tag $tag already exists." }
     & gh release view $tag *> $null
     if ($LASTEXITCODE -eq 0) { throw "GitHub release $tag already exists." }
-    $revisions = @(Invoke-Git tag -l 'r[1-9]*' | Select-String '^r\d+$' | ForEach-Object { [int]$_.Line.Substring(1) } | Sort-Object)
+    $revisionTags = (Invoke-Git tag -l 'r[1-9]*') -split "`r?`n"
+    $revisions = @($revisionTags | Where-Object { $_ -match '^r\d+$' } | ForEach-Object { [int]$_.Substring(1) } | Sort-Object)
     $latest = if ($revisions.Count -eq 0) { 0 } else { $revisions[-1] }
     if ($Revision -ne ($latest + 1)) { throw "Revision must increment exactly; expected r$($latest + 1)." }
     return $root

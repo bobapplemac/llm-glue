@@ -22,6 +22,8 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   host's LiteLLM cold start exceeds r2's approximately 20-second health window;
   the next revision allows a two-minute bounded health qualification window.
   These corrections are implemented and locally verified but are not published.
+  The authorized r3 preflight additionally exposed and corrected a PowerShell
+  multiline-tag parsing defect before any tag or release was created.
 
 - **M0 — evidence/interface validation:** implementation design complete;
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,
