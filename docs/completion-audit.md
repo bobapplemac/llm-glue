@@ -50,8 +50,10 @@ ownership-sidecar qualification and a second native Windows account.
    `%ProgramData%\opencode\opencode.jsonc` path now has current-user effective
    catalog evidence, but a second native Windows account remains unqualified.
 2. After every live gate passes, explicitly authorize the first official `r1`
-   release. Push the clean commit, provide authenticated `gh`, run the guarded
-   preflight, publish once, and qualify update/apply from that immutable asset.
+   release. The checksum-verified portable GitHub CLI 2.103.3 is present but
+   logged out, and the clean branch is ahead of `origin/main`. Push the
+   clean commit, authenticate `gh`, run the guarded preflight, publish once, and
+   qualify update/apply from that immutable asset.
 
 None of these missing live results may be replaced by the existing fixtures or
 captured mock upstream.

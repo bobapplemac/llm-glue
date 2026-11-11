@@ -106,8 +106,12 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   pass there, and CI reruns the binary/config check in `debian:13-slim`.
   Isolated Bash/PowerShell release matrices now
   qualify fail-closed Git states and a local-only partial-publication recovery path.
-  Live official-release update and an authenticated clean-pushed release preflight
-  remain unqualified; publication is not authorized. Unknown reasoning
+  The PowerShell matrix was rerun successfully on 2026-11-11. Official GitHub CLI
+  2.103.3 was downloaded from GitHub Releases, checksum-verified, and executed as
+  a portable tool; it is not authenticated. A read-only origin fetch confirmed
+  the clean branch is ahead of `origin/main` and zero behind. Live official-release
+  update and an authenticated clean-pushed release preflight remain unqualified;
+  publication is not authorized. Unknown reasoning
   capability excludes a deployment from client publication rather than being
   converted to `false`.
   Service registration now provisions stable least-privilege identities and
@@ -267,8 +271,9 @@ authorization or claim either live gate passed beforehand.
 - [ ] Live update-apply from an official release asset; none exists without release
   authorization. Windows service rollback is live-qualified.
 - [ ] Authenticated preflight against the actual clean, already-pushed upstream
-  with GitHub CLI available. No publication authorized; isolated Git-state
-  success/failure matrices already pass.
+  with GitHub CLI authenticated. A verified portable CLI is available, but it is
+  logged out and the branch remains unpushed. No publication is
+  authorized; isolated Git-state success/failure matrices already pass.
 - [ ] Remaining M4 Windows LocalService-sidecar and second-account gate; M5 cannot be
   declared passed until the
   release's required live suite passes.
