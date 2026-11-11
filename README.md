@@ -6,7 +6,8 @@ safely synchronizes those artifacts into OpenCode or LiteLLM.
 
 The project is under active `r0` development. No official `r1` release has been
 authorized. See [progress](docs/progress.md) for implemented and qualified
-functionality.
+functionality and the [completion audit](docs/completion-audit.md) for the exact
+remaining live gates.
 
 ## Architecture
 

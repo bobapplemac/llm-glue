@@ -2,6 +2,8 @@
 
 Last updated: 2026-11-11
 
+The requirement-level gate audit is maintained in `docs/completion-audit.md`.
+
 ## Current status
 
 - **M0 — evidence/interface validation:** implementation design complete;
