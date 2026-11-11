@@ -37,6 +37,21 @@ llm-glue doctor --config /path/to/llm-glue.conf
 llm-glue run --config /path/to/llm-glue.conf
 ```
 
+An Agent-only host uses `agent.submit_to` and
+`agent.write_token_environment`; see `examples/remote-agent.conf`. The destination
+is the Server root, not the inventory endpoint. Exact server publication filters
+use one or more rules such as:
+
+```toml
+[[server.exclusions]]
+provider_id = "ollama"
+instance_id = "workstation"
+model_id = "private-model"
+```
+
+All supplied fields in a rule must match. Exclusions hide catalog publication
+only: diagnostics retain the deployment and identify the matching rule.
+
 Service registration requires elevation and preserves the sidecar and data on
 uninstall. Copying the executable and sidecar is supported; use `service repair`
 after relocation because OS service metadata does not follow moved files.

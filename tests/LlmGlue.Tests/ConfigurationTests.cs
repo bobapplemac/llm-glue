@@ -79,11 +79,74 @@ public sealed class ConfigurationTests
     }
 
     [Fact]
+    public void LoadsRemoteAgentAndExactServerExclusions()
+    {
+        var agentPath = WriteTemp("""
+            [roles]
+            agent = true
+            server = false
+            client = false
+
+            [agent]
+            submit_to = "https://glue.example.test"
+            write_token_environment = "LLM_GLUE_WRITE_TOKEN"
+            discovery_interval_seconds = 15
+            removal_grace_seconds = 120
+
+            [[agent.providers]]
+            type = "ollama"
+            name = "workstation"
+            url = "http://127.0.0.1:11434"
+            """);
+        var serverPath = WriteTemp("""
+            [roles]
+            agent = false
+            server = true
+            client = false
+
+            [[server.exclusions]]
+            provider_id = "ollama"
+            instance_id = "workstation"
+            model_id = "private-model"
+            """);
+        try
+        {
+            var agent = TomlConfigLoader.Load(agentPath);
+            Assert.Equal(new Uri("https://glue.example.test"), agent.Agent.SubmitTo);
+            Assert.Equal(15, agent.Agent.DiscoveryIntervalSeconds);
+            var exclusion = Assert.Single(TomlConfigLoader.Load(serverPath).Server.Exclusions);
+            Assert.Equal("private-model", exclusion.ModelId);
+        }
+        finally
+        {
+            File.Delete(agentPath);
+            File.Delete(serverPath);
+        }
+    }
+
+    [Fact]
+    public void RejectsAgentOnlyWithoutSubmissionDestination()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = true
+            server = false
+            client = false
+            [[agent.providers]]
+            type = "ollama"
+            name = "local"
+            url = "http://127.0.0.1:11434"
+            """);
+        try { Assert.Contains("agent.submit_to", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public void AllShippedExamplesValidate()
     {
         var directory = Path.Combine(AppContext.BaseDirectory, "examples");
         var files = Directory.GetFiles(directory, "*.conf");
-        Assert.Equal(3, files.Length);
+        Assert.Equal(4, files.Length);
         foreach (var file in files) _ = TomlConfigLoader.Load(file);
     }
 

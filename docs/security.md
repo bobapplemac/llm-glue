@@ -9,6 +9,9 @@ is inventory submission and read-only catalog/artifact retrieval.
 - Proxy headers never convert a remote peer into loopback. Tokens are fixed-time
   compared, environment-referenced where practical, and never logged or embedded
   in generated artifacts.
+- Agent-only hosts use the write credential only for canonical inventory POSTs;
+  read credentials cannot authorize submission. Exact server exclusions affect
+  publication only and never issue provider or filesystem operations.
 - Provider metadata and model cards are untrusted data. LLM Glue does not execute
   repository code or model-card instructions.
 - GGUF reads are allowlisted and allocation-bounded. HTTP artifacts have size and

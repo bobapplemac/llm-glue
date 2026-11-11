@@ -39,7 +39,8 @@ Operator documentation: [installation](docs/installation.md),
 Validated starting configurations are available in [`examples`](examples). The
 all-in-one example discovers local Ollama and targets the system OpenCode file;
 the Linux example discovers llama.cpp and owns only a LiteLLM include; the remote
-example is a Client-only OpenCode consumer.
+example is a Client-only OpenCode consumer. `remote-agent.conf` demonstrates an
+Agent-only host submitting inventory with a separate write credential.
 
 Useful commands include `run`, `status`, `discover`, `doctor`, `config validate`,
 `config preview opencode|litellm`, `sync --once`, `service

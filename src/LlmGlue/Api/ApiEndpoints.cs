@@ -17,6 +17,8 @@ public static class ApiEndpoints
             schemaVersion = 1,
             revision = state.Snapshot.ContentHash,
             modelCount = state.Snapshot.Deployments.Count,
+            publishedModelCount = state.PublishedSnapshot.Deployments.Count,
+            excludedModelCount = state.Snapshot.Deployments.Count - state.PublishedSnapshot.Deployments.Count,
             artifacts = new[] { "opencode", "litellm" }.Where(x => state.Store.Latest(x) is not null).ToArray()
         }));
         api.MapPost("/agent/inventory", async (LlmGlue.Core.Domain.DiscoverySnapshot snapshot, ApiState state, CancellationToken cancellationToken) =>
@@ -24,7 +26,8 @@ public static class ApiEndpoints
             if (snapshot.SchemaVersion != 1) return Results.BadRequest(new { error = "unsupported_schema" });
             var canonical = LlmGlue.Core.Domain.DiscoverySnapshot.Create(snapshot.CapturedAt, snapshot.Deployments);
             if (!string.Equals(canonical.ContentHash, snapshot.ContentHash, StringComparison.Ordinal)) return Results.BadRequest(new { error = "invalid_content_hash" });
-            await state.PublishAsync(canonical, cancellationToken);
+            if (!await state.PublishAsync(canonical, cancellationToken))
+                return Results.Conflict(new { error = "stale_inventory" });
             return Results.Accepted(value: new { revision = canonical.ContentHash });
         });
         return endpoints;

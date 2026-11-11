@@ -17,6 +17,9 @@ public static class CliCommands
         Console.WriteLine($"Config: {options.ConfigPath}");
         Console.WriteLine($"Roles: agent={options.Roles.Agent}, server={options.Roles.Server}, client={options.Roles.Client}");
         Console.WriteLine($"Server: {options.Server.Listen}");
+        if (options.Agent.SubmitTo is not null) Console.WriteLine($"Agent submission: {options.Agent.SubmitTo}");
+        if (options.Agent.WriteTokenEnvironment is not null) Console.WriteLine($"Agent write token: {options.Agent.WriteTokenEnvironment} ({(string.IsNullOrEmpty(Environment.GetEnvironmentVariable(options.Agent.WriteTokenEnvironment)) ? "missing" : "set")})");
+        Console.WriteLine($"Server exclusions: {options.Server.Exclusions.Count}");
         if (options.Client.Source is not null) Console.WriteLine($"Client source: {options.Client.Source}");
         if (options.Client.TokenEnvironment is not null) Console.WriteLine($"Client token: {options.Client.TokenEnvironment} ({(string.IsNullOrEmpty(Environment.GetEnvironmentVariable(options.Client.TokenEnvironment)) ? "missing" : "set")})");
         foreach (var provider in options.Providers)

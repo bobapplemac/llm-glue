@@ -51,6 +51,14 @@ Server publication generates and validates all target artifacts before swapping
 the visible inventory, then stores bounded per-target history. Conditional reads
 return 304 for matching ETags. Agent submissions must carry a canonical content
 hash and schema version; remote reads and writes use separate bearer credentials.
+Agent-only mode submits through that authenticated HTTP boundary and retains its
+local grace state for retry. Server publication is serialized and refuses older
+snapshots so a delayed request cannot roll artifacts backward.
+
+Exact, conjunctive `[[server.exclusions]]` rules are evaluated only at the
+publication boundary. Hidden deployments remain in inventory/model diagnostics
+with their exclusion reason but are omitted from both target artifacts; provider
+state is never changed. See [ADR 0004](decisions/0004-inventory-publication-and-exclusions.md).
 
 Client installation is staged on the destination filesystem, validated, backed
 up, atomically renamed, activated, verified, and rolled back on failure. A local

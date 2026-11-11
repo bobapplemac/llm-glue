@@ -70,6 +70,7 @@ if (options.Roles.Server)
     var builder = WebApplication.CreateBuilder(args);
     ConfigureLogging(builder.Logging, options);
     builder.WebHost.UseUrls(options.Server.Listen.ToString());
+    builder.WebHost.ConfigureKestrel(server => server.Limits.MaxRequestBodySize = 4 * 1024 * 1024);
     AddServer(builder.Services, options);
     builder.Services.AddWindowsService(service => service.ServiceName = "LLMGlue");
     builder.Services.AddSystemd();
@@ -86,6 +87,7 @@ else
     ConfigureLogging(builder.Logging, options);
     builder.Services.AddWindowsService(service => service.ServiceName = "LLMGlue");
     builder.Services.AddSystemd();
+    if (options.Roles.Agent) AddRemoteAgent(builder.Services, options);
     if (options.Roles.Client) AddClient(builder.Services, options);
     await builder.Build().RunAsync();
 }
@@ -95,13 +97,44 @@ static void AddServer(IServiceCollection services, GlueOptions options)
     services.AddSingleton<IConfigurationGenerator, OpenCodeGenerator>();
     services.AddSingleton<IConfigurationGenerator>(_ => new LiteLlmGenerator());
     services.AddSingleton(new ArtifactStore());
-    services.AddSingleton<ApiState>();
+    services.AddSingleton(provider => new ApiState(
+        provider.GetServices<IConfigurationGenerator>(),
+        provider.GetRequiredService<ArtifactStore>(),
+        options.Server.Exclusions));
     services.AddSingleton(new ApiAuthenticationOptions(
         options.Server.ReadTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Server.ReadTokenEnvironment),
         options.Server.WriteTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Server.WriteTokenEnvironment)));
 }
 
 static void AddAgent(IServiceCollection services, GlueOptions options)
+{
+    AddDiscoveryAdapters(services, options);
+    services.AddSingleton<IHostedService>(provider => new AgentDiscoveryService(
+        provider.GetServices<IModelDiscoveryAdapter>(), provider.GetRequiredService<ApiState>(),
+        provider.GetRequiredService<ILogger<AgentDiscoveryService>>(),
+        TimeSpan.FromSeconds(options.Agent.DiscoveryIntervalSeconds),
+        TimeSpan.FromSeconds(options.Agent.RemovalGraceSeconds)));
+}
+
+static void AddRemoteAgent(IServiceCollection services, GlueOptions options)
+{
+    AddDiscoveryAdapters(services, options);
+    var destination = options.Agent.SubmitTo ?? throw new ConfigurationException("Agent-only role requires agent.submit_to.");
+    var token = options.Agent.WriteTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Agent.WriteTokenEnvironment);
+    if (options.Agent.WriteTokenEnvironment is not null && string.IsNullOrEmpty(token))
+        throw new ConfigurationException($"Agent write token environment variable '{options.Agent.WriteTokenEnvironment}' is not set.");
+    services.AddSingleton(new RemoteInventoryPublisher(new HttpClient { BaseAddress = EnsureTrailingSlash(destination), Timeout = TimeSpan.FromSeconds(30) }, token));
+    services.AddSingleton(TimeProvider.System);
+    services.AddSingleton<IHostedService>(provider => new RemoteAgentDiscoveryService(
+        provider.GetServices<IModelDiscoveryAdapter>(),
+        provider.GetRequiredService<RemoteInventoryPublisher>(),
+        provider.GetRequiredService<ILogger<RemoteAgentDiscoveryService>>(),
+        provider.GetRequiredService<TimeProvider>(),
+        TimeSpan.FromSeconds(options.Agent.DiscoveryIntervalSeconds),
+        TimeSpan.FromSeconds(options.Agent.RemovalGraceSeconds)));
+}
+
+static void AddDiscoveryAdapters(IServiceCollection services, GlueOptions options)
 {
     foreach (var provider in options.Providers)
     {
@@ -111,9 +144,6 @@ static void AddAgent(IServiceCollection services, GlueOptions options)
             : new LlamaCppDiscoveryAdapter(client, provider.Name);
         services.AddSingleton<IModelDiscoveryAdapter>(adapter);
     }
-    services.AddSingleton<IHostedService>(provider => new AgentDiscoveryService(
-        provider.GetServices<IModelDiscoveryAdapter>(), provider.GetRequiredService<ApiState>(),
-        provider.GetRequiredService<ILogger<AgentDiscoveryService>>(), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(10)));
 }
 
 static void AddClient(IServiceCollection services, GlueOptions options)
@@ -127,6 +157,8 @@ static void AddClient(IServiceCollection services, GlueOptions options)
     services.AddSingleton<IHostedService>(provider => new ClientPollingService(
         provider.GetRequiredService<ArtifactSyncClient>(), TimeSpan.FromSeconds(options.Client.PollIntervalSeconds), provider.GetRequiredService<ILogger<ClientPollingService>>()));
 }
+
+static Uri EnsureTrailingSlash(Uri value) => value.AbsoluteUri.EndsWith("/", StringComparison.Ordinal) ? value : new Uri(value.AbsoluteUri + "/", UriKind.Absolute);
 
 static void ConfigureLogging(ILoggingBuilder logging, GlueOptions options)
 {

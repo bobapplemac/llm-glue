@@ -2,14 +2,24 @@ namespace LlmGlue.Core.Configuration;
 
 public sealed record GlueOptions(
     RoleOptions Roles,
-    IReadOnlyList<ProviderOptions> Providers,
+    AgentOptions Agent,
     ServerOptions Server,
     ClientOptions Client,
     LoggingOptions Logging,
     string ConfigPath,
-    string BaseDirectory);
+    string BaseDirectory)
+{
+    public IReadOnlyList<ProviderOptions> Providers => Agent.Providers;
+}
 
 public sealed record RoleOptions(bool Agent, bool Server, bool Client);
+
+public sealed record AgentOptions(
+    IReadOnlyList<ProviderOptions> Providers,
+    Uri? SubmitTo,
+    string? WriteTokenEnvironment,
+    int DiscoveryIntervalSeconds,
+    int RemovalGraceSeconds);
 
 public sealed record ProviderOptions(
     string Type,
@@ -17,7 +27,19 @@ public sealed record ProviderOptions(
     Uri Url,
     IReadOnlyList<string> ModelDirectories);
 
-public sealed record ServerOptions(Uri Listen, string? ReadTokenEnvironment, string? WriteTokenEnvironment, bool AcknowledgeInsecureRemoteHttp);
+public sealed record ServerOptions(
+    Uri Listen,
+    string? ReadTokenEnvironment,
+    string? WriteTokenEnvironment,
+    bool AcknowledgeInsecureRemoteHttp,
+    IReadOnlyList<ExclusionRuleOptions> Exclusions);
+
+public sealed record ExclusionRuleOptions(
+    string? ProviderId,
+    string? InstanceId,
+    string? ModelId,
+    string? DisplayName,
+    string? ProviderModel);
 
 public sealed record ClientOptions(Uri? Source, string? TokenEnvironment, int PollIntervalSeconds, IReadOnlyList<TargetOptions> Targets);
 

@@ -16,11 +16,14 @@ Last updated: 2026-11-11
   deterministic OpenCode 2.x and LiteLLM generation, validation, bounded artifact
   history, authenticated `/api/v1` publication, diagnostics and ETags. Golden and
   real Kestrel tests pass; OpenCode 2.2.7 loaded the generated artifact and retained
-  the exact verified variant body without inventing modes.
+  the exact verified variant body without inventing modes. Exact scoped exclusions
+  retain diagnostic visibility while filtering both generated artifacts.
 - **M3 — client/targets:** implemented; conditional polling with bearer auth,
   bounded downloads/backoff, destination locks, validation/staging, atomic replace,
   no-op detection, bounded backups, reactivation rollback, scoped OpenCode merge,
   and LiteLLM include/collision/service-health activation all have automated tests.
+  Agent-only role composition now submits canonical snapshots through the remote
+  write-auth boundary; delayed snapshots cannot replace newer Server state.
 - **M4 — live end-to-end:** partial. Live Windows Ollama discovery → Server →
   Client → isolated OpenCode 2.2.7 catalog visibility passed for two models.
   Functional inference and the Debian llama.cpp/LiteLLM, multi-account, restart,
@@ -147,8 +150,8 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Debug build and 37 tests; native
-Ubuntu/WSL Release restore/build and 37 tests; PowerShell AST and Bash syntax
+Latest available verification: clean Windows Debug build and 43 tests; native
+Ubuntu/WSL Release restore/build and 43 tests; PowerShell AST and Bash syntax
 checks; r1 win-x64/linux-x64 self-contained single-file execution; Windows and
 Linux service-install dry runs. These are implementation/packaging evidence, not
 substitutes for the unchecked live gates above.

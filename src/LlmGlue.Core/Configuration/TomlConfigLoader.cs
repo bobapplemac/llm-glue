@@ -23,15 +23,23 @@ public static class TomlConfigLoader
         var roleOptions = new RoleOptions(Bool(roles, "agent", false), Bool(roles, "server", false), Bool(roles, "client", false));
 
         var agent = OptionalTable(root, "agent");
-        CheckKeys(agent, "agent", "providers");
+        CheckKeys(agent, "agent", "providers", "submit_to", "write_token_environment", "discovery_interval_seconds", "removal_grace_seconds");
         var providers = TableArray(agent, "providers").Select(ReadProvider).ToArray();
+        var submitToText = OptionalString(agent, "submit_to");
+        var agentOptions = new AgentOptions(
+            providers,
+            submitToText is null ? null : AbsoluteUri(submitToText, "agent.submit_to"),
+            OptionalString(agent, "write_token_environment"),
+            PositiveInt(agent, "discovery_interval_seconds", 30),
+            PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");
-        CheckKeys(server, "server", "listen", "read_token_environment", "write_token_environment", "acknowledge_insecure_remote_http");
+        CheckKeys(server, "server", "listen", "read_token_environment", "write_token_environment", "acknowledge_insecure_remote_http", "exclusions");
         var serverOptions = new ServerOptions(
             AbsoluteUri(String(server, "listen", "http://127.0.0.1:8765"), "server.listen"),
             OptionalString(server, "read_token_environment"), OptionalString(server, "write_token_environment"),
-            Bool(server, "acknowledge_insecure_remote_http", false));
+            Bool(server, "acknowledge_insecure_remote_http", false),
+            TableArray(server, "exclusions").Select(ReadExclusion).ToArray());
         ValidateListen(serverOptions);
 
         var client = OptionalTable(root, "client");
@@ -50,14 +58,34 @@ public static class TomlConfigLoader
             throw new ConfigurationException("At least one role must be enabled.");
         if (roleOptions.Agent && providers.Length == 0)
             throw new ConfigurationException("Agent role requires at least one [[agent.providers]] entry.");
+        if (roleOptions.Agent && !roleOptions.Server && agentOptions.SubmitTo is null)
+            throw new ConfigurationException("Agent-only role requires agent.submit_to.");
+        if (agentOptions.SubmitTo is not null && !agentOptions.SubmitTo.IsLoopback && agentOptions.WriteTokenEnvironment is null)
+            throw new ConfigurationException("Remote agent.submit_to requires agent.write_token_environment.");
+        if (roleOptions.Server && agentOptions.SubmitTo is not null)
+            throw new ConfigurationException("agent.submit_to is only valid when the Server role is disabled; combined Agent+Server uses the in-process publication boundary.");
         if (roleOptions.Client && source is null && !roleOptions.Server)
             throw new ConfigurationException("Client role requires client.source unless Server is enabled in-process.");
         if (roleOptions.Client && source is not null && !AbsoluteUri(source, "client.source").IsLoopback && tokenEnvironment is null)
             throw new ConfigurationException("Remote client.source requires client.token_environment.");
 
         var baseDirectory = Path.GetDirectoryName(fullPath)!;
-        return new GlueOptions(roleOptions, providers, serverOptions,
+        return new GlueOptions(roleOptions, agentOptions, serverOptions,
             new ClientOptions(source is null ? null : AbsoluteUri(source, "client.source"), tokenEnvironment, PositiveInt(client, "poll_interval_seconds", 30), targets), loggingOptions, fullPath, baseDirectory);
+    }
+
+    private static ExclusionRuleOptions ReadExclusion(TomlTable table)
+    {
+        CheckKeys(table, "server.exclusions", "provider_id", "instance_id", "model_id", "display_name", "provider_model");
+        var rule = new ExclusionRuleOptions(
+            OptionalString(table, "provider_id"),
+            OptionalString(table, "instance_id"),
+            OptionalString(table, "model_id"),
+            OptionalString(table, "display_name"),
+            OptionalString(table, "provider_model"));
+        if (rule is { ProviderId: null, InstanceId: null, ModelId: null, DisplayName: null, ProviderModel: null })
+            throw new ConfigurationException("Each [[server.exclusions]] rule must specify at least one exact match field.");
+        return rule;
     }
 
     private static ProviderOptions ReadProvider(TomlTable table)

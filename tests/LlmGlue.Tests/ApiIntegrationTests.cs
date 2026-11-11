@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using LlmGlue.Api;
 using LlmGlue.Core.Abstractions;
 using LlmGlue.Core.Generation;
@@ -66,6 +67,36 @@ public sealed class ApiIntegrationTests
         store.Put("test", "3", DateTimeOffset.UnixEpoch, three);
         Assert.Equal(2, store.History("test").Count);
         Assert.Equal("3", store.Latest("test")!.Revision);
+    }
+
+    [Fact]
+    public async Task AgentSubmissionAcceptsCanonicalInventoryAndRejectsStaleOrTamperedState()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Services.AddSingleton<IConfigurationGenerator, OpenCodeGenerator>();
+        builder.Services.AddSingleton(new ArtifactStore());
+        builder.Services.AddSingleton<ApiState>();
+        var app = builder.Build();
+        app.MapGlueApi();
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+            using var client = new HttpClient { BaseAddress = new Uri(address) };
+            var current = LlmGlue.Core.Domain.DiscoverySnapshot.Create(DateTimeOffset.UtcNow, [GenerationTests.Qualified()]);
+            var accepted = await client.PostAsJsonAsync("api/v1/agent/inventory", current, TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
+
+            var stale = LlmGlue.Core.Domain.DiscoverySnapshot.Create(current.CapturedAt.AddMinutes(-1), []);
+            var conflict = await client.PostAsJsonAsync("api/v1/agent/inventory", stale, TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+
+            var tampered = current with { ContentHash = "not-canonical" };
+            var bad = await client.PostAsJsonAsync("api/v1/agent/inventory", tampered, TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+        }
+        finally { await app.StopAsync(TestContext.Current.CancellationToken); }
     }
 
     private static GeneratedArtifact GenerationHelpersForTest(string value)
