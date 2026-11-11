@@ -7,11 +7,12 @@ using System.Text.RegularExpressions;
 namespace LlmGlue.Operations;
 
 public sealed record UpdateInfo(int Revision, string Tag, string AssetName, Uri AssetUrl, Uri ChecksumsUrl);
-public sealed record UpdateApplyOptions(bool AllowDowngrade = false, bool ServiceMode = false, Uri? HealthUrl = null);
+public sealed record UpdateApplyOptions(bool AllowDowngrade = false, bool ServiceMode = false, Uri? HealthUrl = null, string? HealthToken = null);
 
 public static partial class UpdateManager
 {
     private const string Repository = "bobapplemac/llm-glue";
+    internal const string HealthTokenEnvironment = "LLM_GLUE_UPDATE_HEALTH_TOKEN";
     public static int CurrentRevision => ProductInfo.RevisionNumber;
 
     public static async Task<UpdateInfo?> CheckAsync(HttpClient httpClient, CancellationToken cancellationToken)
@@ -61,70 +62,125 @@ public static partial class UpdateManager
         if (!File.Exists(replacement)) throw new InvalidDataException("Update archive does not contain the expected executable.");
         var rollback = executable + ".rollback";
         File.Copy(executable, rollback, true);
+        if (OperatingSystem.IsLinux()) File.SetUnixFileMode(replacement, File.GetUnixFileMode(rollback));
         if (OperatingSystem.IsWindows())
         {
             var helper = Path.Combine(stage, "apply-update.ps1");
             var script = options.ServiceMode ? WindowsServiceHelperScript : WindowsStandaloneHelperScript;
             await File.WriteAllTextAsync(helper, script, cancellationToken);
             var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
+            if (!string.IsNullOrEmpty(options.HealthToken)) start.Environment[HealthTokenEnvironment] = options.HealthToken;
             foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-File", helper, "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture), "-Source", replacement, "-Destination", executable, "-Rollback", rollback, "-HealthUrl", options.HealthUrl?.AbsoluteUri ?? string.Empty, "-ResultPath", Path.Combine(stage, "update-result.log") }) start.ArgumentList.Add(argument);
             Process.Start(start);
             Console.WriteLine($"Verified {update.Tag}; replacement is staged and will apply after this process exits. ServiceMode={options.ServiceMode}. Result: {Path.Combine(stage, "update-result.log")}. Rollback: {rollback}");
         }
         else
         {
-            if (options.ServiceMode)
-            {
-                await ServiceUpdateCoordinator.ReplaceAndVerifyAsync(
-                    executable, replacement, rollback,
-                    token => RunProcessAsync("systemctl", ["restart", "llm-glue.service"], token),
-                    token => VerifyLinuxServiceAsync(options.HealthUrl, token),
-                    preserveUnixMode: true,
-                    cancellationToken);
-            }
-            else
-            {
-                File.Move(replacement, executable, true);
-                File.SetUnixFileMode(executable, File.GetUnixFileMode(rollback));
-            }
-            Console.WriteLine($"Updated to {update.Tag}. Rollback: {rollback}");
+            var result = Path.Combine(stage, "update-result.log");
+            StartLinuxActivator(replacement, replacement, executable, rollback, options.ServiceMode, options.HealthUrl, options.HealthToken, result);
+            Console.WriteLine($"Verified {update.Tag}; replacement is staged and will apply after this process exits. ServiceMode={options.ServiceMode}. Result: {result}. Rollback: {rollback}");
         }
     }
 
-    public static async Task RollbackAsync(string executablePath, bool serviceMode, Uri? healthUrl, CancellationToken cancellationToken)
+    public static async Task RollbackAsync(string executablePath, bool serviceMode, Uri? healthUrl, string? healthToken, CancellationToken cancellationToken)
     {
         var executable = Path.GetFullPath(executablePath);
         var rollback = executable + ".rollback";
         if (!File.Exists(rollback)) throw new FileNotFoundException("No rollback executable exists.", rollback);
         var fallback = executable + ".pre-rollback";
         File.Copy(executable, fallback, true);
+        var stage = Path.Combine(Path.GetDirectoryName(executable)!, ".llm-glue-update", "rollback");
+        Directory.CreateDirectory(stage);
         if (OperatingSystem.IsWindows())
         {
-            var stage = Path.Combine(Path.GetDirectoryName(executable)!, ".llm-glue-update", "rollback");
-            Directory.CreateDirectory(stage);
             var helper = Path.Combine(stage, "apply-rollback.ps1");
             await File.WriteAllTextAsync(helper, serviceMode ? WindowsServiceHelperScript : WindowsStandaloneHelperScript, cancellationToken);
             var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
+            if (!string.IsNullOrEmpty(healthToken)) start.Environment[HealthTokenEnvironment] = healthToken;
             foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-File", helper, "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture), "-Source", rollback, "-Destination", executable, "-Rollback", fallback, "-HealthUrl", healthUrl?.AbsoluteUri ?? string.Empty, "-ResultPath", Path.Combine(stage, "rollback-result.log") }) start.ArgumentList.Add(argument);
             Process.Start(start);
             Console.WriteLine($"Rollback is staged and will apply after this process exits. Result: {Path.Combine(stage, "rollback-result.log")}");
             return;
         }
-        if (serviceMode)
+        var activator = Path.Combine(stage, "llm-glue-activator");
+        File.Copy(executable, activator, true);
+        File.SetUnixFileMode(activator, File.GetUnixFileMode(executable));
+        var result = Path.Combine(stage, "rollback-result.log");
+        StartLinuxActivator(activator, rollback, executable, fallback, serviceMode, healthUrl, healthToken, result);
+        Console.WriteLine($"Rollback is staged and will apply after this process exits. Result: {result}");
+    }
+
+    public static async Task<int> ActivateStagedAsync(
+        int waitProcessId,
+        string source,
+        string destination,
+        string fallback,
+        bool serviceMode,
+        Uri? healthUrl,
+        string resultPath,
+        CancellationToken cancellationToken)
+    {
+        try
         {
+            await WaitForProcessExitAsync(waitProcessId, cancellationToken);
+            var healthToken = Environment.GetEnvironmentVariable(HealthTokenEnvironment);
             await ServiceUpdateCoordinator.ReplaceAndVerifyAsync(
-                executable, rollback, fallback,
-                token => RunProcessAsync("systemctl", ["restart", "llm-glue.service"], token),
-                token => VerifyLinuxServiceAsync(healthUrl, token),
+                destination, source, fallback,
+                serviceMode ? token => RunProcessAsync("systemctl", ["restart", "llm-glue.service"], token) : _ => Task.CompletedTask,
+                serviceMode ? token => VerifyLinuxServiceAsync(healthUrl, healthToken, token) : _ => Task.FromResult(true),
                 preserveUnixMode: true,
                 cancellationToken);
+            await WriteResultAsync(resultPath, "success", cancellationToken);
+            return 0;
         }
-        else
+        catch (Exception ex)
         {
-            File.Copy(rollback, executable, true);
-            File.SetUnixFileMode(executable, File.GetUnixFileMode(rollback));
+            await WriteResultAsync(resultPath, $"failed: {ex.Message}", CancellationToken.None);
+            return 1;
         }
-        Console.WriteLine("Rollback executable restored and verified.");
+    }
+
+    private static void StartLinuxActivator(
+        string activator,
+        string source,
+        string destination,
+        string fallback,
+        bool serviceMode,
+        Uri? healthUrl,
+        string? healthToken,
+        string resultPath)
+    {
+        var start = new ProcessStartInfo(activator) { UseShellExecute = false, CreateNoWindow = true };
+        if (!string.IsNullOrEmpty(healthToken)) start.Environment[HealthTokenEnvironment] = healthToken;
+        foreach (var argument in new[]
+        {
+            "update", "activate-staged",
+            "--wait-process-id", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--source", source,
+            "--destination", destination,
+            "--fallback", fallback,
+            "--health-url", healthUrl?.AbsoluteUri ?? string.Empty,
+            "--result", resultPath
+        }) start.ArgumentList.Add(argument);
+        if (serviceMode) start.ArgumentList.Add("--service");
+        _ = Process.Start(start) ?? throw new InvalidOperationException("Could not start the staged Linux update activator.");
+    }
+
+    private static async Task WaitForProcessExitAsync(int processId, CancellationToken cancellationToken)
+    {
+        if (processId <= 0 || processId == Environment.ProcessId) return;
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            await process.WaitForExitAsync(cancellationToken);
+        }
+        catch (ArgumentException) { }
+    }
+
+    private static async Task WriteResultAsync(string path, string value, CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        await File.WriteAllTextAsync(path, value + Environment.NewLine, cancellationToken);
     }
 
     private static async Task DownloadAsync(HttpClient client, Uri url, string path, CancellationToken cancellationToken)
@@ -157,7 +213,7 @@ public static partial class UpdateManager
         if (process.ExitCode != 0) throw new InvalidOperationException($"{executable} exited {process.ExitCode}: {(await stderr).Trim()} {(await stdout).Trim()}".Trim());
     }
 
-    private static async Task<bool> VerifyLinuxServiceAsync(Uri? healthUrl, CancellationToken cancellationToken)
+    private static async Task<bool> VerifyLinuxServiceAsync(Uri? healthUrl, string? healthToken, CancellationToken cancellationToken)
     {
         using var healthClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
         for (var attempt = 0; attempt < 30; attempt++)
@@ -166,7 +222,9 @@ public static partial class UpdateManager
             {
                 if (healthUrl is not null)
                 {
-                    using var response = await healthClient.GetAsync(healthUrl, cancellationToken);
+                    using var request = new HttpRequestMessage(HttpMethod.Get, healthUrl);
+                    if (!string.IsNullOrEmpty(healthToken)) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", healthToken);
+                    using var response = await healthClient.SendAsync(request, cancellationToken);
                     if (response.IsSuccessStatusCode) return true;
                 }
                 else
@@ -213,7 +271,12 @@ function Wait-State([string]$State) {
 function Wait-Healthy {
   for ($i=0; $i -lt 30; $i++) {
     if ($HealthUrl) {
-      try { $response=Invoke-WebRequest -Uri $HealthUrl -UseBasicParsing -TimeoutSec 2; if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) { return } } catch {}
+      try {
+        $headers=@{}
+        if ($env:LLM_GLUE_UPDATE_HEALTH_TOKEN) { $headers.Authorization="Bearer $env:LLM_GLUE_UPDATE_HEALTH_TOKEN" }
+        $response=Invoke-WebRequest -Uri $HealthUrl -Headers $headers -UseBasicParsing -TimeoutSec 2
+        if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) { return }
+      } catch {}
     } else {
       $text = (& sc.exe query $service 2>&1 | Out-String)
       if ($LASTEXITCODE -eq 0 -and $text -match 'STATE\s*:\s*\d+\s+RUNNING') { return }

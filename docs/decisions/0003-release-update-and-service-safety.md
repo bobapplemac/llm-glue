@@ -17,7 +17,9 @@ isolated local-Git tests.
 Bootstrap and update clients accept stable `rN` releases only, select the exact
 RID asset, and verify `SHA256SUMS` before replacement. They retain one executable
 rollback. Windows stages replacement through a hidden post-exit helper because a
-running executable cannot be overwritten; Linux atomically replaces the path.
+running executable cannot be overwritten. ADR 0011 extends the post-exit design
+to Linux after r1 proved that replacing a running single-file bundle also breaks
+later lazy assembly loads.
 With explicit `--service`, both platforms restart the fixed LLM Glue service and
 verify HTTP health or service running state. Activation failure or interruption
 restores and reverifies the fallback; Windows records the asynchronous result.
@@ -47,3 +49,7 @@ is reported for manual recovery and is never automatically deleted. Automated
 fault-injection covers successful activation, failed health, interruption, and
 fallback verification. Live SCM/systemd update/rollback qualification remains
 mandatory before r1 authorization.
+
+Post-release qualification superseded the last sentence for r1: the Windows
+official-asset path passed, but the first persistent Linux official-asset upgrade
+failed and reopened the release-hardening gate. See ADR 0011.

@@ -16,7 +16,7 @@ authorized official `r1` release was published on 2026-11-11.
 | M2 publication | Golden JSON/YAML, real Kestrel/ETag/auth tests, captured LiteLLM forwarding, real OpenCode forwarding, persisted catalog integrity tests | Passed. Central backend interpretation still belongs to M4. |
 | M3 synchronization | Atomic/no-op/rollback/collision tests; source-scoped OpenCode ownership v2 and migration tests; live LiteLLM include/restart/fail-once rollback; current Linux and Windows LocalService JSONC/sidecar lifecycle | Passed for implementation and live central/standalone target activation. |
 | M4 live paths | Native Windows Ollama lifecycle/inference; current LocalService ProgramData JSONC/ownership plus second-account catalog; Debian 13.7 Qwen/Gemma/GPT-OSS router and GGUF evidence; generated LiteLLM 1.106.3 route; MarkIV OpenCode Off/On inference; Paseo 0.15.4 catalog/Off/On presentation; central add/change/remove, outage/grace/recovery, restart/rollback, and exact-unit polkit delegation | **Passed.** Both supported deployment paths and representative failure/lifecycle cases have live evidence. |
-| M5 release hardening | Dual-RID binaries, minimal-Debian no-ICU execution, installers, services, updates/rollback, CI, docs, guarded release matrices, clean-clone dry run, authenticated final preflight, official `r1` publication from `dd070d2`, and live official-asset update/apply/rollback | **Passed.** The public stable release contains both platform archives, checksums, and an exact-commit manifest; an isolated r0 Windows binary checksum-verified and applied r1, then restored its exact original hash. |
+| M5 release hardening | Dual-RID binaries, minimal-Debian no-ICU execution, installers, services, updates/rollback, CI, docs, guarded release matrices, clean-clone dry run, authenticated final preflight, official `r1` publication from `dd070d2`, and live official-asset qualification | **Reopened after release.** Windows official-asset apply/rollback passed, but the first persistent Linux r0→r1 attempt exposed running-bundle replacement, extracted-mode, authenticated-health, and prior-revision-state defects. labhost03 was restored intact to r0. The simulated corrective r2 passes copied real-state, staged replacement, child-process, and authenticated-health tests; an official r2 bootstrap upgrade remains required. |
 
 ## Representative model matrix
 
@@ -45,5 +45,8 @@ sidecar, and second native account are also live-qualified. M4 is complete.
 
 ## External actions still required
 
-None for r1 qualification. Future releases still require explicit owner
-authorization and the guarded clean/pushed/authenticated publication process.
+1. Explicitly authorize and publish corrective r2 through the guarded
+   clean/pushed/authenticated process.
+2. Upgrade labhost03 from r0 using the r2 bootstrap/manual stop-copy-start path,
+   not r1 `update apply`, and verify service health, LiteLLM activation, catalog
+   continuity, and inference.

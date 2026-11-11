@@ -19,6 +19,21 @@ if (args is ["--version"])
     return;
 }
 
+if (args.Take(2).SequenceEqual(["update", "activate-staged"]))
+{
+    if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("The staged update activator is Linux-only.");
+    Environment.ExitCode = await UpdateManager.ActivateStagedAsync(
+        int.Parse(RequiredOption(args, "--wait-process-id"), System.Globalization.CultureInfo.InvariantCulture),
+        RequiredOption(args, "--source"),
+        RequiredOption(args, "--destination"),
+        RequiredOption(args, "--fallback"),
+        args.Contains("--service", StringComparer.Ordinal),
+        OptionalUri(args, "--health-url"),
+        RequiredOption(args, "--result"),
+        CancellationToken.None);
+    return;
+}
+
 var explicitIndex = Array.IndexOf(args, "--config");
 var configArgument = explicitIndex < 0 ? null : args.ElementAtOrDefault(explicitIndex + 1);
 var executablePath = Environment.ProcessPath ?? throw new InvalidOperationException("Cannot determine executable path.");
@@ -64,12 +79,12 @@ if (args.Take(2).SequenceEqual(["update", "apply"]))
     await UpdateManager.ApplyAsync(http, executablePath, new UpdateApplyOptions(
         args.Contains("--allow-downgrade", StringComparer.Ordinal),
         args.Contains("--service", StringComparer.Ordinal),
-        ServiceHealthUrl(options)), CancellationToken.None);
+        ServiceHealthUrl(options), ServiceHealthToken(options)), CancellationToken.None);
     return;
 }
 if (args.Take(2).SequenceEqual(["update", "rollback"]))
 {
-    await UpdateManager.RollbackAsync(executablePath, args.Contains("--service", StringComparer.Ordinal), ServiceHealthUrl(options), CancellationToken.None);
+    await UpdateManager.RollbackAsync(executablePath, args.Contains("--service", StringComparer.Ordinal), ServiceHealthUrl(options), ServiceHealthToken(options), CancellationToken.None);
     return;
 }
 
@@ -190,6 +205,23 @@ static Uri? ServiceHealthUrl(GlueOptions options)
     var builder = new UriBuilder(options.Server.Listen) { Path = "/api/v1/health" };
     if (builder.Host is "0.0.0.0" or "::" or "[::]") builder.Host = "127.0.0.1";
     return builder.Uri;
+}
+static string? ServiceHealthToken(GlueOptions options) => options.Roles.Server
+    ? ResolveSecret(options.Server.ReadToken, options.Server.ReadTokenEnvironment, "Server read token")
+    : null;
+static string RequiredOption(string[] values, string name)
+{
+    var index = Array.IndexOf(values, name);
+    return index >= 0 && index + 1 < values.Length
+        ? values[index + 1]
+        : throw new ConfigurationException($"Missing internal update option {name}.");
+}
+static Uri? OptionalUri(string[] values, string name)
+{
+    var index = Array.IndexOf(values, name);
+    return index >= 0 && index + 1 < values.Length && !string.IsNullOrWhiteSpace(values[index + 1])
+        ? new Uri(values[index + 1], UriKind.Absolute)
+        : null;
 }
 static string? ResolveSecret(string? literal, string? environmentName, string label)
 {

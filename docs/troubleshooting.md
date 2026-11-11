@@ -45,10 +45,18 @@ the executable or sidecar, run elevated `service repair`.
 
 ## Update failed
 
+If an r1 Linux update reports missing `System.IO.Pipes`, do not retry it. The
+message is caused by replacing the active single-file bundle before a lazily
+loaded runtime assembly is needed; the extracted Linux file also lacks its
+executable mode. Confirm the original service is healthy and both the installed
+binary and `.rollback` report the expected prior revision. Restore the fallback
+with a conventional stopped-service copy if necessary, and use the corrective
+release's bootstrap/manual upgrade path rather than r1 self-update.
+
 A failed check never interrupts synchronization. Verification failures leave the
 current executable untouched. Service-mode update and rollback automatically
-restore the fallback executable when restart or health verification fails. On
-Linux the command reports the combined activation/rollback result directly. On
-Windows inspect the printed `update-result.log` or `rollback-result.log`; the
-post-exit helper records `success`, `failed and rolled back`, or `failed; rollback
-unhealthy`. Do not delete `.rollback` or `.pre-rollback` until healthy.
+restore the fallback executable when restart or health verification fails.
+Corrected Linux and Windows releases print an `update-result.log` or
+`rollback-result.log` path for their post-exit activator. The helper records
+`success` or a failure description. Do not delete `.rollback` or `.pre-rollback`
+until the service is healthy.

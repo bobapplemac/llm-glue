@@ -211,12 +211,22 @@ llm-glue update apply --service --config /path/to/llm-glue.conf
 llm-glue update rollback --service --config /path/to/llm-glue.conf
 ```
 
+Do not use the immutable r1 Linux binary's `update apply` command. A live r0 to
+r1 service attempt exposed post-publication defects in running-bundle replacement,
+tar mode restoration, authenticated health verification, and prior-revision
+artifact loading. The service and state were restored intact. These defects are
+corrected after r1, but r0/r1 cannot retroactively acquire the safe post-exit
+activator. Upgrade those Linux installations to the corrective release using the
+inspected bootstrap installer or an explicit stop/copy/start, then use normal
+self-update for later revisions.
+
 Service mode preserves the sidecar, state, logs, and registration; restarts the
 fixed `LLMGlue`/`llm-glue.service` identity; and checks `/api/v1/health` when the
 Server role is enabled or SCM/systemd running state otherwise. Failed or
 interrupted activation restores and reverifies the previous executable. Windows
-uses a hidden post-exit helper because a running executable cannot be replaced;
-its result log is printed before the CLI exits.
+and corrected Linux releases use post-exit helpers so the running single-file
+bundle is never replaced in place. Their result-log paths are printed before the
+initiating CLI exits.
 
 Maintainers can repeat the isolated elevated lifecycle gates with
 `scripts/Test-WindowsServiceLive.ps1` (optionally `-AllRoles`) and, on a disposable

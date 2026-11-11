@@ -12,7 +12,7 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   precedence, Windows 2.2.7 system-level JSONC discovery/comment parsing, and
   representative central discovery are live-qualified; the later M4 run also
   qualified LocalService and a temporary second native Windows account.
-- **M1 — core domain/discovery:** implemented; the full 103-test suite
+- **M1 — core domain/discovery:** implemented; the full 105-test suite
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
   inventory hashes. Configured llama.cpp directories now enrich only
@@ -96,7 +96,7 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   environment-backed client/backend authentication, `temperature`, and the binary
   `enable_thinking` field.
   See `docs/m4-qualification.md`.
-- **M5 — release hardening:** passed. Dual-RID
+- **M5 — release hardening:** post-release qualification reopened. Dual-RID
   self-contained single files, runtime-derived rN version identity, interactive
   bootstrap installers, SCM and
   systemd lifecycle commands, portable console/rolling-file logs, doctor and
@@ -106,9 +106,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   and led to removal of the Linux binary's undeclared ICU dependency; the
   invariant-globalization binary and full fixed-account systemd lifecycle now
   pass there, and CI reruns the binary/config check in `debian:13-slim`.
-  Isolated Bash/PowerShell release matrices
-  qualify fail-closed Git states and a local-only partial-publication recovery path.
-  passed on 2026-11-11. Official GitHub CLI 2.103.3 was downloaded from GitHub
+  Isolated Bash/PowerShell release matrices qualify fail-closed Git states and a
+  local-only partial-publication recovery path; both passed on 2026-11-11.
+  Official GitHub CLI 2.103.3 was downloaded from GitHub
   Releases, checksum-verified, authenticated, and used by the guarded publisher.
   A full isolated
   clean-clone r1 dry-run at commit `292fec7` then passed preflight and all 103
@@ -120,7 +120,19 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   manifest, and checksums. An isolated r0 Windows binary then discovered the
   public stable release, downloaded and checksum-verified the official asset,
   applied it to report `LLM Glue r1`, and restored the exact original r0 SHA-256
-  through `update rollback`. Unknown reasoning
+  through `update rollback`. The first persistent Linux official-asset upgrade
+  then exposed four r1 defects: in-process replacement invalidated lazy bundle
+  loads, tar extraction lost executable mode, authenticated Server health was
+  probed without its token, and r1 rejected valid r0-generated persisted state.
+  labhost03 was restored to its intact r0 executable and healthy service. The
+  correction uses a post-exit Linux activator, restores mode, carries health auth
+  only in the helper environment, and accepts canonical earlier-revision ownership
+  headers while retaining all hash/schema validation. All 105 tests pass; a
+  simulated r2 single file loaded a copy of the real r0 state, replaced an
+  isolated executable, launched a child process, and passed authenticated health
+  against the real endpoint. M5 requires an authorized corrective r2 publication
+  and live bootstrap upgrade because immutable r1 cannot repair its own updater.
+  Unknown reasoning
   capability excludes a deployment from client publication rather than being
   converted to `false`.
   Service registration now provisions stable least-privilege identities and
@@ -189,9 +201,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Next steps
 
-No r1 acceptance gate remains. Continue normal maintenance from `main`; use the
-same guarded process and obtain explicit authorization before any later official
-release.
+Obtain explicit authorization for corrective r2, publish it through the guarded
+process, and qualify the labhost03 bootstrap upgrade plus service/catalog/inference
+continuity. Do not retry r1 Linux self-update.
 
 ## M3 acceptance checklist
 
@@ -210,7 +222,7 @@ release.
   alias collisions, parses YAML, and uses constrained service restart/health check.
 - [x] Client-only role does not bind a web listener; remote sources require a token
   environment reference.
-- [x] Targeted client tests plus the full 103-test suite pass on Windows/.NET 10;
+- [x] Targeted client tests plus the full 105-test suite pass on Windows/.NET 10;
   real LiteLLM interruption and rollback are live-qualified.
 
 ## M2 acceptance checklist
@@ -279,6 +291,10 @@ release.
   r0 discovered r1, verified its published SHA-256, applied it, reported r1, and
   restored the byte-identical original r0 executable. Windows service rollback is
   separately live-qualified.
+- [ ] Publish the corrective r2 and qualify a bootstrap/manual Linux upgrade from
+  the current labhost03 r0 service. The fixed simulated-r2 single file passes
+  copied-state, staged replacement/mode, child-process, and authenticated-health
+  tests; r1's old updater must not be retried.
 - [x] Authenticated preflight against the actual clean, already-pushed upstream
   passed at `51932effb5e68c0f6f72508238cbf36804ef2c97` with GitHub CLI 2.103.3.
   The first publication attempt stopped before creating a tag or release because
@@ -291,7 +307,7 @@ release.
 - [x] M4 representative live suite and both supported deployment paths pass.
 
 Latest available verification: Windows and native Ubuntu/WSL Release builds with
-all 103 tests passing;
+all 105 tests passing;
 OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
 native OpenCode 2.2.7 → Ollama 0.40.16 real-model inference with verified
 `thinking-off`/`thinking-on` variants and no duplicate native Ollama catalog row;

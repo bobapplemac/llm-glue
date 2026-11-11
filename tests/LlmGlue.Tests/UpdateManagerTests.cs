@@ -5,6 +5,32 @@ namespace LlmGlue.Tests;
 public sealed class UpdateManagerTests
 {
     [Fact]
+    public async Task StagedActivatorReplacesOnlyAfterParentHasExited()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"llm-glue-activator-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var source = Path.Combine(directory, "replacement");
+            var destination = Path.Combine(directory, "llm-glue");
+            var fallback = destination + ".rollback";
+            var result = Path.Combine(directory, "result.log");
+            await File.WriteAllTextAsync(source, "new", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(destination, "old", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(fallback, "old", TestContext.Current.CancellationToken);
+
+            var exitCode = await UpdateManager.ActivateStagedAsync(
+                0, source, destination, fallback, serviceMode: false, healthUrl: null, result,
+                TestContext.Current.CancellationToken);
+
+            Assert.Equal(0, exitCode);
+            Assert.Equal("new", await File.ReadAllTextAsync(destination, TestContext.Current.CancellationToken));
+            Assert.Equal("success", (await File.ReadAllTextAsync(result, TestContext.Current.CancellationToken)).Trim());
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public async Task SelectsOnlyPinnedStableOfficialAsset()
     {
         var handler = new TestHttpHandler(_ => TestHttpHandler.Json("""

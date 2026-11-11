@@ -10,6 +10,14 @@ Development builds continue to identify as `r0` until produced by the guarded
 release path. See the authoritative [product specification](docs/llm-glue-spec.md),
 [progress](docs/progress.md), and [completion audit](docs/completion-audit.md).
 
+> **Known r1 Linux upgrade issue:** do not run `update apply` from an existing
+> Linux installation. The immutable r1 updater can overwrite its running
+> single-file bundle before activation, loses the extracted executable mode, and
+> rejects persisted artifacts whose ownership header names an earlier revision.
+> Existing installations should remain on their current binary until the
+> corrective r2 release, then upgrade with the bootstrap/manual stop-copy-start
+> path. Fresh Windows remote-client installation is unaffected.
+
 ## Architecture
 
 One executable composes three independently enabled roles:
