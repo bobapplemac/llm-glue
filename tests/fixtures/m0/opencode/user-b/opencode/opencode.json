@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "username": "user-b",
+  "providers": {
+    "llm-glue-test": {
+      "name": "User B Provider",
+      "models": {
+        "shared": { "name": "User B Shared", "limit": { "context": 32768, "output": 4096 } },
+        "user-b-only": { "name": "User B Only", "limit": { "context": 3072, "output": 384 } }
+      }
+    }
+  }
+}

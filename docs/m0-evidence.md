@@ -1,0 +1,89 @@
+# M0 evidence and integration design
+
+## Gate conclusion
+
+M0 is sufficient to begin implementation with explicit version gates and
+fail-closed unknown states. Destructive ownership and merge semantics are resolved
+by ADR 0001. Live production qualification items remain M4 gates and are not
+represented as production-ready.
+
+## Capability matrix
+
+| Required capability | Discovery source | Verification | Unknown/fallback behavior |
+|---|---|---|---|
+| Provider/runtime version | Ollama `/api/version`; llama.cpp response/build metadata | Version range adapter | Mark unsupported version; diagnostics only |
+| Routable model | Ollama tags/show; llama direct `/v1/models`; router `/models` | Provider route and bounded request probe | Never publish a file-only discovery |
+| Native context | Ollama show `*.context_length`; GGUF metadata; llama model metadata | Typed numeric validation | Null/unknown |
+| Effective context | Ollama `/api/ps` when loaded; llama `/props` or router effective args | Compare live response to configured state | Null; never substitute native max |
+| Modalities/tools | Provider capability fields, GGUF architecture, bounded probe | Per-field evidence | Tri-state unknown |
+| Reasoning modes | Ollama show `thinking`; llama versioned flags/model evidence | End-to-end request/response probe | Omit modes; never infer from name |
+| Sampling transport | Versioned provider/LiteLLM path | Mock capture plus live representative probes | Drop unsupported fields with warning |
+| Runtime residency/KV/MTP | Runtime live APIs/args | Reported versus observed labels | Diagnostics only; not client variants |
+| LiteLLM route | Generated include and proxy model endpoint | Restart, `/v1/models`, functional completion | Roll back and retain LKG |
+| OpenCode visibility | Generated 2.x schema and effective `/api/model` | Model/variant selection | Reject incompatible schema/version |
+
+## Configuration transcripts
+
+The files under `tests/fixtures/m0` are sanitized and contain no production
+credentials. Their provenance labels distinguish live capture, official API-shape
+recording, and specification reference observations.
+
+### Qwen reference through llama.cpp and LiteLLM
+
+Recorded reference only; not a universal family rule:
+
+```text
+Thinking Off -> enable_thinking=false, temperature=.7, top_p=.8,
+                top_k=20, min_p=0, presence_penalty=1.5, repeat_penalty=1
+Thinking On  -> enable_thinking=true, temperature=.6, top_p=.95,
+                top_k=20, min_p=0, presence_penalty=0, repeat_penalty=1
+```
+
+These profiles may be emitted only for the exact qualified deployment/path.
+
+### Gemma and GPT-OSS
+
+Sanitized API-shape fixtures exercise alternative architecture metadata and
+discrete reasoning effort levels. They are not live-qualified in this environment.
+Adapters must leave runtime acceptance unknown until bounded probes succeed.
+
+### Ollama
+
+The live Windows-compatible probe of 0.40.16 returned one Qwen3-VL model with
+completion, vision, and tools; native context 262144; and thinking `[false]`.
+`/api/ps` was empty, so no effective loaded context was claimed.
+
+## OpenCode transcript summary
+
+Two isolated user configuration roots plus a shared system root and project file
+were tested with 2.2.7. `/api/config` returned sources. `/api/model` returned the
+effective merged catalog: the system value won the conflicting model, and unique
+models from every layer survived. Editing the system document triggered watched
+updates and changed effective state before explicit reload. Missing explicit
+capabilities caused OpenCode to invent reasoning variants, requiring conservative
+explicit metadata. Actual second-account qualification remains pending.
+
+## LiteLLM transcript summary
+
+1.109.0 parsed a primary config including a relative generated YAML. Operator and
+generated `model_list` entries coexisted and unrelated settings survived. Installed
+source confirmed list concatenation and replacement—not deep merge—for other
+values. An included-file change was not watched. A root-file change was noticed by
+`--reload` but did not produce a working restart on this Windows run. A controlled
+restart applied the generated change. Production design therefore uses validated
+atomic replacement plus configured restart/health/rollback.
+
+## TOML choice
+
+Tomlyn 2.10.2 is the selected maintained .NET TOML parser. Its package restored
+and built successfully in a .NET 10 validation project. Configuration loading binds a
+parsed syntax tree into explicit option types, rejects unknown/duplicate or
+ill-typed settings, and reports parser line/column diagnostics. The specification's
+Linux example and Windows/Ollama and remote-client examples are maintained as
+test fixtures and validated by the M1 configuration test suite.
+
+## Remaining qualification
+
+Actual llama.cpp/Gemma/GPT-OSS/MTP inference, LiteLLM forwarding to that route,
+Debian service behavior, two real OS accounts, and OpenCode/Paseo UI behavior are
+mandatory M4 work. Until then, those behaviors are fixture/mock validated only.

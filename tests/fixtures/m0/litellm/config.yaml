@@ -1,0 +1,11 @@
+include:
+  - llm-glue-models.yaml
+model_list:
+  - model_name: operator-route
+    litellm_params:
+      model: openai/operator-model
+      api_key: os.environ/OPERATOR_API_KEY
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+router_settings:
+  num_retries: 2

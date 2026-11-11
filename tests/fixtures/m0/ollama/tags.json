@@ -1,0 +1,1 @@
+{"models":[{"name":"example/qwen3-vl:8b","model":"example/qwen3-vl:8b","modified_at":"2026-11-10T00:00:00Z","size":1,"digest":"sha256:sanitized","details":{"format":"gguf","family":"qwen3vl","families":["qwen3vl"],"parameter_size":"8.8B","quantization_level":"Q4_K_M"}}]}

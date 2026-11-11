@@ -1,0 +1,1 @@
+{"details":{"format":"gguf","family":"qwen3vl","families":["qwen3vl"],"parameter_size":"8.8B","quantization_level":"Q4_K_M"},"model_info":{"general.architecture":"qwen3vl","qwen3vl.context_length":262144},"capabilities":["completion","vision","tools"],"thinking":{"values":[false],"default":false}}
