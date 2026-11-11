@@ -8,6 +8,7 @@ public static class TomlConfigLoader
     public static GlueOptions Load(string path)
     {
         var fullPath = Path.GetFullPath(path);
+        var baseDirectory = Path.GetDirectoryName(fullPath)!;
         string text;
         try { text = File.ReadAllText(fullPath); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -54,6 +55,7 @@ public static class TomlConfigLoader
         var tokenEnvironment = OptionalString(client, "token_environment");
         var token = OptionalString(client, "token");
         var targets = TableArray(client, "targets").Select(ReadTarget).ToArray();
+        ValidateUniqueTargetPaths(targets, baseDirectory);
         if (roleOptions.Server && targets.Any(x => x.Type == "litellm") && serverOptions.OpenCodeInferenceUrl is null)
             throw new ConfigurationException("A Server with a LiteLLM target requires server.opencode_inference_url so remote OpenCode artifacts route through LiteLLM instead of private provider endpoints.");
 
@@ -83,9 +85,22 @@ public static class TomlConfigLoader
         if (roleOptions.Client && sourceUri is not null && !sourceUri.IsLoopback && tokenEnvironment is null && token is null)
             throw new ConfigurationException("Remote client.source requires client.token_environment or a protected client.token.");
 
-        var baseDirectory = Path.GetDirectoryName(fullPath)!;
         return new GlueOptions(roleOptions, agentOptions, serverOptions,
             new ClientOptions(sourceUri, tokenEnvironment, token, PositiveInt(client, "poll_interval_seconds", 30), targets), loggingOptions, fullPath, baseDirectory);
+    }
+
+    private static void ValidateUniqueTargetPaths(IReadOnlyList<TargetOptions> targets, string baseDirectory)
+    {
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var paths = new HashSet<string>(comparer);
+        foreach (var target in targets)
+        {
+            string path;
+            try { path = Path.GetFullPath(target.Path, baseDirectory); }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            { throw new ConfigurationException($"Invalid client target path '{target.Path}': {ex.Message}"); }
+            if (!paths.Add(path)) throw new ConfigurationException($"Client target path '{path}' is configured more than once.");
+        }
     }
 
     private static ExclusionRuleOptions ReadExclusion(TomlTable table)

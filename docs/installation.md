@@ -138,6 +138,38 @@ machine-generated state with the target and do not edit it. Service installation
 grants access through the configured target directory; corrupt state and
 unowned/cross-source collisions fail closed before the document is changed.
 
+OpenCode scope is selected by destination path. Use the system document for one
+machine-wide catalog:
+
+```toml
+[[client.targets]]
+type = "opencode"
+path = 'C:\ProgramData\opencode\opencode.json'
+```
+
+Or list one target per selected user (and omit the system target):
+
+```toml
+[[client.targets]]
+type = "opencode"
+path = 'C:\Users\Andrew\.config\opencode\opencode.json'
+
+[[client.targets]]
+type = "opencode"
+path = 'C:\Users\OtherUser\.config\opencode\opencode.json'
+```
+
+The artifact is fetched once and applied independently to each file. LLM Glue
+does not enumerate profiles because a service identity cannot reliably infer the
+intended interactive users. Every selected directory must be writable by the
+service identity; `service install`/`repair` provisions the configured target
+directories. Duplicate normalized target paths are rejected. Existing JSON/JSONC
+is merged, unrelated settings remain operator-owned, and each destination's
+adjacent ownership document records exactly which provider keys and
+`disabled_providers` entries each artifact source may later change or remove.
+Normally configure either the system target or selected user targets: when both
+define the same OpenCode keys, OpenCode's system precedence wins.
+
 Updates are opt-in. Use `update check`, then `update apply` for a foreground
 installation. For a registered LLM Glue service, run elevated:
 

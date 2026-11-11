@@ -87,6 +87,48 @@ public sealed class ConfigurationTests
     }
 
     [Fact]
+    public void LoadsMultipleExplicitOpenCodeTargets()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = false
+            server = false
+            client = true
+            [client]
+            source = "http://127.0.0.1:8765"
+            [[client.targets]]
+            type = "opencode"
+            path = "first/opencode.json"
+            [[client.targets]]
+            type = "opencode"
+            path = "second/opencode.json"
+            """);
+        try { Assert.Equal(2, TomlConfigLoader.Load(path).Client.Targets.Count); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void RejectsDuplicateTargetPaths()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = false
+            server = false
+            client = true
+            [client]
+            source = "http://127.0.0.1:8765"
+            [[client.targets]]
+            type = "opencode"
+            path = "same/opencode.json"
+            [[client.targets]]
+            type = "opencode"
+            path = "same/../same/opencode.json"
+            """);
+        try { Assert.Contains("configured more than once", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public void RejectsRemoteHttpWithoutTokensAndAcknowledgement()
     {
         var path = WriteTemp("""

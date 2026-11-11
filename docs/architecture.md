@@ -58,7 +58,11 @@ unknown; tools and named effort semantics are never inferred.
 ## Configuration ownership
 
 OpenCode synchronization performs scoped reconciliation inside the documented
-system-managed document. Adjacent ownership schema v2 scopes provider keys and
+explicitly configured document. The path may select the system file or one of
+several named user files; profiles are never enumerated. Artifacts are fetched
+once per target type and applied independently, with the conditional-read state
+advancing only after all selected destinations succeed. Adjacent ownership schema
+v2 scopes provider keys and
 native-provider disablements by artifact source URL, so local Ollama and remote
 central controllers can share one target. V1 state migrates through a legacy
 scope and transfers keys when their current source next claims them. Unowned and
@@ -88,7 +92,8 @@ activates the custom provider; the secret itself never enters an artifact.
 
 See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md),
 [ADR 0005](decisions/0005-central-litellm-routing.md), and
-[ADR 0009](decisions/0009-live-router-paths-probes-and-source-ownership.md).
+[ADR 0009](decisions/0009-live-router-paths-probes-and-source-ownership.md), and
+[ADR 0010](decisions/0010-explicit-opencode-target-scope.md).
 
 ## Network and persistence
 

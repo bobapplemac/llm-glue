@@ -8,6 +8,7 @@ namespace LlmGlue.Core.Client;
 public sealed class LiteLlmTarget(string generatedPath, string primaryConfigPath, AtomicFileInstaller installer, ITargetActivator activator) : IConfigurationTarget
 {
     public string TargetType => "litellm";
+    public string TargetId => $"litellm:{Path.GetFullPath(generatedPath)}";
 
     public async Task ApplyAsync(GeneratedArtifact artifact, CancellationToken cancellationToken)
     {

@@ -11,6 +11,7 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
     private const string LegacyOwnerId = "legacy-v1";
     private string OwnershipPath => path + ".llm-glue-ownership.json";
     public string TargetType => "opencode";
+    public string TargetId => $"opencode:{Path.GetFullPath(path)}";
 
     public async Task ApplyAsync(GeneratedArtifact artifact, CancellationToken cancellationToken)
     {

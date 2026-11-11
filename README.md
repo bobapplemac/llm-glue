@@ -51,6 +51,11 @@ Central mode requires a LiteLLM URL reachable by OpenCode clients so generated
 catalogs follow the required OpenCode → LiteLLM → llama.cpp path.
 See [installation](docs/installation.md) before using the network-pipe form.
 
+OpenCode destination scope is explicit: configure the system file for a global
+catalog, or repeat `[[client.targets]]` with one path per selected user. Existing
+JSON/JSONC is merged using an adjacent, source-scoped ownership document; LLM
+Glue never scans user profiles or claims unrelated settings.
+
 Useful commands include `run`, `status`, `discover`, `doctor`, `config validate`,
 `config preview opencode|litellm`, `sync --once`, `service
 install|repair|start|stop|status|uninstall`, and `update check|apply|rollback`.

@@ -34,5 +34,6 @@ public sealed record GeneratedArtifact(string MediaType, byte[] Content, string 
 public interface IConfigurationTarget
 {
     string TargetType { get; }
+    string TargetId { get; }
     Task ApplyAsync(GeneratedArtifact artifact, CancellationToken cancellationToken);
 }
