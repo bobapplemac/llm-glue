@@ -10,8 +10,8 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,
   Ollama 0.40.16, and llama.cpp direct/router builds. Two-account Linux
   precedence, Windows 2.2.7 system-level JSONC discovery/comment parsing, and
-  representative central discovery are live-qualified; Windows
-  multi-account remains deferred to M4.
+  representative central discovery are live-qualified; the later M4 run also
+  qualified LocalService and a temporary second native Windows account.
 - **M1 — core domain/discovery:** implemented; the full 103-test suite
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
@@ -50,7 +50,7 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   shared ETag advancing only after every selected destination succeeds. New
   targets default to JSONC; unowned comments survive reconciliation and managed
   groups are explicitly marked without duplicating comments on repeated sync.
-- **M4 — live end-to-end:** partial. Live Windows Ollama discovery → Server →
+- **M4 — live end-to-end:** passed. Live Windows Ollama discovery → Server →
   Client → isolated OpenCode 2.2.7 catalog visibility passed for two models.
   An elevated all-role Windows service run also passed LocalService identity,
   health, relocation/repair, restart, service rollback, and uninstall cleanup.
@@ -81,10 +81,12 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   transient outage/grace/recovery, and live fail-once activation rollback. GPT-OSS
   reasoning-off remains unknown because `reasoning_effort=none` still emitted
   reasoning. Paseo 0.15.4 displayed the generated central and local model IDs and
-  exposed `Thinking off`/`Thinking on` for the selected central route. Windows
-  LocalService ownership-sidecar and second-account checks remain open. A
+  exposed `Thinking off`/`Thinking on` for the selected central route. A
   reversible MarkIV probe proved that the exact ProgramData JSONC path wins in
-  the installed user's effective model catalog. The lab Compose path now runs
+  the installed user's effective model catalog. The current elevated all-role
+  harness then passed LocalService JSONC/ownership schema v2, a temporary second
+  Windows account's effective OpenCode catalog, relocation/repair, rollback, and
+  exact cleanup. The lab Compose path now runs
   as the fixed `llm-glue` account: a polkit rule permits only restart of the exact
   root-owned activation unit, an unrelated-unit restart was denied, real sync and
   health passed, and authenticated LiteLLM-to-llama.cpp inference survived the
@@ -116,9 +118,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   converted to `false`.
   Service registration now provisions stable least-privilege identities and
   verifies exact executable, sidecar, state, log, and target access before
-  registering the service. Elevated Windows all-role lifecycle and rollback pass
-  for the pre-ADR-0007 target; a current LocalService sidecar rerun needs an
-  elevated Windows token. Native Ubuntu and Debian 13/WSL all-role systemd
+  registering the service. Elevated Windows all-role lifecycle, current JSONC
+  ownership sidecar, second-account catalog, and rollback pass. Native Ubuntu
+  and Debian 13/WSL all-role systemd
   install/repair/rollback/uninstall pass with ownership-sidecar access verified.
   Both bootstrap scripts now cover remote-client, standalone Ollama, and central
   llama.cpp/LiteLLM modes, validate before privileged copying, protect generated
@@ -146,8 +148,8 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 - [x] Add sanitized fixtures/reference transcripts.
 - [x] Qualify actual representative llama.cpp/Qwen/Gemma/GPT-OSS/MTP paths;
   unsupported GPT-OSS Off behavior remains unknown rather than weakened.
-- [x] Repeat OpenCode system precedence with two actual Linux OS accounts (M4);
-  Windows multi-account qualification remains open.
+- [x] Repeat OpenCode system precedence with two actual Linux OS accounts and a
+  temporary second native Windows account under the current LocalService target.
 
 ## Key decisions
 
@@ -180,12 +182,10 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Next steps
 
-Run the guarded elevated Windows harness with `-AllRoles -SystemOpenCode` to
-complete the LocalService sidecar and second-account checks in one pass. Then
-exercise the implemented M5
-service install/move/update/rollback/uninstall flows on both OSes and the guarded
-release preflight from a clean pushed branch. Do not publish without explicit
-authorization or claim either live gate passed beforehand.
+Obtain explicit authorization for the first r1 release, push the clean branch,
+authenticate GitHub CLI, run the guarded preflight, publish immutable assets, and
+qualify live update/apply from that asset. Do not publish without explicit
+authorization or claim M5 passed beforehand.
 
 ## M3 acceptance checklist
 
@@ -266,19 +266,16 @@ authorization or claim either live gate passed beforehand.
 - [x] Native Ubuntu/WSL systemd install/start/health/move/repair/restart/service
   rollback/uninstall and preservation pass under the fixed `llm-glue` identity;
   the current all-role run also verifies managed OpenCode ownership-sidecar access.
-- [ ] Run the current all-role Windows harness with `-SystemOpenCode` to qualify
-  ADR 0007 ownership-sidecar access and a temporary second Windows account in one
-  guarded pass; this session lacks an elevated Windows token. Earlier service
-  lifecycle and rollback behavior remains live-qualified.
+- [x] Current all-role Windows `-SystemOpenCode` harness qualifies ADR 0007 JSONC
+  ownership-sidecar access, real Ollama discovery, and a temporary second Windows
+  account in one guarded LocalService pass, including rollback and exact cleanup.
 - [ ] Live update-apply from an official release asset; none exists without release
   authorization. Windows service rollback is live-qualified.
 - [ ] Authenticated preflight against the actual clean, already-pushed upstream
   with GitHub CLI authenticated. A verified portable CLI is available, but it is
   logged out and the branch remains unpushed. No publication is
   authorized; isolated Git-state success/failure matrices already pass.
-- [ ] Remaining combined M4 Windows LocalService-sidecar/second-account harness;
-  M5 cannot be declared passed until the
-  release's required live suite passes.
+- [x] M4 representative live suite and both supported deployment paths pass.
 
 Latest available verification: Windows and native Ubuntu/WSL Release builds with
 all 103 tests passing;

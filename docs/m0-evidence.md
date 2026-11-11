@@ -100,11 +100,11 @@ ill-typed settings, and reports parser line/column diagnostics. The specificatio
 Linux example and Windows/Ollama and remote-client examples are maintained as
 test fixtures and validated by the M1 configuration test suite.
 
-## Remaining qualification
+## Subsequent qualification
 
 The later M4 run qualified actual llama.cpp Qwen/Gemma/GPT-OSS/MTP inference,
 LiteLLM forwarding, lifecycle, outage recovery, and rollback on Debian 13.7 plus
-MarkIV OpenCode. Paseo UI presentation and least-privilege delegation of the lab
-Compose restart unit subsequently passed. Windows multi-account/system-target
-behavior was narrowed by a successful MarkIV ProgramData effective-model probe;
-current LocalService reconciliation and a second Windows account remain mandatory.
+MarkIV OpenCode. Paseo UI presentation, least-privilege delegation of the lab
+Compose restart unit, and current Windows LocalService ProgramData/ownership plus
+a temporary second native account subsequently passed. No M0 integration-design
+qualification remains open.

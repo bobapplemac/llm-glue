@@ -230,8 +230,9 @@ Sources: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.
   authenticated inference passed. Other deployments must install and verify an
   equivalent unit-specific rule; LLM Glue does not grant itself privileges.
 - Two-account system precedence is qualified on Linux/WSL. MarkIV current-user
-  ProgramData precedence is qualified, but a second native Windows account and
-  Windows Server 2025 remain unqualified.
+  ProgramData precedence and a temporary second native Windows account under the
+  current LocalService-managed JSONC/ownership target are qualified. Windows
+  Server 2025 remains exploratory rather than a supported v1 target.
 - OpenCode functional inference and CLI variant selection are qualified on native
   Windows; Paseo 0.15.4 catalog and binary-variant presentation are also
   live-qualified.

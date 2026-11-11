@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-11
 
-## Standalone Windows/Ollama — functional path pass, full scenario gate partial
+## Standalone Windows/Ollama — pass
 
 The current Windows host ran the composed Agent + Server + Client against the
 live Ollama 0.40.16 endpoint and an isolated OpenCode system target:
@@ -109,8 +109,9 @@ Ollama process remained. Reproduce with
 
 This qualifies native discovery → publish → sync → named selection → inference,
 add/change/removal, application restart, transient provider outage/recovery, and
-the installed user's effective OpenCode configuration. Windows service use of
-the system OpenCode path and Paseo UI presentation remain outstanding.
+the installed user's effective OpenCode configuration. The later current-service
+run below qualifies the system OpenCode path under LocalService and a second
+Windows account; Paseo presentation is also qualified below.
 
 ## OpenCode and LiteLLM forwarding with captured upstream — pass
 
@@ -213,11 +214,27 @@ default Windows Event Log provider failed under a non-elevated identity. The
 application now registers each adapter once and uses explicit portable logging
 providers.
 
-This Windows run predates the adjacent OpenCode ownership state introduced by
-ADR 0007. The live harness now requires LocalService to create and retain that
-sidecar across install, relocation/repair, and rollback, but the current Codex
-process does not have an elevated Windows token and the rerun refused before
-creating a service. LocalService sidecar access therefore remains unqualified.
+The earlier Windows run predated the adjacent OpenCode ownership state introduced
+by ADR 0007. On 2026-11-11, the current r0 binary reran elevated against real
+Ollama 0.40.16 with state/logs and the exact default OpenCode target under
+ProgramData. LocalService discovered all three models, persisted bounded catalog
+revisions, installed comment-bearing `opencode.jsonc`, and wrote ownership schema
+v2 with the generated provider plus its owned native `ollama` disablement. A
+random temporary standard Windows account then executed OpenCode 2.2.7 and found
+`llm-glue-ollama-qualification-ollama` through the effective `/api/model` endpoint.
+Relocation/repair, restart, synchronous service rollback, JSONC/sidecar retention,
+and health all passed. The harness removed the service, temporary account/profile,
+copied OpenCode binary, and exact ProgramData resources it created; post-run checks
+found no residue. Sanitized artifacts, logs, state, hashes, and
+`ownershipSidecar=verified secondUser=verified` are preserved under
+`artifacts/live-service-qualification/68a622ea417e49ebace32f7c593520ce`.
+
+This run also corrected qualification-only defects: Windows PowerShell 5.1 does
+not recognize PowerShell 7's `utf8NoBOM` encoding name or parse JSONC comments via
+`ConvertFrom-Json`; the harness now uses a cross-version .NET UTF-8 writer and a
+targeted generated-field assertion. System-service durable state/logs use a
+GUID-scoped ProgramData directory rather than a user workspace, matching intended
+deployment boundaries, and are copied into evidence before guarded cleanup.
 
 ## Debian llama.cpp/LiteLLM — representative central path pass
 
@@ -323,7 +340,8 @@ targets and cleanup left neither test accounts nor `/etc/opencode` behind.
 Reproduce on an isolated Linux/WSL host with
 `sudo scripts/Test-OpenCodeMultiUserLive.sh /path/to/opencode-2.2.7`.
 
-Equivalent Windows multi-account behavior remains unqualified.
+Equivalent Windows multi-account behavior is now qualified by the elevated
+LocalService run described above.
 
 On MarkIV, a later reversible probe created the exact default
 `C:\ProgramData\opencode\opencode.jsonc` with a unique enabled provider and model.
@@ -333,9 +351,8 @@ allowlist. The test removed the only file and directory it created. OpenCode's
 source listing duplicated the system document and one immediate post-removal
 invocation retained stale source metadata; after three seconds a fresh process
 listed only the user document. Effective catalog behavior, not the source array,
-is therefore the qualification evidence. This passes the real ProgramData path
-for the installed user, but not LocalService reconciliation or a second Windows
-account.
+is therefore the qualification evidence. The subsequent elevated run passed the
+same real ProgramData path under LocalService and a temporary second account.
 
 The elevated Windows harness now has a guarded `-SystemOpenCode` mode that covers
 both missing checks in one run. It refuses pre-existing LLM Glue and ProgramData
@@ -343,8 +360,7 @@ OpenCode resources, installs the current all-role service under LocalService,
 validates JSONC plus ownership schema v2, creates a random temporary standard
 account, and executes a supplied OpenCode binary under that account to inspect the
 effective model API. Cleanup is scoped to the random account and exact directories
-created by the run. The script parses successfully and rejects a non-elevated
-invocation; its live elevated result remains outstanding.
+created by the run. Its live elevated result passed as recorded above.
 
 Paseo 0.15.4 on MarkIV was inspected through its real model chooser. Searching
 for `llm` displayed the exact generated central route
@@ -359,7 +375,7 @@ above rather than being inferred from the UI.
 
 The representative Debian central inference, generated include/restart/rollback,
 catalog lifecycle, fixed-account Compose delegation, native Windows
-OpenCode/Ollama inference, MarkIV ProgramData precedence, and Linux multi-account
-precedence paths are verified. M4 remains **partial** only for current Windows
-LocalService ownership-sidecar access and a second native Windows account; these
-are not simulated or waived.
+OpenCode/Ollama inference, MarkIV ProgramData/LocalService precedence, native
+Windows and Linux multi-account behavior, and Paseo presentation are verified.
+The M4 gate is **passed**. Windows Server 2025 remains exploratory rather than a
+supported v1 qualification target.

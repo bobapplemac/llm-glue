@@ -235,3 +235,5 @@ a random temporary standard account, runs the supplied OpenCode binary under tha
 account, verifies the generated system provider through `/api/model`, and removes
 the account, profile, copied binary, service, and ProgramData directory it created.
 The random password is held only in process memory and is never logged.
+The current Windows PowerShell 5.1 run passed against OpenCode 2.2.7 and real
+Ollama 0.40.16, including LocalService relocation/repair and service rollback.

@@ -14,9 +14,9 @@ is authorized.
 | M0 integration design | `docs/m0-evidence.md`, compatibility matrix, two actual Linux accounts, live OpenCode 2.2.7/LiteLLM 1.106.3/1.109.0/Ollama 0.40.16/llama.cpp probes, ADRs 0001–0010 | Passed. Required sources, verification and fail-closed unknown behavior are defined. |
 | M1 discovery | GGUF/Ollama/llama.cpp tests; live direct and router shapes; explicit container path mapping; real multipart/MTP, native/configured/effective context, KV/GPU/speculative and behavioral reasoning evidence | Passed for implementation and representative discovery. Unsupported GPT-OSS Off behavior remains unknown as required. |
 | M2 publication | Golden JSON/YAML, real Kestrel/ETag/auth tests, captured LiteLLM forwarding, real OpenCode forwarding, persisted catalog integrity tests | Passed. Central backend interpretation still belongs to M4. |
-| M3 synchronization | Atomic/no-op/rollback/collision tests; source-scoped OpenCode ownership v2 and migration tests; live LiteLLM include/restart/fail-once rollback; current Linux service sidecar lifecycle | Passed for implementation and live central target activation. Current Windows LocalService sidecar rerun is outstanding. |
-| M4 live paths | Native Windows Ollama lifecycle/inference; Debian 13.7 Qwen/Gemma/GPT-OSS router and GGUF evidence; generated LiteLLM 1.106.3 route; MarkIV OpenCode Off/On inference and ProgramData effective-model precedence; Paseo 0.15.4 catalog/Off/On presentation; central add/change/remove, outage/grace/recovery, restart/rollback, and exact-unit polkit delegation under the fixed account | **Partial.** Representative central and standalone paths pass. Current Windows LocalService ownership-sidecar access and a second native Windows account remain unqualified. |
-| M5 release hardening | Dual-RID r0 binaries, minimal-Debian no-ICU execution, installers, services, updates/rollback, CI, docs, guarded release matrices, exact-commit checksum manifest | **Not passed.** Depends on M4; official-release update and clean authenticated upstream preflight require release authorization, a pushed commit, GitHub CLI/auth, and an official asset. |
+| M3 synchronization | Atomic/no-op/rollback/collision tests; source-scoped OpenCode ownership v2 and migration tests; live LiteLLM include/restart/fail-once rollback; current Linux and Windows LocalService JSONC/sidecar lifecycle | Passed for implementation and live central/standalone target activation. |
+| M4 live paths | Native Windows Ollama lifecycle/inference; current LocalService ProgramData JSONC/ownership plus second-account catalog; Debian 13.7 Qwen/Gemma/GPT-OSS router and GGUF evidence; generated LiteLLM 1.106.3 route; MarkIV OpenCode Off/On inference; Paseo 0.15.4 catalog/Off/On presentation; central add/change/remove, outage/grace/recovery, restart/rollback, and exact-unit polkit delegation | **Passed.** Both supported deployment paths and representative failure/lifecycle cases have live evidence. |
+| M5 release hardening | Dual-RID r0 binaries, minimal-Debian no-ICU execution, installers, services, updates/rollback, CI, docs, guarded release matrices, exact-commit checksum manifest | **Not passed.** The remaining official-release update and clean authenticated upstream preflight require explicit release authorization, a pushed commit, GitHub CLI auth, and the resulting immutable asset. |
 
 ## Representative model matrix
 
@@ -27,7 +27,7 @@ is authorized.
 | GPT-OSS effort levels | Real GPT-OSS 120B route and exact-marker `none`/`medium` inference | Live inference qualified; `none` still emitted reasoning, so Off and named effort semantics remain unknown/unpublished. |
 | Windows Ollama reasoning model | Qwen 3.5 4B native and OpenAI-compatible probes plus real OpenCode selection/inference | Live-qualified on Ollama 0.40.16/OpenCode 2.2.7. |
 | Windows Ollama non-reasoning model | Qwen3-VL `[false]` metadata and live same-alias change removing reasoning modes | Live-qualified for discovery/catalog propagation; no separate text inference was needed to claim non-reasoning metadata. |
-| Failure/lifecycle cases | Automated invalid/collision/rollback tests; standalone and central add/change/remove, restart, outage/grace/recovery; real fail-once LiteLLM rollback; exact-unit Compose delegation with unrelated-unit denial | Qualified except current Windows LocalService ownership sidecar. |
+| Failure/lifecycle cases | Automated invalid/collision/rollback tests; standalone and central add/change/remove, restart, outage/grace/recovery; real fail-once LiteLLM rollback; exact-unit Compose delegation with unrelated-unit denial; Windows LocalService relocation/rollback/JSONC-sidecar cleanup | Live-qualified. |
 
 ## Definition-of-done audit
 
@@ -40,16 +40,12 @@ The central OpenCode definition is now proven on the lab/MarkIV pair: automatic
 discovery/publication, authenticated sync, real inference, parameter behavior,
 lifecycle, outage and rollback passed. Paseo catalog and binary-variant
 presentation and the lab's fixed-account Compose activation are now
-live-qualified. Completion still requires current Windows LocalService
-ownership-sidecar qualification and a second native Windows account.
+live-qualified. The current Windows LocalService ProgramData path, ownership
+sidecar, and second native account are also live-qualified. M4 is complete.
 
 ## External actions still required
 
-1. Run the current elevated Windows all-role service harness with
-   `-SystemOpenCode` and the installed OpenCode executable. This guarded mode now
-   combines LocalService reconciliation/ownership-sidecar validation with a
-   temporary second native Windows account against the real ProgramData target.
-2. After every live gate passes, explicitly authorize the first official `r1`
+1. Explicitly authorize the first official `r1`
    release. The checksum-verified portable GitHub CLI 2.103.3 is present but
    logged out, and the clean branch is ahead of `origin/main`. Push the
    clean commit, authenticate `gh`, run the guarded preflight, publish once, and

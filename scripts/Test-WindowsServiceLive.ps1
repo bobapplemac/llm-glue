@@ -28,6 +28,9 @@ $testUser = $null
 $testUserSid = $null
 $secondUserVerified = $false
 $openCodeToolDirectory = $null
+$systemRuntimeDirectory = if ($SystemOpenCode) { [IO.Path]::GetFullPath((Join-Path $env:ProgramData ("llm-glue-service-qualification-" + [guid]::NewGuid().ToString('N')))) } else { $null }
+$stateDirectory = if ($SystemOpenCode) { Join-Path $systemRuntimeDirectory 'state' } else { Join-Path $testRoot 'state' }
+$logFile = if ($SystemOpenCode) { Join-Path $systemRuntimeDirectory 'logs\llm-glue.log' } else { Join-Path $testRoot 'logs\llm-glue.log' }
 
 if ($SystemOpenCode -and (Test-Path -LiteralPath $systemOpenCodeDirectory)) {
     throw "Refusing to modify existing OpenCode system directory '$systemOpenCodeDirectory'."
@@ -35,6 +38,10 @@ if ($SystemOpenCode -and (Test-Path -LiteralPath $systemOpenCodeDirectory)) {
 if ($SystemOpenCode) { $createdSystemOpenCode = $true }
 
 function Quote-Toml([string]$Value) { '"' + $Value.Replace('\', '\\').Replace('"', '\"') + '"' }
+function Write-Utf8NoBom([string]$Path, [string]$Value) {
+    $encoding = New-Object Text.UTF8Encoding($false)
+    [IO.File]::WriteAllText($Path, $Value, $encoding)
+}
 function Invoke-Glue([string]$Path, [string[]]$Arguments) {
     "$(Get-Date -Format o) start $Path $($Arguments -join ' ')" | Add-Content -LiteralPath $events -Encoding utf8
     & $Path @Arguments 2>&1 | Tee-Object -FilePath $events -Append
@@ -56,20 +63,22 @@ function Wait-OwnedOpenCodeTarget {
     if (-not $AllRoles) { return }
     $target = $openCodeTarget
     $ownership = $target + '.llm-glue-ownership.json'
-    $deadline = [DateTime]::UtcNow.AddSeconds(45)
+    $deadline = [DateTime]::UtcNow.AddSeconds(120)
     do {
+        $serviceState = Get-Service -Name LLMGlue -ErrorAction SilentlyContinue
+        if ($null -eq $serviceState -or $serviceState.Status -eq 'Stopped') { throw 'LLMGlue stopped before creating the managed OpenCode target.' }
         if ((Test-Path -LiteralPath $target) -and (Test-Path -LiteralPath $ownership)) {
             try {
                 $catalogText = Get-Content -LiteralPath $target -Raw
-                $catalog = $catalogText | ConvertFrom-Json -Depth 100
                 $state = Get-Content -LiteralPath $ownership -Raw | ConvertFrom-Json
                 $ownedDisablements = @($state.controllers.PSObject.Properties | ForEach-Object { $_.Value.disabledProviders })
-                if ($state.schemaVersion -eq 2 -and @($catalog.disabled_providers) -contains 'ollama' -and @($ownedDisablements) -contains 'ollama' -and $catalogText.Contains('// Managed by LLM Glue.')) { return }
+                $catalogDisablesOllama = $catalogText -match '(?s)"disabled_providers"\s*:\s*\[[^\]]*"ollama"'
+                if ($state.schemaVersion -eq 2 -and $catalogDisablesOllama -and @($ownedDisablements) -contains 'ollama' -and $catalogText.Contains('// Managed by LLM Glue.')) { return }
             } catch { }
         }
         Start-Sleep -Milliseconds 500
     } while ([DateTime]::UtcNow -lt $deadline)
-    throw 'LocalService did not create the managed OpenCode target and ownership sidecar within 45 seconds.'
+    throw 'LocalService did not create the managed OpenCode target and ownership sidecar within 120 seconds.'
 }
 
 function New-RandomPassword {
@@ -100,7 +109,7 @@ function Test-SecondUserOpenCodeCatalog {
     $process = Start-Process -FilePath $openCodeCopy -ArgumentList @('api','GET','/api/model','--standalone') -Credential $credential -WorkingDirectory $openCodeToolDirectory -WindowStyle Hidden -RedirectStandardOutput $stdout -RedirectStandardError $stderr -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Second-user OpenCode exited $($process.ExitCode): $((Get-Content -LiteralPath $stderr -Raw -ErrorAction SilentlyContinue).Trim())" }
     $catalogText = Get-Content -LiteralPath $stdout -Raw
-    $null = $catalogText | ConvertFrom-Json -Depth 100
+    $null = $catalogText | ConvertFrom-Json
     if (-not $catalogText.Contains('llm-glue-ollama-qualification-ollama')) { throw 'Second-user effective catalog did not contain the system-managed LLM Glue provider.' }
     $script:secondUserVerified = $true
 }
@@ -108,19 +117,19 @@ function Test-SecondUserOpenCodeCatalog {
 if ($AllRoles) {
     $content = @(
         '[roles]','agent = true','server = true','client = true','',
-        '[[agent.providers]]','type = "ollama"','name = "qualification-ollama"','url = "http://127.0.0.1:11434"','',
-        '[server]','listen = "http://127.0.0.1:8765"',('state_directory = ' + (Quote-Toml (Join-Path $testRoot 'state'))),'',
+        '[[agent.providers]]','type = "ollama"','name = "qualification-ollama"','url = "http://127.0.0.1:11434"','probe_mode = "off"','',
+        '[server]','listen = "http://127.0.0.1:8765"',('state_directory = ' + (Quote-Toml $stateDirectory)),'',
         '[client]','source = "http://127.0.0.1:8765"','','[[client.targets]]','type = "opencode"',('path = ' + (Quote-Toml $openCodeTarget)),'',
-        '[logging]',('file = ' + (Quote-Toml (Join-Path $testRoot 'logs\llm-glue.log')))
+        '[logging]',('file = ' + (Quote-Toml $logFile))
     )
 } else {
     $content = @(
         '[roles]','agent = false','server = true','client = false','',
-        '[server]','listen = "http://127.0.0.1:8765"',('state_directory = ' + (Quote-Toml (Join-Path $testRoot 'state'))),'',
-        '[logging]',('file = ' + (Quote-Toml (Join-Path $testRoot 'logs\llm-glue.log')))
+        '[server]','listen = "http://127.0.0.1:8765"',('state_directory = ' + (Quote-Toml $stateDirectory)),'',
+        '[logging]',('file = ' + (Quote-Toml $logFile))
     )
 }
-$content | Set-Content -LiteralPath $config -Encoding utf8NoBOM
+Write-Utf8NoBom $config (($content -join [Environment]::NewLine) + [Environment]::NewLine)
 
 try {
     Invoke-Glue $Executable @('config','validate','--config',$config)
@@ -153,10 +162,10 @@ try {
     if ($resultText -notmatch '^success') { throw "Rollback helper failed: $resultText" }
     Wait-Healthy
     Wait-OwnedOpenCodeTarget
-    "passed $(Get-Date -Format o) roles=$(if ($AllRoles) { 'all' } else { 'server' }) identity=$($service.StartName) executable=$movedExecutable rollback=$($resultText.Trim()) ownershipSidecar=$(if ($AllRoles) { 'verified' } else { 'not-applicable' }) secondUser=$(if ($SystemOpenCode -and $secondUserVerified) { 'verified' } else { 'not-applicable' })" | Set-Content -LiteralPath (Join-Path $testRoot 'result.txt') -Encoding utf8NoBOM
+    Write-Utf8NoBom (Join-Path $testRoot 'result.txt') "passed $(Get-Date -Format o) roles=$(if ($AllRoles) { 'all' } else { 'server' }) identity=$($service.StartName) executable=$movedExecutable rollback=$($resultText.Trim()) ownershipSidecar=$(if ($AllRoles) { 'verified' } else { 'not-applicable' }) secondUser=$(if ($SystemOpenCode -and $secondUserVerified) { 'verified' } else { 'not-applicable' })"
     Write-Host "Windows service qualification passed. Evidence: $(Join-Path $testRoot 'result.txt')"
 } catch {
-    ($_ | Format-List * -Force | Out-String) | Set-Content -LiteralPath (Join-Path $testRoot 'failure.txt') -Encoding utf8NoBOM
+    Write-Utf8NoBom (Join-Path $testRoot 'failure.txt') ($_ | Format-List * -Force | Out-String)
     throw
 } finally {
     if ($createdService -and (Get-Service -Name LLMGlue -ErrorAction SilentlyContinue)) {
@@ -175,9 +184,16 @@ try {
         if (-not $openCodeToolDirectory.StartsWith($expectedPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw "Refusing unsafe cleanup path '$openCodeToolDirectory'." }
         Remove-Item -LiteralPath $openCodeToolDirectory -Recurse -Force
     }
+    if ($systemRuntimeDirectory -and (Test-Path -LiteralPath $systemRuntimeDirectory)) {
+        $expectedRuntimePrefix = [IO.Path]::GetFullPath((Join-Path $env:ProgramData 'llm-glue-service-qualification-'))
+        if (-not $systemRuntimeDirectory.StartsWith($expectedRuntimePrefix, [StringComparison]::OrdinalIgnoreCase)) { throw "Refusing unsafe cleanup path '$systemRuntimeDirectory'." }
+        Copy-Item -LiteralPath $systemRuntimeDirectory -Destination (Join-Path $testRoot 'system-runtime-evidence') -Recurse -Force
+        Remove-Item -LiteralPath $systemRuntimeDirectory -Recurse -Force
+    }
     if ($createdSystemOpenCode -and (Test-Path -LiteralPath $systemOpenCodeDirectory)) {
         $expectedSystemDirectory = [IO.Path]::GetFullPath((Join-Path $env:ProgramData 'opencode'))
         if (-not $systemOpenCodeDirectory.Equals($expectedSystemDirectory, [StringComparison]::OrdinalIgnoreCase)) { throw "Refusing unsafe cleanup path '$systemOpenCodeDirectory'." }
+        Copy-Item -LiteralPath $systemOpenCodeDirectory -Destination (Join-Path $testRoot 'system-opencode-evidence') -Recurse -Force
         Remove-Item -LiteralPath $systemOpenCodeDirectory -Recurse -Force
     }
 }
