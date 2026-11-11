@@ -15,20 +15,20 @@ and [completion audit](docs/completion-audit.md).
 
 The bootstrap configures an interactive installation and downloads the latest
 stable checksum-verified binary. Review the
-[PowerShell script](https://raw.githubusercontent.com/bobapplemac/llm-glue/r3/install.ps1)
-or [Bash script](https://raw.githubusercontent.com/bobapplemac/llm-glue/r3/install.sh)
+[PowerShell script](https://raw.githubusercontent.com/bobapplemac/llm-glue/main/install.ps1)
+or [Bash script](https://raw.githubusercontent.com/bobapplemac/llm-glue/main/install.sh)
 and the [installation guide](docs/installation.md) first.
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/bobapplemac/llm-glue/r3/install.ps1 | iex
+irm https://raw.githubusercontent.com/bobapplemac/llm-glue/main/install.ps1 | iex
 ```
 
 Linux Bash:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/bobapplemac/llm-glue/r3/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/bobapplemac/llm-glue/main/install.sh | bash
 ```
 
 ## Architecture
