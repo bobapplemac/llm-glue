@@ -35,6 +35,23 @@ function Wait-Healthy {
     } while ([DateTime]::UtcNow -lt $deadline)
     throw 'LLMGlue service did not become healthy within 45 seconds.'
 }
+function Wait-OwnedOpenCodeTarget {
+    if (-not $AllRoles) { return }
+    $target = Join-Path $testRoot 'opencode.json'
+    $ownership = $target + '.llm-glue-ownership.json'
+    $deadline = [DateTime]::UtcNow.AddSeconds(45)
+    do {
+        if ((Test-Path -LiteralPath $target) -and (Test-Path -LiteralPath $ownership)) {
+            try {
+                $catalog = Get-Content -LiteralPath $target -Raw | ConvertFrom-Json -Depth 100
+                $state = Get-Content -LiteralPath $ownership -Raw | ConvertFrom-Json
+                if (@($catalog.disabled_providers) -contains 'ollama' -and @($state.disabledProviders) -contains 'ollama') { return }
+            } catch { }
+        }
+        Start-Sleep -Milliseconds 500
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw 'LocalService did not create the managed OpenCode target and ownership sidecar within 45 seconds.'
+}
 
 if ($AllRoles) {
     $content = @(
@@ -59,6 +76,7 @@ try {
     $createdService = $true
     Invoke-Glue $Executable @('service','start','--config',$config)
     Wait-Healthy
+    Wait-OwnedOpenCodeTarget
     $service = Get-CimInstance Win32_Service -Filter "Name='LLMGlue'"
     if ($service.StartName -notin 'NT AUTHORITY\LocalService','NT AUTHORITY\LOCAL SERVICE') { throw "Unexpected service identity: $($service.StartName)" }
 
@@ -70,6 +88,7 @@ try {
     if ($service.PathName -notlike "*$movedExecutable*") { throw "Service repair did not record the relocated executable: $($service.PathName)" }
     Invoke-Glue $movedExecutable @('service','start','--config',$config)
     Wait-Healthy
+    Wait-OwnedOpenCodeTarget
 
     Copy-Item -LiteralPath $movedExecutable -Destination "$movedExecutable.rollback"
     Invoke-Glue $movedExecutable @('update','rollback','--service','--config',$config)
@@ -80,7 +99,8 @@ try {
     $resultText = Get-Content -LiteralPath $result -Raw
     if ($resultText -notmatch '^success') { throw "Rollback helper failed: $resultText" }
     Wait-Healthy
-    "passed $(Get-Date -Format o) roles=$(if ($AllRoles) { 'all' } else { 'server' }) identity=$($service.StartName) executable=$movedExecutable rollback=$($resultText.Trim())" | Set-Content -LiteralPath (Join-Path $testRoot 'result.txt') -Encoding utf8NoBOM
+    Wait-OwnedOpenCodeTarget
+    "passed $(Get-Date -Format o) roles=$(if ($AllRoles) { 'all' } else { 'server' }) identity=$($service.StartName) executable=$movedExecutable rollback=$($resultText.Trim()) ownershipSidecar=$(if ($AllRoles) { 'verified' } else { 'not-applicable' })" | Set-Content -LiteralPath (Join-Path $testRoot 'result.txt') -Encoding utf8NoBOM
     Write-Host "Windows service qualification passed. Evidence: $(Join-Path $testRoot 'result.txt')"
 } catch {
     ($_ | Format-List * -Force | Out-String) | Set-Content -LiteralPath (Join-Path $testRoot 'failure.txt') -Encoding utf8NoBOM

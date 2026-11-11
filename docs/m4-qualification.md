@@ -134,6 +134,12 @@ default Windows Event Log provider failed under a non-elevated identity. The
 application now registers each adapter once and uses explicit portable logging
 providers.
 
+This Windows run predates the adjacent OpenCode ownership state introduced by
+ADR 0007. The live harness now requires LocalService to create and retain that
+sidecar across install, relocation/repair, and rollback, but the current Codex
+process does not have an elevated Windows token and the rerun refused before
+creating a service. LocalService sidecar access therefore remains unqualified.
+
 ## Debian llama.cpp/LiteLLM — not run
 
 `labhost03`, its model directories, llama.cpp router, LiteLLM service identity,
@@ -156,6 +162,14 @@ and final cleanup verification. The test first refused any pre-existing unit,
 account, or owned service directories; afterward none of its system resources
 remained. This qualifies service mechanics, not the unavailable Debian
 llama.cpp/LiteLLM inference path.
+
+The current r0 binary was rerun after ADR 0007 using a loopback Ollama discovery
+fixture and all three roles. Under the fixed `llm-glue` identity it generated the
+OpenCode target and adjacent ownership sidecar, recorded the owned native-provider
+disablement, preserved both across executable relocation and service rollback,
+and retained them after uninstall as documented. The fixture, unit, account, and
+service directories were then removed. This qualifies systemd permissions and
+ownership-state lifecycle, not real Linux Ollama or Debian llama.cpp inference.
 
 ## Multi-user precedence — Linux pass; Windows/UI pending
 

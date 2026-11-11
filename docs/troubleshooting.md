@@ -18,6 +18,11 @@ reachability, and resolved target paths without printing token values.
 Run `opencode api GET /api/model --standalone` in the relevant profile. Do not use
 `/api/config` as effective state; it lists sources. Confirm OpenCode 2.x and the
 system document path. LLM Glue reserves only `llm-glue-*` provider keys.
+For a direct Ollama target, confirm `disabled_providers` contains `ollama` and the
+adjacent `.llm-glue-ownership.json` is readable by the service identity. This
+suppresses OpenCode's lower-fidelity native duplicate; deleting or corrupting the
+ownership file prevents safe automatic reversal and should be repaired from the
+last-known-good backup or by an operator-reviewed resynchronization.
 
 ## LiteLLM synchronization fails
 

@@ -114,6 +114,14 @@ and data ownership remain stable. Copying the executable and sidecar is supporte
 use `service repair` after relocation because OS service metadata does not follow
 moved files.
 
+Direct Ollama synchronization may create
+`<opencode-target>.llm-glue-ownership.json` beside the managed OpenCode document.
+This machine-generated operational state records only native-provider disablements
+LLM Glue added, allowing safe reversal without removing an operator-owned value.
+Keep it with the target and do not edit it. Service installation grants access
+through the configured target directory; corrupt state fails closed before the
+OpenCode document is changed.
+
 Updates are opt-in. Use `update check`, then `update apply` for a foreground
 installation. For a registered LLM Glue service, run elevated:
 

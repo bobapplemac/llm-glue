@@ -60,14 +60,16 @@ Last updated: 2026-11-11
   release scripts, packaging manifests, CI, and operator/developer docs. Native
   Windows and WSL builds/tests pass. Isolated Bash/PowerShell release matrices now
   qualify fail-closed Git states and a local-only partial-publication recovery path.
-  Live service install/update/rollback and an authenticated clean-pushed release
-  preflight remain unqualified; publication is not authorized. Unknown reasoning
+  Live official-release update and an authenticated clean-pushed release preflight
+  remain unqualified; publication is not authorized. Unknown reasoning
   capability excludes a deployment from client publication rather than being
   converted to `false`.
   Service registration now provisions stable least-privilege identities and
   verifies exact executable, sidecar, state, log, and target access before
-  registering the service. Elevated Windows all-role lifecycle and rollback now
-  pass; native Ubuntu/WSL systemd install/repair/rollback/uninstall also passes.
+  registering the service. Elevated Windows all-role lifecycle and rollback pass
+  for the pre-ADR-0007 target; a current LocalService sidecar rerun needs an
+  elevated Windows token. Native Ubuntu/WSL all-role systemd install/repair/
+  rollback/uninstall passes with ownership-sidecar access verified.
   Both bootstrap scripts now cover remote-client, standalone Ollama, and central
   llama.cpp/LiteLLM modes, validate before privileged copying, protect generated
   sidecars, and preserve existing configuration. Isolated mocked-release matrices
@@ -207,7 +209,11 @@ authorization or claim either live gate passed beforehand.
 - [x] Live Windows SCM install/start/health/move/repair/restart/service rollback/
   uninstall passes under LocalService with isolated all-role paths.
 - [x] Native Ubuntu/WSL systemd install/start/health/move/repair/restart/service
-  rollback/uninstall and preservation pass under the fixed `llm-glue` identity.
+  rollback/uninstall and preservation pass under the fixed `llm-glue` identity;
+  the current all-role run also verifies managed OpenCode ownership-sidecar access.
+- [ ] Rerun the current all-role Windows LocalService harness to qualify ADR 0007
+  ownership-sidecar access; this session lacks an elevated Windows token. Earlier
+  service lifecycle and rollback behavior remains live-qualified.
 - [ ] Live update-apply from an official release asset; none exists without release
   authorization. Windows service rollback is live-qualified.
 - [ ] Authenticated preflight against the actual clean, already-pushed upstream
