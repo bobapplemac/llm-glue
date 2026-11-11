@@ -111,8 +111,8 @@ static void AddServer(IServiceCollection services, GlueOptions options)
         options.Server.Exclusions,
         provider.GetRequiredService<CatalogStateRepository>()));
     services.AddSingleton(new ApiAuthenticationOptions(
-        options.Server.ReadTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Server.ReadTokenEnvironment),
-        options.Server.WriteTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Server.WriteTokenEnvironment)));
+        ResolveSecret(options.Server.ReadToken, options.Server.ReadTokenEnvironment, "Server read token"),
+        ResolveSecret(options.Server.WriteToken, options.Server.WriteTokenEnvironment, "Server write token")));
 }
 
 static void AddAgent(IServiceCollection services, GlueOptions options)
@@ -129,9 +129,7 @@ static void AddRemoteAgent(IServiceCollection services, GlueOptions options)
 {
     AddDiscoveryAdapters(services, options);
     var destination = options.Agent.SubmitTo ?? throw new ConfigurationException("Agent-only role requires agent.submit_to.");
-    var token = options.Agent.WriteTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Agent.WriteTokenEnvironment);
-    if (options.Agent.WriteTokenEnvironment is not null && string.IsNullOrEmpty(token))
-        throw new ConfigurationException($"Agent write token environment variable '{options.Agent.WriteTokenEnvironment}' is not set.");
+    var token = ResolveSecret(options.Agent.WriteToken, options.Agent.WriteTokenEnvironment, "Agent write token");
     services.AddSingleton(new RemoteInventoryPublisher(new HttpClient { BaseAddress = EnsureTrailingSlash(destination), Timeout = TimeSpan.FromSeconds(30) }, token));
     services.AddSingleton(TimeProvider.System);
     services.AddSingleton<IHostedService>(provider => new RemoteAgentDiscoveryService(
@@ -171,8 +169,7 @@ static void AddClient(IServiceCollection services, GlueOptions options)
     var source = options.Client.Source ?? options.Server.Listen;
     var sourceClient = new HttpClient { BaseAddress = source, Timeout = TimeSpan.FromSeconds(30) };
     var targets = CliCommands.CreateTargets(options);
-    var token = options.Client.TokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Client.TokenEnvironment);
-    if (options.Client.TokenEnvironment is not null && string.IsNullOrEmpty(token)) throw new ConfigurationException($"Client token environment variable '{options.Client.TokenEnvironment}' is not set.");
+    var token = ResolveSecret(options.Client.Token, options.Client.TokenEnvironment, "Client token");
     services.AddSingleton(new ArtifactSyncClient(sourceClient, targets, token));
     services.AddSingleton<IHostedService>(provider => new ClientPollingService(
         provider.GetRequiredService<ArtifactSyncClient>(), TimeSpan.FromSeconds(options.Client.PollIntervalSeconds), provider.GetRequiredService<ILogger<ClientPollingService>>()));
@@ -186,6 +183,13 @@ static Uri? ServiceHealthUrl(GlueOptions options)
     var builder = new UriBuilder(options.Server.Listen) { Path = "/api/v1/health" };
     if (builder.Host is "0.0.0.0" or "::" or "[::]") builder.Host = "127.0.0.1";
     return builder.Uri;
+}
+static string? ResolveSecret(string? literal, string? environmentName, string label)
+{
+    var value = SecretResolver.Resolve(literal, environmentName);
+    if ((literal is not null || environmentName is not null) && string.IsNullOrEmpty(value))
+        throw new ConfigurationException($"{label} source is configured but unavailable.");
+    return value;
 }
 
 static void ConfigureLogging(ILoggingBuilder logging, GlueOptions options)

@@ -17,12 +17,14 @@ public static class CliCommands
         Console.WriteLine($"Config: {options.ConfigPath}");
         Console.WriteLine($"Roles: agent={options.Roles.Agent}, server={options.Roles.Server}, client={options.Roles.Client}");
         Console.WriteLine($"Server: {options.Server.Listen}");
+        Console.WriteLine($"Server read token: {SecretStatus(options.Server.ReadToken, options.Server.ReadTokenEnvironment)}");
+        Console.WriteLine($"Server write token: {SecretStatus(options.Server.WriteToken, options.Server.WriteTokenEnvironment)}");
         Console.WriteLine($"Server state: {ResolvePath(options, options.Server.StateDirectory)} (retention {options.Server.ArtifactRetention})");
         if (options.Agent.SubmitTo is not null) Console.WriteLine($"Agent submission: {options.Agent.SubmitTo}");
-        if (options.Agent.WriteTokenEnvironment is not null) Console.WriteLine($"Agent write token: {options.Agent.WriteTokenEnvironment} ({(string.IsNullOrEmpty(Environment.GetEnvironmentVariable(options.Agent.WriteTokenEnvironment)) ? "missing" : "set")})");
+        if (options.Agent.WriteTokenEnvironment is not null || options.Agent.WriteToken is not null) Console.WriteLine($"Agent write token: {SecretStatus(options.Agent.WriteToken, options.Agent.WriteTokenEnvironment)}");
         Console.WriteLine($"Server exclusions: {options.Server.Exclusions.Count}");
         if (options.Client.Source is not null) Console.WriteLine($"Client source: {options.Client.Source}");
-        if (options.Client.TokenEnvironment is not null) Console.WriteLine($"Client token: {options.Client.TokenEnvironment} ({(string.IsNullOrEmpty(Environment.GetEnvironmentVariable(options.Client.TokenEnvironment)) ? "missing" : "set")})");
+        if (options.Client.TokenEnvironment is not null || options.Client.Token is not null) Console.WriteLine($"Client token: {SecretStatus(options.Client.Token, options.Client.TokenEnvironment)}");
         foreach (var provider in options.Providers)
         {
             Console.WriteLine($"Provider {provider.Name} policy: probe={provider.ProbeMode} timeout={provider.ProbeTimeoutSeconds}s, gguf={provider.InspectGguf}, full-hash={provider.HashModelFiles}");
@@ -63,8 +65,8 @@ public static class CliCommands
     {
         var source = options.Client.Source ?? options.Server.Listen;
         using var http = new HttpClient { BaseAddress = source, Timeout = TimeSpan.FromSeconds(30) };
-        var token = options.Client.TokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Client.TokenEnvironment);
-        if (options.Client.TokenEnvironment is not null && string.IsNullOrEmpty(token)) throw new ConfigurationException($"Client token environment variable '{options.Client.TokenEnvironment}' is not set.");
+        var token = SecretResolver.Resolve(options.Client.Token, options.Client.TokenEnvironment);
+        if ((options.Client.Token is not null || options.Client.TokenEnvironment is not null) && string.IsNullOrEmpty(token)) throw new ConfigurationException("Client token source is configured but unavailable.");
         var results = await new ArtifactSyncClient(http, CreateTargets(options), token).SyncOnceAsync(cancellationToken);
         Console.WriteLine(JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
         return results.Any(x => x.Error is not null) ? 1 : 0;
@@ -74,9 +76,9 @@ public static class CliCommands
     {
         var source = options.Client.Source ?? options.Server.Listen;
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(source, "api/v1/status"));
-        if (options.Client.TokenEnvironment is not null)
+        if (options.Client.TokenEnvironment is not null || options.Client.Token is not null)
         {
-            var token = Environment.GetEnvironmentVariable(options.Client.TokenEnvironment);
+            var token = SecretResolver.Resolve(options.Client.Token, options.Client.TokenEnvironment);
             if (!string.IsNullOrEmpty(token)) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
@@ -123,4 +125,9 @@ public static class CliCommands
     }
 
     private static string ResolvePath(GlueOptions options, string path) => Path.IsPathRooted(path) ? Path.GetFullPath(path) : Path.GetFullPath(path, options.BaseDirectory);
+    internal static string SecretStatus(string? literal, string? environmentName) => literal is not null
+        ? "protected sidecar literal (set)"
+        : environmentName is not null
+            ? $"environment {environmentName} ({(string.IsNullOrEmpty(Environment.GetEnvironmentVariable(environmentName)) ? "missing" : "set")})"
+            : "not configured";
 }

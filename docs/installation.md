@@ -28,6 +28,10 @@ or `LLM_GLUE_NONINTERACTIVE=1`, `LLM_GLUE_MODE`, `LLM_GLUE_SERVER_URL`/
 `LLM_GLUE_INSTALL_SERVICE` on Linux. Existing configuration is never replaced.
 The generated configuration is validated before optional service registration.
 Remote-client tokens remain environment references and must be set separately.
+For a headless service without an injected environment, replace the corresponding
+`*_token_environment` key with a protected literal `token`, `read_token`, or
+`write_token` in the same sidecar. Never configure both forms for one credential;
+restrict the sidecar to its owner and fixed service identity.
 
 Then run:
 

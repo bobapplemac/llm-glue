@@ -29,3 +29,8 @@ is inventory submission and read-only catalog/artifact retrieval.
 Tokens over bare HTTP are visible to a network observer. File permissions—not
 reversible application encryption with a colocated key—protect sidecars. Operators
 must restrict sidecar/log/state access and rotate tokens after suspected exposure.
+Environment references remain preferred for interactive/managed environments.
+Headless services may instead use `read_token`, `write_token`, or `token` in the
+single TOML sidecar when its ACL/mode protects the service identity; literal and
+environment sources are mutually exclusive. `doctor` reports only source and
+presence, never the literal value.

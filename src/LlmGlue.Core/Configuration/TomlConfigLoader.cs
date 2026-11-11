@@ -23,21 +23,23 @@ public static class TomlConfigLoader
         var roleOptions = new RoleOptions(Bool(roles, "agent", false), Bool(roles, "server", false), Bool(roles, "client", false));
 
         var agent = OptionalTable(root, "agent");
-        CheckKeys(agent, "agent", "providers", "submit_to", "write_token_environment", "discovery_interval_seconds", "removal_grace_seconds");
+        CheckKeys(agent, "agent", "providers", "submit_to", "write_token_environment", "write_token", "discovery_interval_seconds", "removal_grace_seconds");
         var providers = TableArray(agent, "providers").Select(ReadProvider).ToArray();
         var submitToText = OptionalString(agent, "submit_to");
         var agentOptions = new AgentOptions(
             providers,
             submitToText is null ? null : AbsoluteUri(submitToText, "agent.submit_to"),
             OptionalString(agent, "write_token_environment"),
+            OptionalString(agent, "write_token"),
             PositiveInt(agent, "discovery_interval_seconds", 30),
             PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");
-        CheckKeys(server, "server", "listen", "read_token_environment", "write_token_environment", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
+        CheckKeys(server, "server", "listen", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
         var serverOptions = new ServerOptions(
             AbsoluteUri(String(server, "listen", "http://127.0.0.1:8765"), "server.listen"),
             OptionalString(server, "read_token_environment"), OptionalString(server, "write_token_environment"),
+            OptionalString(server, "read_token"), OptionalString(server, "write_token"),
             Bool(server, "acknowledge_insecure_remote_http", false),
             TableArray(server, "exclusions").Select(ReadExclusion).ToArray(),
             String(server, "state_directory", "state"),
@@ -45,9 +47,10 @@ public static class TomlConfigLoader
         ValidateListen(serverOptions);
 
         var client = OptionalTable(root, "client");
-        CheckKeys(client, "client", "source", "token_environment", "poll_interval_seconds", "targets");
+        CheckKeys(client, "client", "source", "token_environment", "token", "poll_interval_seconds", "targets");
         var source = OptionalString(client, "source");
         var tokenEnvironment = OptionalString(client, "token_environment");
+        var token = OptionalString(client, "token");
         var targets = TableArray(client, "targets").Select(ReadTarget).ToArray();
 
         var logging = OptionalTable(root, "logging");
@@ -62,18 +65,22 @@ public static class TomlConfigLoader
             throw new ConfigurationException("Agent role requires at least one [[agent.providers]] entry.");
         if (roleOptions.Agent && !roleOptions.Server && agentOptions.SubmitTo is null)
             throw new ConfigurationException("Agent-only role requires agent.submit_to.");
-        if (agentOptions.SubmitTo is not null && !agentOptions.SubmitTo.IsLoopback && agentOptions.WriteTokenEnvironment is null)
-            throw new ConfigurationException("Remote agent.submit_to requires agent.write_token_environment.");
+        ValidateSecretChoice("agent write token", agentOptions.WriteTokenEnvironment, agentOptions.WriteToken);
+        ValidateSecretChoice("server read token", serverOptions.ReadTokenEnvironment, serverOptions.ReadToken);
+        ValidateSecretChoice("server write token", serverOptions.WriteTokenEnvironment, serverOptions.WriteToken);
+        ValidateSecretChoice("client token", tokenEnvironment, token);
+        if (agentOptions.SubmitTo is not null && !agentOptions.SubmitTo.IsLoopback && agentOptions.WriteTokenEnvironment is null && agentOptions.WriteToken is null)
+            throw new ConfigurationException("Remote agent.submit_to requires agent.write_token_environment or a protected agent.write_token.");
         if (roleOptions.Server && agentOptions.SubmitTo is not null)
             throw new ConfigurationException("agent.submit_to is only valid when the Server role is disabled; combined Agent+Server uses the in-process publication boundary.");
         if (roleOptions.Client && source is null && !roleOptions.Server)
             throw new ConfigurationException("Client role requires client.source unless Server is enabled in-process.");
-        if (roleOptions.Client && source is not null && !AbsoluteUri(source, "client.source").IsLoopback && tokenEnvironment is null)
-            throw new ConfigurationException("Remote client.source requires client.token_environment.");
+        if (roleOptions.Client && source is not null && !AbsoluteUri(source, "client.source").IsLoopback && tokenEnvironment is null && token is null)
+            throw new ConfigurationException("Remote client.source requires client.token_environment or a protected client.token.");
 
         var baseDirectory = Path.GetDirectoryName(fullPath)!;
         return new GlueOptions(roleOptions, agentOptions, serverOptions,
-            new ClientOptions(source is null ? null : AbsoluteUri(source, "client.source"), tokenEnvironment, PositiveInt(client, "poll_interval_seconds", 30), targets), loggingOptions, fullPath, baseDirectory);
+            new ClientOptions(source is null ? null : AbsoluteUri(source, "client.source"), tokenEnvironment, token, PositiveInt(client, "poll_interval_seconds", 30), targets), loggingOptions, fullPath, baseDirectory);
     }
 
     private static ExclusionRuleOptions ReadExclusion(TomlTable table)
@@ -128,10 +135,15 @@ public static class TomlConfigLoader
     {
         if (server.Listen.Scheme != Uri.UriSchemeHttp) throw new ConfigurationException("server.listen must use http; TLS termination is external.");
         var loopback = server.Listen.IsLoopback;
-        if (!loopback && (server.ReadTokenEnvironment is null || server.WriteTokenEnvironment is null))
-            throw new ConfigurationException("Non-loopback server.listen requires both read and write token environment references.");
+        if (!loopback && (server.ReadTokenEnvironment is null && server.ReadToken is null || server.WriteTokenEnvironment is null && server.WriteToken is null))
+            throw new ConfigurationException("Non-loopback server.listen requires both read and write token sources.");
         if (!loopback && !server.AcknowledgeInsecureRemoteHttp)
             throw new ConfigurationException("Non-loopback plain HTTP requires acknowledge_insecure_remote_http = true.");
+    }
+
+    private static void ValidateSecretChoice(string name, string? environment, string? literal)
+    {
+        if (environment is not null && literal is not null) throw new ConfigurationException($"{name} must use either an environment reference or a literal, not both.");
     }
 
     private static TomlTable RequiredTable(TomlTable table, string key) => table.TryGetValue(key, out var value) && value is TomlTable result ? result : throw new ConfigurationException($"Missing table [{key}].");

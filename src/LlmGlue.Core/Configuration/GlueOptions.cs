@@ -20,6 +20,7 @@ public sealed record AgentOptions(
     IReadOnlyList<ProviderOptions> Providers,
     Uri? SubmitTo,
     string? WriteTokenEnvironment,
+    string? WriteToken,
     int DiscoveryIntervalSeconds,
     int RemovalGraceSeconds);
 
@@ -37,6 +38,8 @@ public sealed record ServerOptions(
     Uri Listen,
     string? ReadTokenEnvironment,
     string? WriteTokenEnvironment,
+    string? ReadToken,
+    string? WriteToken,
     bool AcknowledgeInsecureRemoteHttp,
     IReadOnlyList<ExclusionRuleOptions> Exclusions,
     string StateDirectory,
@@ -49,10 +52,15 @@ public sealed record ExclusionRuleOptions(
     string? DisplayName,
     string? ProviderModel);
 
-public sealed record ClientOptions(Uri? Source, string? TokenEnvironment, int PollIntervalSeconds, IReadOnlyList<TargetOptions> Targets);
+public sealed record ClientOptions(Uri? Source, string? TokenEnvironment, string? Token, int PollIntervalSeconds, IReadOnlyList<TargetOptions> Targets);
 
 public sealed record TargetOptions(string Type, string Path, string? PrimaryConfigPath, string? ServiceName, Uri? HealthUrl);
 
 public sealed record LoggingOptions(string Level, string File, int ArchiveSizeMb, int Retention);
 
 public sealed class ConfigurationException(string message) : Exception(message);
+
+public static class SecretResolver
+{
+    public static string? Resolve(string? literal, string? environmentName) => literal ?? (environmentName is null ? null : Environment.GetEnvironmentVariable(environmentName));
+}

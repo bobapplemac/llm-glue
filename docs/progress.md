@@ -168,8 +168,8 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Debug build and 60 tests; native
-Ubuntu/WSL Release restore/build and 60 tests; PowerShell AST and Bash syntax
+Latest available verification: clean Windows Debug build and 63 tests; native
+Ubuntu/WSL Release restore/build and 63 tests; PowerShell AST and Bash syntax
 checks; r1 win-x64/linux-x64 self-contained single-file execution; Windows and
 Linux service-install dry runs. These are implementation/packaging evidence, not
 substitutes for the unchecked live gates above.

@@ -1,4 +1,5 @@
 using LlmGlue.Core.Configuration;
+using LlmGlue.Operations;
 
 namespace LlmGlue.Tests;
 
@@ -188,6 +189,68 @@ public sealed class ConfigurationTests
             Assert.Equal(20, provider.ProbeTimeoutSeconds);
         }
         finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void AllowsProtectedSidecarTokensForHeadlessServices()
+    {
+        var serverPath = WriteTemp("""
+            [roles]
+            agent = false
+            server = true
+            client = false
+            [server]
+            listen = "http://0.0.0.0:8765"
+            read_token = "read-secret"
+            write_token = "write-secret"
+            acknowledge_insecure_remote_http = true
+            """);
+        var clientPath = WriteTemp("""
+            [roles]
+            agent = false
+            server = false
+            client = true
+            [client]
+            source = "https://glue.example.test"
+            token = "read-secret"
+            """);
+        try
+        {
+            var server = TomlConfigLoader.Load(serverPath);
+            Assert.Equal("read-secret", server.Server.ReadToken);
+            Assert.Equal("write-secret", server.Server.WriteToken);
+            Assert.Equal("read-secret", TomlConfigLoader.Load(clientPath).Client.Token);
+        }
+        finally
+        {
+            File.Delete(serverPath);
+            File.Delete(clientPath);
+        }
+    }
+
+    [Fact]
+    public void RejectsAmbiguousLiteralAndEnvironmentSecretSources()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = false
+            server = false
+            client = true
+            [client]
+            source = "https://glue.example.test"
+            token = "literal"
+            token_environment = "LLM_GLUE_READ_TOKEN"
+            """);
+        try { Assert.Contains("either an environment reference or a literal", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void DiagnosticsDescribeLiteralSecretWithoutPrintingIt()
+    {
+        var status = CliCommands.SecretStatus("super-secret-value", null);
+        Assert.Equal("protected sidecar literal (set)", status);
+        Assert.DoesNotContain("super-secret-value", status, StringComparison.Ordinal);
     }
 
     [Fact]
