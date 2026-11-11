@@ -153,9 +153,10 @@ operator-owned directories automatically.
 OpenCode synchronization defaults to an `opencode.jsonc` document and may create
 `<opencode-target>.llm-glue-ownership.json` beside it. Existing `.json` targets
 remain supported when explicitly configured.
-Schema v2 records provider keys and native-provider disablements per artifact
-source, allowing local Ollama and remote central catalogs to coexist and reverse
-only their own changes. V1 state migrates automatically. Keep this
+Schema v3 records provider keys, native-provider disablements, and managed policy
+statements per artifact source, allowing local Ollama and remote central catalogs
+to coexist and reverse only their own changes. V1 and v2 state migrate
+automatically. Keep this
 machine-generated state with the target and do not edit it. Service installation
 grants access through the configured target directory; corrupt state and
 unowned/cross-source collisions fail closed before the document is changed.
@@ -167,6 +168,7 @@ machine-wide catalog:
 [[client.targets]]
 type = "opencode"
 path = 'C:\ProgramData\opencode\opencode.jsonc'
+deny_builtin_opencode_provider = true
 ```
 
 Or list one target per selected user (and omit the system target):
@@ -175,10 +177,12 @@ Or list one target per selected user (and omit the system target):
 [[client.targets]]
 type = "opencode"
 path = 'C:\Users\Andrew\.config\opencode\opencode.jsonc'
+deny_builtin_opencode_provider = true
 
 [[client.targets]]
 type = "opencode"
 path = 'C:\Users\OtherUser\.config\opencode\opencode.jsonc'
+deny_builtin_opencode_provider = true
 ```
 
 The artifact is fetched once and applied independently to each file. LLM Glue
@@ -187,23 +191,30 @@ intended interactive users. Every selected directory must be writable by the
 service identity; `service install`/`repair` provisions the configured target
 directories. Duplicate normalized target paths are rejected. Existing JSON/JSONC
 is merged, unrelated settings remain operator-owned, and each destination's
-adjacent ownership document records exactly which provider keys and
-`disabled_providers` entries each artifact source may later change or remove.
+adjacent ownership document records exactly which provider keys,
+`disabled_providers` entries, and policy statements each artifact source may
+later change or remove.
 Operator comments on unrelated settings and providers survive reconciliation;
 LLM Glue emits a comment above each managed group. Comments within a managed
 provider value are replaced with that owned value on the next synchronization.
 Normally configure either the system target or selected user targets: when both
 define the same OpenCode keys, OpenCode's system precedence wins.
 
-To hide OpenCode's built-in/default provider catalog and show only selected LLM
-Glue providers, add an operator-owned provider allowlist to the same JSONC file:
+OpenCode targets default `deny_builtin_opencode_provider = true`. LLM Glue adds
+this current, schema-valid policy to hide OpenCode's built-in/default provider
+catalog:
 
 ```jsonc
-"enabled_providers": [
-  "llm-glue-ollama-local-ollama",
-  "llm-glue-llama-cpp-labhost03-router"
+"policies": [
+  { "action": "provider.use", "resource": "opencode", "effect": "deny" }
 ]
 ```
+An identical pre-existing operator policy is preserved without being claimed.
+Every unrelated policy and comment survives reconciliation. Set
+`deny_builtin_opencode_provider = false` on that target to omit the default or
+remove only the statement LLM Glue previously added. The deprecated
+`enabled_providers` input is not used for this policy; the separate direct-Ollama
+duplicate suppression remains compatible with the qualified OpenCode version.
 
 Use the provider keys generated for that installation. OpenCode 2.2.7 normalizes
 this legacy-compatible setting to a deny-all `provider.use` policy followed by

@@ -156,15 +156,17 @@ public static class TomlConfigLoader
 
     private static TargetOptions ReadTarget(TomlTable table)
     {
-        CheckKeys(table, "client.targets", "type", "path", "primary_config_path", "service_name", "health_url");
+        CheckKeys(table, "client.targets", "type", "path", "primary_config_path", "service_name", "health_url", "deny_builtin_opencode_provider");
         var type = RequiredString(table, "type");
         if (type is not ("opencode" or "litellm")) throw new ConfigurationException($"Unsupported target type '{type}'.");
         var primary = OptionalString(table, "primary_config_path");
         var service = OptionalString(table, "service_name");
         var health = OptionalString(table, "health_url");
+        var denyBuiltInOpenCodeProvider = Bool(table, "deny_builtin_opencode_provider", true);
         if (type == "litellm" && primary is null) throw new ConfigurationException("LiteLLM target requires primary_config_path.");
         if (type == "litellm" && service is null) throw new ConfigurationException("LiteLLM target requires service_name for controlled activation.");
-        return new TargetOptions(type, RequiredString(table, "path"), primary, service, health is null ? null : HttpUri(health, "target.health_url"));
+        if (type != "opencode" && table.ContainsKey("deny_builtin_opencode_provider")) throw new ConfigurationException("deny_builtin_opencode_provider applies only to OpenCode targets.");
+        return new TargetOptions(type, RequiredString(table, "path"), primary, service, health is null ? null : HttpUri(health, "target.health_url"), denyBuiltInOpenCodeProvider);
     }
 
     private static void ValidateListen(ServerOptions server)

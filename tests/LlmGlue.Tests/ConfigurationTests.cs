@@ -103,7 +103,55 @@ public sealed class ConfigurationTests
             type = "opencode"
             path = "second/opencode.json"
             """);
-        try { Assert.Equal(2, TomlConfigLoader.Load(path).Client.Targets.Count); }
+        try
+        {
+            var targets = TomlConfigLoader.Load(path).Client.Targets;
+            Assert.Equal(2, targets.Count);
+            Assert.All(targets, target => Assert.True(target.DenyBuiltInOpenCodeProvider));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void LoadsExplicitBuiltInOpenCodeProviderPolicyOptOut()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = false
+            server = false
+            client = true
+            [client]
+            source = "http://127.0.0.1:8765"
+            [[client.targets]]
+            type = "opencode"
+            path = "opencode.jsonc"
+            deny_builtin_opencode_provider = false
+            """);
+        try { Assert.False(Assert.Single(TomlConfigLoader.Load(path).Client.Targets).DenyBuiltInOpenCodeProvider); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void RejectsBuiltInOpenCodeProviderPolicyOnLiteLlmTarget()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = false
+            server = true
+            client = true
+            [server]
+            listen = "http://127.0.0.1:8765"
+            opencode_inference_url = "http://127.0.0.1:4000"
+            [client]
+            source = "http://127.0.0.1:8765"
+            [[client.targets]]
+            type = "litellm"
+            path = "generated.yaml"
+            primary_config_path = "config.yaml"
+            service_name = "litellm.service"
+            deny_builtin_opencode_provider = false
+            """);
+        try { Assert.Contains("only to OpenCode", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
         finally { File.Delete(path); }
     }
 

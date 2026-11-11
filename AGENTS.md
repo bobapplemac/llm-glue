@@ -18,7 +18,9 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
   provider. Preserve unrelated and pre-existing `disabled_providers` values and
   keep the adjacent generated ownership state transactional with target apply.
   OpenCode provider ownership is scoped by artifact source; one controller must
-  never remove another controller's provider keys.
+  never remove another controller's provider keys. The default built-in
+  `opencode` deny policy follows the same rule: preserve identical operator-owned
+  statements and every unrelated policy, and remove only an owned statement.
 - Generated artifacts must be deterministic and must not contain credentials.
 - Network schemas are versioned independently from the product revision.
 - Ordinary development and test builds identify as `r0`. Only the guarded

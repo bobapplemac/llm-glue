@@ -9,7 +9,7 @@ internal static class OpenCodeJsoncWriter
     private const string ManagedComment = "// Managed by LLM Glue. Do not edit this section; ownership is tracked in the adjacent sidecar.";
     private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
 
-    public static byte[] Write(string original, JsonObject desired, IReadOnlySet<string> managedProviders, IReadOnlySet<string> managedDisabledProviders)
+    public static byte[] Write(string original, JsonObject desired, IReadOnlySet<string> managedProviders, IReadOnlySet<string> managedDisabledProviders, IReadOnlySet<string> managedPolicies)
     {
         var root = ParseObject(original);
         var members = new List<string>();
@@ -22,6 +22,7 @@ internal static class OpenCodeJsoncWriter
             {
                 "providers" => member.WithValue(WriteProviders(member.Value, (JsonObject)value!, managedProviders)),
                 "disabled_providers" => member.WithValue(WriteDisabledProviders(member.Value, (JsonArray)value!, managedDisabledProviders)),
+                "policies" => member.WithValue(WritePolicies(member.Value, (JsonArray)value!, managedPolicies)),
                 _ => member.Raw
             });
         }
@@ -31,6 +32,7 @@ internal static class OpenCodeJsoncWriter
             {
                 "providers" => WriteProviders("{}", (JsonObject)property.Value!, managedProviders),
                 "disabled_providers" => WriteDisabledProviders("[]", (JsonArray)property.Value!, managedDisabledProviders),
+                "policies" => WritePolicies("[]", (JsonArray)property.Value!, managedPolicies),
                 _ => Serialize(property.Value)
             };
             members.Add($"{JsonSerializer.Serialize(property.Key)}: {value}");
@@ -74,6 +76,47 @@ internal static class OpenCodeJsoncWriter
             members.Add((index == 0 ? ManagedComment + "\n" : string.Empty) + JsonSerializer.Serialize(generated[index]));
         return "[" + (members.Count == 0 ? string.Empty : "\n" + Join(members, 4) + "\n  ") + "]";
     }
+
+    private static string WritePolicies(string original, JsonArray desired, IReadOnlySet<string> managed)
+    {
+        var desiredNodes = desired.Select(x => x ?? throw new InvalidDataException("OpenCode policies cannot contain null.")).ToArray();
+        var desiredCounts = desiredNodes.GroupBy(PolicyKey, StringComparer.Ordinal).ToDictionary(x => x.Key, x => x.Count(), StringComparer.Ordinal);
+        var parsed = ParseArray(original).Members.Select((member, index) => new
+        {
+            Index = index,
+            member.Raw,
+            Key = PolicyKey(JsonNode.Parse(member.Value, documentOptions: new() { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip })
+                ?? throw new InvalidDataException("OpenCode policies cannot contain null."))
+        }).ToArray();
+        var preserve = new HashSet<int>();
+        foreach (var group in parsed.GroupBy(x => x.Key, StringComparer.Ordinal))
+        {
+            var managedCount = managed.Contains(group.Key) && desiredCounts.GetValueOrDefault(group.Key) > 0 ? 1 : 0;
+            var preserveCount = Math.Max(0, desiredCounts.GetValueOrDefault(group.Key) - managedCount);
+            foreach (var item in group.OrderBy(x => x.Raw.Contains(ManagedComment, StringComparison.Ordinal)).ThenBy(x => x.Index).Take(preserveCount))
+                preserve.Add(item.Index);
+        }
+        var members = parsed.Where(x => preserve.Contains(x.Index)).OrderBy(x => x.Index).Select(x => x.Raw).ToList();
+        foreach (var key in managed.Where(x => desiredCounts.GetValueOrDefault(x) > 0).Order(StringComparer.Ordinal))
+        {
+            var node = desiredNodes.First(x => PolicyKey(x) == key);
+            members.Add(ManagedComment + "\n" + Serialize(node));
+        }
+        return "[" + (members.Count == 0 ? string.Empty : "\n" + Join(members, 4) + "\n  ") + "]";
+    }
+
+    private static string PolicyKey(JsonNode node)
+    {
+        if (node is JsonObject policy
+            && StringProperty(policy, "action") == "provider.use"
+            && StringProperty(policy, "resource") == "opencode"
+            && StringProperty(policy, "effect") == "deny")
+            return "provider.use:opencode:deny";
+        return node.ToJsonString();
+    }
+
+    private static string? StringProperty(JsonObject value, string name) => value[name] is JsonValue property
+        && property.TryGetValue<string>(out var text) ? text : null;
 
     private static string StringValue(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text)
         ? text

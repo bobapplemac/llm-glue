@@ -6,10 +6,11 @@ using LlmGlue.Core.Generation;
 
 namespace LlmGlue.Core.Client;
 
-public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, ITargetActivator activator, string ownerId = "default") : IConfigurationTarget
+public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, ITargetActivator activator, string ownerId = "default", bool denyBuiltInOpenCodeProvider = true) : IConfigurationTarget
 {
-    private const int OwnershipSchemaVersion = 2;
+    private const int OwnershipSchemaVersion = 3;
     private const string LegacyOwnerId = "legacy-v1";
+    private const string BuiltInOpenCodeDenyPolicy = "provider.use:opencode:deny";
     private string OwnershipPath => path + ".llm-glue-ownership.json";
     public string TargetType => "opencode";
     public string TargetId => $"opencode:{Path.GetFullPath(path)}";
@@ -57,6 +58,11 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
         if (existingDisabled.Count == 0) existing.Remove("disabled_providers");
         else existing["disabled_providers"] = existingDisabled;
 
+        var existingPolicies = Policies(existing);
+        ReconcileBuiltInOpenCodePolicy(existingPolicies, currentOwnership, nextOwnership);
+        if (existingPolicies.Count == 0) existing.Remove("policies");
+        else existing["policies"] = existingPolicies;
+
         foreach (var stale in currentOwnership.Providers.Except(generatedProviders.Select(x => x.Key), StringComparer.Ordinal).ToArray())
             existingProviders.Remove(stale);
         currentOwnership.Providers.Clear();
@@ -74,7 +80,7 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
         }
         nextOwnership.RemoveEmptyControllers();
 
-        var bytes = OpenCodeJsoncWriter.Write(originalText, existing, currentOwnership.Providers, currentOwnership.DisabledProviders);
+        var bytes = OpenCodeJsoncWriter.Write(originalText, existing, currentOwnership.Providers, currentOwnership.DisabledProviders, currentOwnership.ManagedPolicies);
         await SaveOwnershipAsync(nextOwnership, cancellationToken);
         try
         {
@@ -106,10 +112,12 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
             {
                 [LegacyOwnerId] = new(
                     existingProviders.Select(x => x.Key).Where(x => x.StartsWith("llm-glue-", StringComparison.Ordinal)).ToHashSet(StringComparer.Ordinal),
-                    StringSet(disabled))
+                    StringSet(disabled),
+                    new(StringComparer.Ordinal))
             });
         }
-        if (schema.GetInt32() != OwnershipSchemaVersion || !root.TryGetProperty("controllers", out var controllers) || controllers.ValueKind != JsonValueKind.Object)
+        var schemaVersion = schema.GetInt32();
+        if (schemaVersion is not (2 or OwnershipSchemaVersion) || !root.TryGetProperty("controllers", out var controllers) || controllers.ValueKind != JsonValueKind.Object)
             throw new InvalidDataException($"Invalid OpenCode ownership state: {OwnershipPath}");
         var values = new Dictionary<string, ControllerOwnership>(StringComparer.Ordinal);
         foreach (var controller in controllers.EnumerateObject())
@@ -118,7 +126,14 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
                 || !controller.Value.TryGetProperty("providers", out var providers) || providers.ValueKind != JsonValueKind.Array
                 || !controller.Value.TryGetProperty("disabledProviders", out var disabled) || disabled.ValueKind != JsonValueKind.Array)
                 throw new InvalidDataException($"Invalid OpenCode ownership state: {OwnershipPath}");
-            values[controller.Name] = new(StringSet(providers), StringSet(disabled));
+            var policies = new HashSet<string>(StringComparer.Ordinal);
+            if (schemaVersion == OwnershipSchemaVersion)
+            {
+                if (!controller.Value.TryGetProperty("managedPolicies", out var managedPolicies) || managedPolicies.ValueKind != JsonValueKind.Array)
+                    throw new InvalidDataException($"Invalid OpenCode ownership state: {OwnershipPath}");
+                policies = StringSet(managedPolicies);
+            }
+            values[controller.Name] = new(StringSet(providers), StringSet(disabled), policies);
         }
         return new OwnershipState(values);
     }
@@ -133,7 +148,8 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
             x => new
             {
                 providers = x.Value.Providers.Order(StringComparer.Ordinal).ToArray(),
-                disabledProviders = x.Value.DisabledProviders.Order(StringComparer.Ordinal).ToArray()
+                disabledProviders = x.Value.DisabledProviders.Order(StringComparer.Ordinal).ToArray(),
+                managedPolicies = x.Value.ManagedPolicies.Order(StringComparer.Ordinal).ToArray()
             }, StringComparer.Ordinal);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(new
         {
@@ -157,16 +173,113 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
         }
     }
 
+    private void ReconcileBuiltInOpenCodePolicy(JsonArray policies, ControllerOwnership currentOwnership, OwnershipState ownership)
+    {
+        var currentOwns = currentOwnership.ManagedPolicies.Contains(BuiltInOpenCodeDenyPolicy);
+        var anotherOwns = ownership.Controllers
+            .Where(x => x.Key != ownerId)
+            .Any(x => x.Value.ManagedPolicies.Contains(BuiltInOpenCodeDenyPolicy));
+        var exists = policies.Any(IsBuiltInOpenCodeDenyPolicy);
+        var isEffectivelyDenied = BuiltInOpenCodeProviderIsDenied(policies);
+
+        if (denyBuiltInOpenCodeProvider)
+        {
+            if (currentOwns)
+            {
+                if (!exists) policies.Add(CreateBuiltInOpenCodeDenyPolicy());
+            }
+            else if (!anotherOwns && !isEffectivelyDenied)
+            {
+                policies.Add(CreateBuiltInOpenCodeDenyPolicy());
+                currentOwnership.ManagedPolicies.Add(BuiltInOpenCodeDenyPolicy);
+            }
+            return;
+        }
+
+        if (!currentOwns) return;
+        currentOwnership.ManagedPolicies.Remove(BuiltInOpenCodeDenyPolicy);
+        if (!anotherOwns) RemoveLastPolicy(policies, IsBuiltInOpenCodeDenyPolicy);
+    }
+
+    private static JsonArray Policies(JsonObject existing)
+    {
+        if (existing["policies"] is null) return [];
+        if (existing["policies"] is not JsonArray array) throw new InvalidDataException("Existing OpenCode policies must be an array.");
+        return (JsonArray)array.DeepClone();
+    }
+
+    private static JsonObject CreateBuiltInOpenCodeDenyPolicy() => new()
+    {
+        ["action"] = "provider.use",
+        ["resource"] = "opencode",
+        ["effect"] = "deny"
+    };
+
+    private static bool IsBuiltInOpenCodeDenyPolicy(JsonNode? node) => node is JsonObject policy
+        && StringProperty(policy, "action") == "provider.use"
+        && StringProperty(policy, "resource") == "opencode"
+        && StringProperty(policy, "effect") == "deny";
+
+    private static string? StringProperty(JsonObject value, string name) => value[name] is JsonValue property
+        && property.TryGetValue<string>(out var text) ? text : null;
+
+    private static bool BuiltInOpenCodeProviderIsDenied(JsonArray policies)
+    {
+        bool? denied = null;
+        foreach (var node in policies)
+        {
+            if (node is not JsonObject policy || StringProperty(policy, "action") != "provider.use") continue;
+            var resource = StringProperty(policy, "resource");
+            var effect = StringProperty(policy, "effect");
+            if (resource is null || effect is not ("allow" or "deny") || !WildcardMatch(resource, "opencode")) continue;
+            denied = effect == "deny";
+        }
+        return denied == true;
+    }
+
+    private static bool WildcardMatch(string pattern, string value)
+    {
+        var matches = new bool[value.Length + 1];
+        matches[0] = true;
+        foreach (var character in pattern)
+        {
+            var next = new bool[value.Length + 1];
+            if (character == '*')
+            {
+                next[0] = matches[0];
+                for (var index = 1; index <= value.Length; index++) next[index] = matches[index] || next[index - 1];
+            }
+            else
+            {
+                for (var index = 1; index <= value.Length; index++)
+                    next[index] = matches[index - 1] && (character == '?' || character == value[index - 1]);
+            }
+            matches = next;
+        }
+        return matches[value.Length];
+    }
+
+    private static void RemoveLastPolicy(JsonArray policies, Func<JsonNode?, bool> predicate)
+    {
+        for (var index = policies.Count - 1; index >= 0; index--)
+        {
+            if (!predicate(policies[index])) continue;
+            policies.RemoveAt(index);
+            return;
+        }
+    }
+
     private static HashSet<string> StringSet(JsonElement array) => new(array.EnumerateArray().Select(x =>
         x.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(x.GetString())
             ? x.GetString()!
             : throw new InvalidDataException("Ownership provider names must be nonempty strings.")), StringComparer.Ordinal);
 
-    private sealed class ControllerOwnership(HashSet<string> providers, HashSet<string> disabledProviders)
+    private sealed class ControllerOwnership(HashSet<string> providers, HashSet<string> disabledProviders, HashSet<string> managedPolicies)
     {
         public HashSet<string> Providers { get; } = providers;
         public HashSet<string> DisabledProviders { get; } = disabledProviders;
-        public ControllerOwnership Clone() => new(new(Providers, StringComparer.Ordinal), new(DisabledProviders, StringComparer.Ordinal));
+        public HashSet<string> ManagedPolicies { get; } = managedPolicies;
+        public ControllerOwnership Clone() => new(new(Providers, StringComparer.Ordinal), new(DisabledProviders, StringComparer.Ordinal), new(ManagedPolicies, StringComparer.Ordinal));
     }
 
     private sealed class OwnershipState(Dictionary<string, ControllerOwnership>? controllers = null)
@@ -175,13 +288,13 @@ public sealed class OpenCodeTarget(string path, AtomicFileInstaller installer, I
         public ControllerOwnership Controller(string id)
         {
             if (string.IsNullOrWhiteSpace(id)) throw new InvalidOperationException("OpenCode ownership source ID must be nonempty.");
-            if (!Controllers.TryGetValue(id, out var value)) Controllers[id] = value = new(new(StringComparer.Ordinal), new(StringComparer.Ordinal));
+            if (!Controllers.TryGetValue(id, out var value)) Controllers[id] = value = new(new(StringComparer.Ordinal), new(StringComparer.Ordinal), new(StringComparer.Ordinal));
             return value;
         }
         public OwnershipState Clone() => new(Controllers.ToDictionary(x => x.Key, x => x.Value.Clone(), StringComparer.Ordinal));
         public void RemoveEmptyControllers()
         {
-            foreach (var key in Controllers.Where(x => x.Value.Providers.Count == 0 && x.Value.DisabledProviders.Count == 0).Select(x => x.Key).ToArray())
+            foreach (var key in Controllers.Where(x => x.Value.Providers.Count == 0 && x.Value.DisabledProviders.Count == 0 && x.Value.ManagedPolicies.Count == 0).Select(x => x.Key).ToArray())
                 Controllers.Remove(key);
         }
     }

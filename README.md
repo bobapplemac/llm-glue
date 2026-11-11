@@ -77,8 +77,10 @@ OpenCode destination scope is explicit: configure the system file for a global
 catalog, or repeat `[[client.targets]]` with one path per selected user. Existing
 JSON/JSONC is merged using an adjacent, source-scoped ownership document; new
 installations default to `opencode.jsonc`, preserve operator comments, and mark
-managed groups with comments. LLM Glue never scans user profiles or claims
-unrelated settings.
+managed groups with comments. OpenCode targets hide the built-in `opencode`
+provider catalog by default through an owned policy; set
+`deny_builtin_opencode_provider = false` on a target to opt out. LLM Glue never
+scans user profiles or claims unrelated settings.
 
 Useful commands include `run`, `status`, `discover`, `doctor`, `config validate`,
 `config preview opencode|litellm`, `sync --once`, `service

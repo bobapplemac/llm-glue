@@ -129,7 +129,7 @@ public static class CliCommands
             if (target.Type == "opencode")
             {
                 var source = options.Client.Source ?? options.Server.Listen;
-                targets.Add(new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), $"source:{source.AbsoluteUri.TrimEnd('/')}"));
+                targets.Add(new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), $"source:{source.AbsoluteUri.TrimEnd('/')}", target.DenyBuiltInOpenCodeProvider));
             }
             else targets.Add(new LiteLlmTarget(path, ResolvePath(options, target.PrimaryConfigPath!), new AtomicFileInstaller(), new ServiceRestartActivator(target.ServiceName!, new HttpClient { Timeout = TimeSpan.FromSeconds(5) }, target.HealthUrl)));
         }

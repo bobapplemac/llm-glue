@@ -62,11 +62,13 @@ restore preceded the corrected rerun; the live migrated target retained all thre
 local Ollama models, `disabled_providers: [ollama]`, and the central Qwen provider.
 Unowned and cross-source provider-key collisions fail closed.
 
-On MarkIV, OpenCode 2.2.7 also accepted an operator-owned
-`enabled_providers` allowlist containing only the local and central LLM Glue
-provider keys. `opencode debug config` normalized it to a deny-all
-`provider.use` policy followed by the two explicit allows, hiding the unused
-default catalog. LLM Glue preserves this unrelated root setting.
+On MarkIV, OpenCode 2.2.7 accepted an operator-owned `enabled_providers`
+allowlist, but the current schema deprecates that compatibility input. The
+current `policies` schema explicitly supports `provider.use`; a deny for resource
+`opencode` removes that built-in provider from the catalog and model selection.
+LLM Glue OpenCode targets now default to that exact policy with transactional,
+source-scoped ownership while preserving identical operator-owned and unrelated
+statements.
 
 Sources: <https://opencode.ai/docs/config>,
 <https://opencode.ai/config.json>, <https://opencode.ai/docs/api>, and

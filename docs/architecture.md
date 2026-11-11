@@ -93,11 +93,15 @@ the setting and continue to publish direct provider routes. Central provider
 settings reference `LLM_GLUE_INFERENCE_API_KEY` through OpenCode's `{env:...}`
 substitution and declare that environment source at provider level so OpenCode
 activates the custom provider; the secret itself never enters an artifact.
+Each OpenCode target also defaults to an owned `provider.use` deny policy for the
+built-in `opencode` provider. Ownership schema v3 distinguishes that managed
+statement from identical or unrelated operator policies and migrates v1/v2 state.
 
 See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md),
 [ADR 0005](decisions/0005-central-litellm-routing.md), and
 [ADR 0009](decisions/0009-live-router-paths-probes-and-source-ownership.md), and
-[ADR 0010](decisions/0010-explicit-opencode-target-scope.md).
+[ADR 0010](decisions/0010-explicit-opencode-target-scope.md), and
+[ADR 0013](decisions/0013-owned-opencode-catalog-policy.md).
 
 ## Network and persistence
 

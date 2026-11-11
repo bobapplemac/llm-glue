@@ -115,6 +115,152 @@ public sealed class ConfigurationTargetTests
     }
 
     [Fact]
+    public async Task OpenCodeAddsAndReversesOnlyItsOwnedBuiltInProviderPolicy()
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.jsonc");
+            await File.WriteAllTextAsync(path, """
+                {
+                  "policies": [
+                    // Operator policy remains.
+                    { "action": "provider.use", "resource": "openai", "effect": "deny" }
+                  ],
+                  "providers": {}
+                }
+                """, TestContext.Current.CancellationToken);
+            var artifact = await new OpenCodeGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
+            var enabled = new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:test", true);
+            await enabled.ApplyAsync(artifact, TestContext.Current.CancellationToken);
+
+            var appliedText = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
+            Assert.Contains("// Operator policy remains.", appliedText);
+            Assert.Contains("// Managed by LLM Glue.", appliedText);
+            using (var applied = await ParseJsoncAsync(path))
+            {
+                var policies = applied.RootElement.GetProperty("policies").EnumerateArray().ToArray();
+                Assert.Equal(2, policies.Length);
+                Assert.Contains(policies, IsBuiltInOpenCodeDenyPolicy);
+            }
+            using (var ownership = JsonDocument.Parse(await File.ReadAllBytesAsync(path + ".llm-glue-ownership.json", TestContext.Current.CancellationToken)))
+            {
+                Assert.Equal(3, ownership.RootElement.GetProperty("schemaVersion").GetInt32());
+                Assert.Equal("provider.use:opencode:deny", Assert.Single(ownership.RootElement.GetProperty("controllers").GetProperty("source:test").GetProperty("managedPolicies").EnumerateArray()).GetString());
+            }
+
+            var disabled = new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:test", false);
+            await disabled.ApplyAsync(artifact, TestContext.Current.CancellationToken);
+            var reconciledText = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
+            Assert.Contains("// Operator policy remains.", reconciledText);
+            using var reconciled = await ParseJsoncAsync(path);
+            var remaining = Assert.Single(reconciled.RootElement.GetProperty("policies").EnumerateArray());
+            Assert.Equal("openai", remaining.GetProperty("resource").GetString());
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task OpenCodeDoesNotClaimOrRemoveAnIdenticalOperatorPolicy()
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.jsonc");
+            await File.WriteAllTextAsync(path, """
+                {
+                  "policies": [
+                    // Operator owns this exact policy.
+                    { "effect": "deny", "resource": "opencode", "action": "provider.use" }
+                  ],
+                  "providers": {}
+                }
+                """, TestContext.Current.CancellationToken);
+            var artifact = await new OpenCodeGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
+            await new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:test", true).ApplyAsync(artifact, TestContext.Current.CancellationToken);
+            await new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:test", false).ApplyAsync(artifact, TestContext.Current.CancellationToken);
+
+            var text = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
+            Assert.Contains("// Operator owns this exact policy.", text);
+            using var result = await ParseJsoncAsync(path);
+            Assert.True(IsBuiltInOpenCodeDenyPolicy(Assert.Single(result.RootElement.GetProperty("policies").EnumerateArray())));
+            using var ownership = JsonDocument.Parse(await File.ReadAllBytesAsync(path + ".llm-glue-ownership.json", TestContext.Current.CancellationToken));
+            Assert.Empty(ownership.RootElement.GetProperty("controllers").GetProperty("source:test").GetProperty("managedPolicies").EnumerateArray());
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task OpenCodeOwnedDenyWinsAfterALaterOperatorAllowAndReversesCleanly()
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.jsonc");
+            const string original = """
+                {
+                  "policies": [
+                    { "action": "provider.use", "resource": "opencode", "effect": "deny" },
+                    { "action": "provider.use", "resource": "*", "effect": "allow" }
+                  ],
+                  "providers": {}
+                }
+                """;
+            await File.WriteAllTextAsync(path, original, TestContext.Current.CancellationToken);
+            var artifact = await new OpenCodeGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
+            await new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:test", true).ApplyAsync(artifact, TestContext.Current.CancellationToken);
+
+            using (var applied = await ParseJsoncAsync(path))
+            {
+                var policies = applied.RootElement.GetProperty("policies").EnumerateArray().ToArray();
+                Assert.Equal(3, policies.Length);
+                Assert.True(IsBuiltInOpenCodeDenyPolicy(policies[^1]));
+            }
+
+            await new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:test", false).ApplyAsync(artifact, TestContext.Current.CancellationToken);
+            using var reconciled = await ParseJsoncAsync(path);
+            var remaining = reconciled.RootElement.GetProperty("policies").EnumerateArray().ToArray();
+            Assert.Equal(2, remaining.Length);
+            Assert.Equal("deny", remaining[0].GetProperty("effect").GetString());
+            Assert.Equal("allow", remaining[1].GetProperty("effect").GetString());
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task OpenCodeDisablePreservesAnOperatorDuplicateAddedAfterManagedPolicy()
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.jsonc");
+            var artifact = await new OpenCodeGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
+            await new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:test", true).ApplyAsync(artifact, TestContext.Current.CancellationToken);
+            var providers = (await ParseJsoncAsync(path)).RootElement.GetProperty("providers").GetRawText();
+            await File.WriteAllTextAsync(path, $$"""
+                {
+                  "policies": [
+                    // Managed by LLM Glue. Do not edit this section; ownership is tracked in the adjacent sidecar.
+                    { "action": "provider.use", "resource": "opencode", "effect": "deny" },
+                    // Operator duplicate remains.
+                    { "effect": "deny", "resource": "opencode", "action": "provider.use" }
+                  ],
+                  "providers": {{providers}}
+                }
+                """, TestContext.Current.CancellationToken);
+
+            await new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:test", false).ApplyAsync(artifact, TestContext.Current.CancellationToken);
+
+            var text = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
+            Assert.Contains("// Operator duplicate remains.", text);
+            Assert.DoesNotContain("// Managed by LLM Glue. Do not edit this section; ownership is tracked in the adjacent sidecar.\n    { \"action\": \"provider.use\"", text);
+            using var result = await ParseJsoncAsync(path);
+            Assert.True(IsBuiltInOpenCodeDenyPolicy(Assert.Single(result.RootElement.GetProperty("policies").EnumerateArray())));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public async Task OpenCodeRestoresOwnershipStateWhenActivationRollsBack()
     {
         var directory = AtomicFileInstallerTests.TempDirectory();
@@ -189,7 +335,46 @@ public sealed class ConfigurationTargetTests
             Assert.False(finalProviders.TryGetProperty("llm-glue-llama-cpp-lab", out _));
             Assert.Equal("ollama", Assert.Single(reconciled.RootElement.GetProperty("disabled_providers").EnumerateArray()).GetString());
             using var ownership = JsonDocument.Parse(await File.ReadAllBytesAsync(path + ".llm-glue-ownership.json", TestContext.Current.CancellationToken));
-            Assert.Equal(2, ownership.RootElement.GetProperty("schemaVersion").GetInt32());
+            Assert.Equal(3, ownership.RootElement.GetProperty("schemaVersion").GetInt32());
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task OpenCodeMigratesV2OwnershipBeforeAddingManagedPolicy()
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.jsonc");
+            var artifact = await new OpenCodeGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(path, """
+                {
+                  "providers": {
+                    "llm-glue-llama-cpp-lab": { "name": "old managed value", "models": {} }
+                  }
+                }
+                """, TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(path + ".llm-glue-ownership.json", """
+                {
+                  "schemaVersion": 2,
+                  "controllers": {
+                    "source:test": {
+                      "providers": ["llm-glue-llama-cpp-lab"],
+                      "disabledProviders": []
+                    }
+                  }
+                }
+                """, TestContext.Current.CancellationToken);
+
+            await new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), "source:test", true)
+                .ApplyAsync(artifact, TestContext.Current.CancellationToken);
+
+            using var ownership = JsonDocument.Parse(await File.ReadAllBytesAsync(path + ".llm-glue-ownership.json", TestContext.Current.CancellationToken));
+            Assert.Equal(3, ownership.RootElement.GetProperty("schemaVersion").GetInt32());
+            Assert.Equal("provider.use:opencode:deny", Assert.Single(ownership.RootElement.GetProperty("controllers").GetProperty("source:test").GetProperty("managedPolicies").EnumerateArray()).GetString());
+            using var applied = await ParseJsoncAsync(path);
+            Assert.Contains(applied.RootElement.GetProperty("policies").EnumerateArray(), IsBuiltInOpenCodeDenyPolicy);
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -320,6 +505,10 @@ public sealed class ConfigurationTargetTests
             return Task.CompletedTask;
         }
     }
+
+    private static bool IsBuiltInOpenCodeDenyPolicy(JsonElement policy) => policy.GetProperty("action").GetString() == "provider.use"
+        && policy.GetProperty("resource").GetString() == "opencode"
+        && policy.GetProperty("effect").GetString() == "deny";
 
     private static async Task<JsonDocument> ParseJsoncAsync(string path) => JsonDocument.Parse(
         await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken),

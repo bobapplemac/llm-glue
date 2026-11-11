@@ -28,6 +28,10 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   Remote-client bootstrap now also offers an optional non-echoed LiteLLM key
   prompt and persists a supplied `LLM_GLUE_INFERENCE_API_KEY` only in the current
   Windows user's environment, leaving existing values untouched on blank input.
+  OpenCode targets now default to `deny_builtin_opencode_provider = true`, adding
+  the current `provider.use` deny policy for the built-in `opencode` catalog.
+  Ownership schema v3 migrates v1/v2 state, preserves identical operator-owned
+  and unrelated policies/comments, and reverses only a statement LLM Glue added.
 
 - **M0 — evidence/interface validation:** implementation design complete;
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,
@@ -35,7 +39,7 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   precedence, Windows 2.2.7 system-level JSONC discovery/comment parsing, and
   representative central discovery are live-qualified; the later M4 run also
   qualified LocalService and a temporary second native Windows account.
-- **M1 — core domain/discovery:** implemented; the full 107-test suite
+- **M1 — core domain/discovery:** implemented; the full 114-test suite
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
   inventory hashes. Configured llama.cpp directories now enrich only

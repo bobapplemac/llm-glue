@@ -58,7 +58,7 @@ public sealed record ExclusionRuleOptions(
 
 public sealed record ClientOptions(Uri? Source, string? TokenEnvironment, string? Token, int PollIntervalSeconds, IReadOnlyList<TargetOptions> Targets);
 
-public sealed record TargetOptions(string Type, string Path, string? PrimaryConfigPath, string? ServiceName, Uri? HealthUrl);
+public sealed record TargetOptions(string Type, string Path, string? PrimaryConfigPath, string? ServiceName, Uri? HealthUrl, bool DenyBuiltInOpenCodeProvider);
 
 public sealed record LoggingOptions(string Level, string File, int ArchiveSizeMb, int Retention);
 
