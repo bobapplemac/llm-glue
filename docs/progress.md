@@ -46,9 +46,13 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   built-in Ollama entry while retaining the enriched route. An isolated secondary
   native Ollama instance then passed real add/change/remove propagation,
   application restart, transient outage/grace/recovery, empty-catalog cleanup,
-  and native-provider restoration. Two actual Linux accounts also passed system
-  precedence and unrelated user-setting preservation. The Debian llama.cpp/LiteLLM,
-  Windows multi-account/production-target service, and Paseo paths remain blocked on
+  and native-provider restoration. The actual Windows user-profile target was
+  then synchronized from its initially empty config directory: installed
+  OpenCode exposed all three local models without native duplicates and returned
+  the expected marker through a generated `thinking-off` route. Two actual Linux
+  accounts also passed system precedence and unrelated user-setting preservation.
+  The Debian llama.cpp/LiteLLM,
+  Windows multi-account/system-target service, and Paseo paths remain blocked on
   unavailable environments. Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
   captured mock upstream verified stable alias routing, streamed response flow,
   environment-backed client/backend authentication, `temperature`, and the binary

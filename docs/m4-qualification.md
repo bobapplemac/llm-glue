@@ -59,6 +59,21 @@ Reproduce the isolated Windows path with
 `scripts/Test-WindowsOllamaOpenCodeLive.ps1`; it refuses a missing binary/model,
 uses a fresh evidence directory, and preserves pre-existing model residency.
 
+The installed user-profile path was also exercised on 2026-11-11 after the
+operator reported that the integration was not visible in normal OpenCode use.
+`C:\Users\Andrew\.config\opencode` existed but was empty, while OpenCode 2.2.7
+was installed through the user's npm shim and Ollama 0.40.16 exposed three
+models. A portable all-role r0 process synchronized the real user target
+`opencode.json` plus its ownership sidecar. OpenCode's effective `/api/model`
+response exposed all three models only through
+`llm-glue-ollama-local-ollama`; the disabled native `ollama` provider produced
+no duplicates. OpenCode then selected
+`llm-glue-ollama-local-ollama/qwen3.5:4b-q4_K_M#thinking-off` and returned
+exactly `LLM_GLUE_USER_CONFIG_OK` through the installed Ollama endpoint. The
+foreground process was stopped cleanly after the check; the synchronized user
+artifact remains usable, but automatic future catalog refresh still requires
+the elevated service installation.
+
 An additional isolated secondary Ollama 0.40.16 run used copied manifests and
 metadata plus temporary hard links to the existing immutable model blobs. It
 qualified the real composed lifecycle path without changing the production model
@@ -83,9 +98,9 @@ Ollama process remained. Reproduce with
 `scripts/Test-WindowsOllamaCatalogLifecycleLive.ps1`.
 
 This qualifies native discovery → publish → sync → named selection → inference,
-add/change/removal, application restart, and transient provider outage/recovery.
-Windows service use of the production OpenCode path and Paseo UI presentation
-remain outstanding.
+add/change/removal, application restart, transient provider outage/recovery, and
+the installed user's effective OpenCode configuration. Windows service use of
+the system OpenCode path and Paseo UI presentation remain outstanding.
 
 ## OpenCode and LiteLLM forwarding with captured upstream — pass
 
