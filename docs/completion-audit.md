@@ -11,7 +11,7 @@ is authorized.
 
 | Gate | Evidence | Status |
 |---|---|---|
-| M0 integration design | `docs/m0-evidence.md`, compatibility matrix, two actual Linux accounts, live OpenCode 2.2.7/LiteLLM 1.106.3/1.109.0/Ollama 0.40.16/llama.cpp probes, ADRs 0001–0009 | Passed. Required sources, verification and fail-closed unknown behavior are defined. |
+| M0 integration design | `docs/m0-evidence.md`, compatibility matrix, two actual Linux accounts, live OpenCode 2.2.7/LiteLLM 1.106.3/1.109.0/Ollama 0.40.16/llama.cpp probes, ADRs 0001–0010 | Passed. Required sources, verification and fail-closed unknown behavior are defined. |
 | M1 discovery | GGUF/Ollama/llama.cpp tests; live direct and router shapes; explicit container path mapping; real multipart/MTP, native/configured/effective context, KV/GPU/speculative and behavioral reasoning evidence | Passed for implementation and representative discovery. Unsupported GPT-OSS Off behavior remains unknown as required. |
 | M2 publication | Golden JSON/YAML, real Kestrel/ETag/auth tests, captured LiteLLM forwarding, real OpenCode forwarding, persisted catalog integrity tests | Passed. Central backend interpretation still belongs to M4. |
 | M3 synchronization | Atomic/no-op/rollback/collision tests; source-scoped OpenCode ownership v2 and migration tests; live LiteLLM include/restart/fail-once rollback; current Linux service sidecar lifecycle | Passed for implementation and live central target activation. Current Windows LocalService sidecar rerun is outstanding. |
@@ -49,8 +49,10 @@ a least-privilege authorization mechanism for this lab's Compose activation unit
    activation unit; the live qualification intentionally used an isolated root
    transient LLM Glue process.
 3. Run the current elevated Windows all-role service harness, and—only with
-   explicit approval—qualify the real `%ProgramData%\opencode\opencode.json`
-   system target rather than an isolated override.
+   explicit approval—qualify the real `%ProgramData%\opencode\opencode.jsonc`
+   system target rather than an isolated override. OpenCode 2.2.7 discovery and
+   comment parsing at that path passed, but effective catalog behavior and
+   LocalService reconciliation there remain unqualified.
 4. After every live gate passes, explicitly authorize the first official `r1`
    release. Push the clean commit, provide authenticated `gh`, run the guarded
    preflight, publish once, and qualify update/apply from that immutable asset.

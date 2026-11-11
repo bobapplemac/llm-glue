@@ -194,7 +194,7 @@ authorization or claim either live gate passed beforehand.
   alias collisions, parses YAML, and uses constrained service restart/health check.
 - [x] Client-only role does not bind a web listener; remote sources require a token
   environment reference.
-- [x] Targeted client tests plus the full 98-test suite pass on Windows/.NET 10;
+- [x] Targeted client tests plus the full 103-test suite pass on Windows/.NET 10;
   real LiteLLM interruption and rollback are live-qualified.
 
 ## M2 acceptance checklist
@@ -269,7 +269,7 @@ authorization or claim either live gate passed beforehand.
   release's required live suite passes.
 
 Latest available verification: Windows and native Ubuntu/WSL Release builds with
-all 98 tests passing;
+all 103 tests passing;
 OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
 native OpenCode 2.2.7 → Ollama 0.40.16 real-model inference with verified
 `thinking-off`/`thinking-on` variants and no duplicate native Ollama catalog row;
