@@ -19,7 +19,22 @@ litellm_service="${LLM_GLUE_LITELLM_SERVICE:-litellm.service}"
 litellm_url="${LLM_GLUE_LITELLM_URL:-http://replace-with-your-litellm:4000}"
 litellm_health="${LLM_GLUE_LITELLM_HEALTH:-http://127.0.0.1:4000/health/liveliness}"
 tmp="$(mktemp -d)"
-trap 'rm -rf -- "$tmp"' EXIT
+service_was_active=0
+prior_binary=0
+binary_replaced=0
+installed_binary=''
+
+cleanup() {
+  local status=$?
+  if [[ $status -ne 0 && "$install_service" == 1 ]]; then
+    if [[ $binary_replaced == 1 && $prior_binary == 1 && -n "$installed_binary" ]]; then
+      sudo -- install -m 0755 "$installed_binary.rollback" "$installed_binary" || true
+    fi
+    if [[ $service_was_active == 1 ]]; then sudo -- systemctl start llm-glue.service || true; fi
+  fi
+  rm -rf -- "$tmp"
+}
+trap cleanup EXIT
 
 prompt() {
   local label="$1" current="$2" answer
@@ -135,10 +150,20 @@ fi
 
 if [[ "$install_service" == 1 ]]; then
   sudo -- install -d -m 0755 "$install_dir"
-  if sudo -- test -f "$install_dir/llm-glue"; then sudo -- cp -p -- "$install_dir/llm-glue" "$install_dir/llm-glue.rollback"; fi
-  sudo -- install -m 0755 "$staged" "$install_dir/llm-glue"
+  installed_binary="$install_dir/llm-glue"
+  if sudo -- test -f "$installed_binary"; then
+    prior_binary=1
+    sudo -- cp -p -- "$installed_binary" "$installed_binary.rollback"
+  fi
+  if sudo -- systemctl is-active --quiet llm-glue.service; then
+    service_was_active=1
+    sudo -- systemctl stop llm-glue.service
+  fi
+  sudo -- install -m 0755 "$staged" "$installed_binary"
+  binary_replaced=1
   if ! sudo -- test -e "$config"; then sudo -- install -m 0600 "$candidate" "$config"; fi
-  sudo -- "$install_dir/llm-glue" service install --config "$config"
+  sudo -- "$installed_binary" service install --config "$config"
+  sudo -- "$installed_binary" service start --config "$config"
 else
   mkdir -p "$install_dir"
   if [[ -f "$install_dir/llm-glue" ]]; then cp -p -- "$install_dir/llm-glue" "$install_dir/llm-glue.rollback"; fi

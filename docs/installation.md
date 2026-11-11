@@ -218,7 +218,9 @@ artifact loading. The service and state were restored intact. These defects are
 corrected after r1, but r0/r1 cannot retroactively acquire the safe post-exit
 activator. Upgrade those Linux installations to the corrective release using the
 inspected bootstrap installer or an explicit stop/copy/start, then use normal
-self-update for later revisions.
+self-update for later revisions. The corrected service bootstrap stops an active
+LLM Glue unit before replacing its executable and restores/restarts the prior
+binary automatically if installation or activation fails.
 
 Service mode preserves the sidecar, state, logs, and registration; restarts the
 fixed `LLMGlue`/`llm-glue.service` identity; and checks `/api/v1/health` when the

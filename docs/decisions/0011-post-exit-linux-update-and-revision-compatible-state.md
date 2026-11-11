@@ -47,7 +47,9 @@ was produced by the new executable.
 
 The immutable r1 Linux updater cannot repair itself. Existing r0/r1 Linux
 installations must use the bootstrap/manual stop-copy-start path for the
-corrective release. Subsequent releases can use self-update normally.
+corrective release. The corrected bootstrap stops an active unit before copying,
+starts the replacement after registration, and restores/restarts the prior binary
+on failure. Subsequent releases can use self-update normally.
 
 CI now executes the published Linux single file as a staged activator, verifies
 wait-and-replace behavior and executable mode, and launches a child `systemctl`
