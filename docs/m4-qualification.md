@@ -59,9 +59,33 @@ Reproduce the isolated Windows path with
 `scripts/Test-WindowsOllamaOpenCodeLive.ps1`; it refuses a missing binary/model,
 uses a fresh evidence directory, and preserves pre-existing model residency.
 
-This qualifies the real native discovery → publish → sync → named selection →
-inference path. Model add/change/removal, outage/restart recovery, Windows service
-use of the production OpenCode path, and Paseo UI presentation remain outstanding.
+An additional isolated secondary Ollama 0.40.16 run used copied manifests and
+metadata plus temporary hard links to the existing immutable model blobs. It
+qualified the real composed lifecycle path without changing the production model
+store:
+
+1. Copying the Qwen 3.5 route to `llm-glue-lifecycle:latest` propagated an add;
+   OpenCode exposed its verified thinking modes without a native duplicate.
+2. While LLM Glue was stopped, the alias was replaced from the Qwen 3.5 model by
+   the Qwen3-VL model. Application restart discovered the same ID's new family and
+   removed the no-longer-supported reasoning variants.
+3. Terminating the secondary provider produced an observed discovery failure.
+   The last-known-good alias survived within removal grace, and provider restart
+   recovered without target loss.
+4. Removing the alias propagated through grace and disappeared from OpenCode.
+5. Removing every isolated model emptied the managed provider, released LLM
+   Glue's owned `ollama` disablement, and restored OpenCode's built-in provider.
+
+The temporary store was deleted after the run. The production tag set and a
+before/after store fingerprint (manifest/metadata content plus immutable-blob
+size/timestamp inventory) were identical, and only the pre-existing production
+Ollama process remained. Reproduce with
+`scripts/Test-WindowsOllamaCatalogLifecycleLive.ps1`.
+
+This qualifies native discovery → publish → sync → named selection → inference,
+add/change/removal, application restart, and transient provider outage/recovery.
+Windows service use of the production OpenCode path and Paseo UI presentation
+remain outstanding.
 
 ## OpenCode and LiteLLM forwarding with captured upstream — pass
 
@@ -150,6 +174,7 @@ still unqualified.
 
 ## Gate status
 
-M4 is **not passed**. Native Windows OpenCode/Ollama inference and Linux
-multi-account precedence are verified; the remaining Debian, scenario/recovery,
-Windows multi-account, and Paseo UI requirements cannot be simulated or waived.
+M4 is **not passed**. Native Windows OpenCode/Ollama inference and catalog
+lifecycle plus Linux multi-account precedence are verified; the remaining Debian,
+Windows multi-account, production-target service, and Paseo UI requirements
+cannot be simulated or waived.

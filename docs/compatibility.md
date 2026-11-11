@@ -113,6 +113,17 @@ profiles. A real installed OpenCode 2.2.7 run selected the generated
 not modify the user's normal OpenCode configuration, exposed no duplicate native
 `ollama/<model>` row, and unloaded the model.
 
+A separate secondary native Ollama 0.40.16 instance used isolated manifest and
+metadata copies plus temporary same-volume hard links to the existing immutable
+blobs. The real composed LLM Glue path propagated an added alias, a same-ID change
+from Qwen 3.5 reasoning metadata to Qwen3-VL non-reasoning metadata across an
+application restart, transient provider failure/recovery within removal grace,
+alias removal, and removal of every isolated model. OpenCode reflected each
+catalog transition; after the empty transition it restored its built-in provider.
+The temporary store was deleted. A before/after production-store fingerprint
+(content hashes for manifests/metadata and size/timestamp inventory for immutable
+blobs) and the production tag set were identical.
+
 Sources: <https://github.com/ollama/ollama/blob/main/docs/api.md>,
 <https://github.com/ollama/ollama/blob/main/docs/openapi.yaml>, and
 <https://github.com/ollama/ollama/blob/main/docs/capabilities/thinking.mdx>, and

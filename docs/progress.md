@@ -41,9 +41,12 @@ Last updated: 2026-11-11
   OpenCode 2.2.7 selected a generated `thinking-on` variant and completed real
   native inference; direct OpenAI-compatible probes verified the generated
   `reasoning_effort` Off/On bodies. A repeat run suppressed OpenCode's duplicate
-  built-in Ollama entry while retaining the enriched route. Two actual Linux accounts also passed system
+  built-in Ollama entry while retaining the enriched route. An isolated secondary
+  native Ollama instance then passed real add/change/remove propagation,
+  application restart, transient outage/grace/recovery, empty-catalog cleanup,
+  and native-provider restoration. Two actual Linux accounts also passed system
   precedence and unrelated user-setting preservation. The Debian llama.cpp/LiteLLM,
-  Windows multi-account, restart/change/removal, and Paseo paths remain blocked on
+  Windows multi-account/production-target service, and Paseo paths remain blocked on
   unavailable environments. Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
   captured mock upstream verified stable alias routing, streamed response flow,
   environment-backed client/backend authentication, `temperature`, and the binary
@@ -121,8 +124,8 @@ Last updated: 2026-11-11
 ## Next steps
 
 Run M4 live qualification on Debian `labhost03` and representative Windows hosts:
-real llama.cpp/LiteLLM inference, model add/change/removal, outage and restart
-recovery, Windows multi-account behavior, and Paseo catalog/variant visibility.
+real llama.cpp/LiteLLM inference and lifecycle behavior, Windows multi-account
+and production system-target behavior, and Paseo catalog/variant visibility.
 Then exercise the implemented M5
 service install/move/update/rollback/uninstall flows on both OSes and the guarded
 release preflight from a clean pushed branch. Do not publish without explicit
@@ -218,6 +221,8 @@ Ubuntu/WSL Release restore/build and 78 tests;
 OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
 native OpenCode 2.2.7 → Ollama 0.40.16 real-model inference with verified
 `thinking-off`/`thinking-on` variants and no duplicate native Ollama catalog row;
+isolated native Ollama add/change/remove, application restart, outage/grace/recovery,
+and native-provider restoration;
 two-account Linux system precedence;
 PowerShell and Bash bootstrap
 matrices validate all three modes with real
