@@ -19,6 +19,9 @@ is inventory submission and read-only catalog/artifact retrieval.
 - GGUF reads are allowlisted and allocation-bounded. HTTP artifacts have size and
   schema limits. Target paths are explicit; no recursive user-directory deletion
   exists.
+- Provider, Agent, Client, and health endpoints accept only HTTP(S) URLs and
+  reject URI user-information fields so credentials cannot leak through URL
+  diagnostics. Authentication uses the dedicated protected secret settings.
 - Local LiteLLM activation accepts a constrained service identity, invokes fixed
   `systemctl`/`sc.exe` operations without a shell, and health-checks before commit.
 - LLM Glue itself runs as Windows LocalService or a fixed, non-login Linux

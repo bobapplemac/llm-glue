@@ -183,8 +183,8 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Release build and 66 tests; native
-Ubuntu/WSL Release restore/build and 66 tests; PowerShell and Bash bootstrap
+Latest available verification: clean Windows Release build and 68 tests; native
+Ubuntu/WSL Release restore/build and 68 tests; PowerShell and Bash bootstrap
 matrices validate all three modes with real
 single-file binaries; r1 win-x64/linux-x64 execution and Windows/Linux service
 install dry runs pass. These are implementation/packaging evidence, not substitutes

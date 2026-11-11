@@ -77,6 +77,25 @@ public sealed class ConfigurationTests
         finally { File.Delete(path); }
     }
 
+    [Theory]
+    [InlineData("file:///tmp/provider")]
+    [InlineData("http://user:secret@127.0.0.1:11434")]
+    public void RejectsNonHttpOrCredentialBearingProviderUrls(string url)
+    {
+        var path = WriteTemp($$"""
+            [roles]
+            agent = true
+            server = true
+            client = false
+            [[agent.providers]]
+            type = "ollama"
+            name = "local"
+            url = "{{url}}"
+            """);
+        try { Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)); }
+        finally { File.Delete(path); }
+    }
+
     [Fact]
     public void ExplicitConfigPathHasHighestPrecedence()
     {

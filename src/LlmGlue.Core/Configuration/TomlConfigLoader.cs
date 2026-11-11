@@ -28,7 +28,7 @@ public static class TomlConfigLoader
         var submitToText = OptionalString(agent, "submit_to");
         var agentOptions = new AgentOptions(
             providers,
-            submitToText is null ? null : AbsoluteUri(submitToText, "agent.submit_to"),
+            submitToText is null ? null : HttpUri(submitToText, "agent.submit_to"),
             OptionalString(agent, "write_token_environment"),
             OptionalString(agent, "write_token"),
             PositiveInt(agent, "discovery_interval_seconds", 30),
@@ -73,14 +73,15 @@ public static class TomlConfigLoader
             throw new ConfigurationException("Remote agent.submit_to requires agent.write_token_environment or a protected agent.write_token.");
         if (roleOptions.Server && agentOptions.SubmitTo is not null)
             throw new ConfigurationException("agent.submit_to is only valid when the Server role is disabled; combined Agent+Server uses the in-process publication boundary.");
-        if (roleOptions.Client && source is null && !roleOptions.Server)
+        var sourceUri = source is null ? null : HttpUri(source, "client.source");
+        if (roleOptions.Client && sourceUri is null && !roleOptions.Server)
             throw new ConfigurationException("Client role requires client.source unless Server is enabled in-process.");
-        if (roleOptions.Client && source is not null && !AbsoluteUri(source, "client.source").IsLoopback && tokenEnvironment is null && token is null)
+        if (roleOptions.Client && sourceUri is not null && !sourceUri.IsLoopback && tokenEnvironment is null && token is null)
             throw new ConfigurationException("Remote client.source requires client.token_environment or a protected client.token.");
 
         var baseDirectory = Path.GetDirectoryName(fullPath)!;
         return new GlueOptions(roleOptions, agentOptions, serverOptions,
-            new ClientOptions(source is null ? null : AbsoluteUri(source, "client.source"), tokenEnvironment, token, PositiveInt(client, "poll_interval_seconds", 30), targets), loggingOptions, fullPath, baseDirectory);
+            new ClientOptions(sourceUri, tokenEnvironment, token, PositiveInt(client, "poll_interval_seconds", 30), targets), loggingOptions, fullPath, baseDirectory);
     }
 
     private static ExclusionRuleOptions ReadExclusion(TomlTable table)
@@ -115,7 +116,7 @@ public static class TomlConfigLoader
         if (type != "llama.cpp" && (directories.Count != 0 || !inspect || hash))
             throw new ConfigurationException("model_directories, inspect_gguf, and hash_model_files apply only to llama.cpp providers.");
         if (hash && !inspect) throw new ConfigurationException("hash_model_files requires inspect_gguf = true.");
-        return new ProviderOptions(type, RequiredString(table, "name"), AbsoluteUri(RequiredString(table, "url"), "provider.url"), directories, inspect, hash, probeMode, PositiveInt(table, "probe_timeout_seconds", 15));
+        return new ProviderOptions(type, RequiredString(table, "name"), HttpUri(RequiredString(table, "url"), "provider.url"), directories, inspect, hash, probeMode, PositiveInt(table, "probe_timeout_seconds", 15));
     }
 
     private static TargetOptions ReadTarget(TomlTable table)
@@ -128,12 +129,13 @@ public static class TomlConfigLoader
         var health = OptionalString(table, "health_url");
         if (type == "litellm" && primary is null) throw new ConfigurationException("LiteLLM target requires primary_config_path.");
         if (type == "litellm" && service is null) throw new ConfigurationException("LiteLLM target requires service_name for controlled activation.");
-        return new TargetOptions(type, RequiredString(table, "path"), primary, service, health is null ? null : AbsoluteUri(health, "target.health_url"));
+        return new TargetOptions(type, RequiredString(table, "path"), primary, service, health is null ? null : HttpUri(health, "target.health_url"));
     }
 
     private static void ValidateListen(ServerOptions server)
     {
         if (server.Listen.Scheme != Uri.UriSchemeHttp) throw new ConfigurationException("server.listen must use http; TLS termination is external.");
+        if (!string.IsNullOrEmpty(server.Listen.UserInfo)) throw new ConfigurationException("server.listen cannot contain user information.");
         var loopback = server.Listen.IsLoopback;
         if (!loopback && (server.ReadTokenEnvironment is null && server.ReadToken is null || server.WriteTokenEnvironment is null && server.WriteToken is null))
             throw new ConfigurationException("Non-loopback server.listen requires both read and write token sources.");
@@ -156,6 +158,13 @@ public static class TomlConfigLoader
     private static int PositiveInt(TomlTable table, string key, int defaultValue) => !table.TryGetValue(key, out var value) ? defaultValue : value is long result && result is > 0 and <= 3600 ? (int)result : throw new ConfigurationException($"'{key}' must be an integer from 1 through 3600.");
     private static IReadOnlyList<string> StringArray(TomlTable table, string key) => !table.TryGetValue(key, out var value) ? [] : value is TomlArray array && array.All(x => x is string) ? array.Cast<string>().ToArray() : throw new ConfigurationException($"'{key}' must be an array of strings.");
     private static Uri AbsoluteUri(string value, string field) => Uri.TryCreate(value, UriKind.Absolute, out var uri) ? uri : throw new ConfigurationException($"'{field}' must be an absolute URI.");
+    private static Uri HttpUri(string value, string field)
+    {
+        var uri = AbsoluteUri(value, field);
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) throw new ConfigurationException($"'{field}' must use http or https.");
+        if (!string.IsNullOrEmpty(uri.UserInfo)) throw new ConfigurationException($"'{field}' cannot contain user information; configure credentials through the supported secret source.");
+        return uri;
+    }
     private static void CheckKeys(TomlTable table, string scope, params string[] allowed)
     {
         var set = allowed.ToHashSet(StringComparer.Ordinal);

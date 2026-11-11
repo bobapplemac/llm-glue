@@ -73,6 +73,10 @@ if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
 fi
 
 [[ "$mode" == remote-client || "$mode" == standalone-ollama || "$mode" == central-llama ]] || { echo 'LLM_GLUE_MODE must be remote-client, standalone-ollama, or central-llama' >&2; exit 2; }
+if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" == 1 && "$mode" == remote-client && "$server_url" == https://replace-with-your-server ]]; then
+  echo 'Noninteractive remote-client installation requires LLM_GLUE_SERVER_URL.' >&2
+  exit 2
+fi
 if [[ "$install_service" == 1 && "$mode" == remote-client && -z "$server_token" ]]; then
   echo 'Service-mode remote-client requires LLM_GLUE_SERVER_TOKEN (or the interactive secret prompt); systemd does not inherit the installer environment.' >&2
   exit 2
