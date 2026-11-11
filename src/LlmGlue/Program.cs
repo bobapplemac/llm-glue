@@ -166,7 +166,7 @@ static void AddDiscoveryAdapters(IServiceCollection services, GlueOptions option
 {
     foreach (var provider in options.Providers)
     {
-        var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(15) };
+        var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(provider.DiscoveryTimeoutSeconds) };
         IModelDiscoveryAdapter adapter = provider.Type == "ollama"
             ? new OllamaDiscoveryAdapter(client, provider.Name)
             : new LlamaCppDiscoveryAdapter(

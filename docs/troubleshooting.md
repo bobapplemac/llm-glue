@@ -13,9 +13,11 @@ bootstrap and monitoring scripts.
 - Run `llm-glue discover --config <path>` and inspect field provenance/warnings.
 - Ollama must answer `/api/version`, `/api/tags`, and `/api/show`.
 - llama.cpp direct mode exposes only the loaded model; router discovery requires a
-  compatible `/models`. A GGUF file alone is never a routable deployment.
-- Unknown reasoning or unverified routes are intentionally not advertised as
-  capabilities.
+  compatible `/models?reload=1`. A GGUF file alone is never a routable deployment.
+  If a changed preset sweep exceeds the default five minutes, increase that
+  provider's `discovery_timeout_seconds`.
+- Dormant router routes are published. Unknown reasoning, tools, or modalities are
+  omitted from capability declarations until evidence is available.
 
 ## OpenCode does not show a model
 

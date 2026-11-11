@@ -173,9 +173,16 @@ entries carry `source` and nested status evidence. LLM Glue therefore uses entry
 shape rather than `data` alone. Router responses report dormant/loaded models,
 argument arrays, memory measurements, and provider-confirmed paths;
 `/props` provides effective context, generation defaults, and `build_info`.
-`/models?reload=1` refreshes router inventory. Local files still require route
+`/models?reload=1` refreshes router inventory. On the live labhost03 build it
+changed the cached response from ten to eleven configured routes and returned
+`bench-01-02` as unloaded with text input/output architecture, context 262144,
+and measured memory metadata. The r4 candidate then discovered all eleven routes,
+generated all eleven LiteLLM aliases and OpenCode entries, and OpenCode 2.2.7
+listed every entry without loading `bench-01-02`. Its unknown reasoning field was
+omitted rather than represented as unsupported. Local files still require route
 validation. Reasoning, effort, budget, and nonstandard sampling fields require
-an end-to-end request transport probe.
+an end-to-end request transport probe. Refresh discovery is bounded by
+`discovery_timeout_seconds` (default 300).
 
 Live `/props` from build 8681 reported `reasoning_format: none`. Official llama.cpp
 documentation defines this as response parsing behavior: thoughts remain in
@@ -217,9 +224,9 @@ tool, sampling, or LiteLLM forwarding support; those require the M4 representati
 live probes. Qwen and Gemma demonstrated `none` with no reasoning and `medium`
 with explicit reasoning. Qwen returned the same behavior through generated
 LiteLLM and installed OpenCode variants. GPT-OSS completed both requests but
-emitted reasoning even for `none`, so its Off mode remains unknown and
-unpublished. Low/high request acceptance was not treated as proof of distinct
-effort semantics.
+emitted reasoning even for `none`, so its Off mode remains unknown and is not
+advertised. The model itself remains published. Low/high request acceptance was
+not treated as proof of distinct effort semantics.
 
 Sources: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>,
 <https://github.com/ggml-org/llama.cpp/blob/master/src/llama-arch.cpp>.

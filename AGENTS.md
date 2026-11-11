@@ -25,7 +25,7 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
 - Network schemas are versioned independently from the product revision.
 - Ordinary development and test builds identify as `r0`. Only the guarded
   publisher may assign an explicitly authorized official `rN` revision; the
-  current stable release is `r3`, with stable `AssemblyVersion` 1.0.0.0 and
+  current stable release is `r4`, with stable `AssemblyVersion` 1.0.0.0 and
   revision-tracking `FileVersion` 1.N.0.0.
 - Keep the executable globalization-invariant so the self-contained Linux asset
   remains runnable on minimal Debian 13 without ICU; see ADR 0008.

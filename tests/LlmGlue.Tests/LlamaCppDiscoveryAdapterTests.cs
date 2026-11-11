@@ -166,15 +166,23 @@ public sealed class LlamaCppDiscoveryAdapterTests
     [Fact]
     public async Task RouterDoesNotTreatUnloadedModelAsLoaded()
     {
-        var handler = new TestHttpHandler(request => request.RequestUri!.AbsolutePath switch
+        var requestedReload = false;
+        var handler = new TestHttpHandler(request =>
         {
-            "/models" => TestHttpHandler.Json("[{\"id\":\"gemma.gguf\",\"status\":\"unloaded\",\"meta\":{\"n_ctx_train\":131072}}]"),
-            _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            if (request.RequestUri!.AbsolutePath == "/models")
+            {
+                requestedReload = request.RequestUri.Query == "?reload=1";
+                return TestHttpHandler.Json("[{\"id\":\"gemma.gguf\",\"status\":\"unloaded\",\"meta\":{\"n_ctx_train\":131072}}]");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
         });
         using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
         var model = Assert.Single(await new LlamaCppDiscoveryAdapter(client, "router").DiscoverAsync(TestContext.Current.CancellationToken));
+        Assert.True(requestedReload);
         Assert.False(model.Runtime.Loaded);
         Assert.Equal("router", model.Runtime.Properties["mode"]);
+        Assert.Equal(SupportState.Unknown, model.Capabilities.TextInput.State);
+        Assert.Equal(SupportState.Unknown, model.Capabilities.TextOutput.State);
     }
 
     [Fact]
@@ -201,6 +209,7 @@ public sealed class LlamaCppDiscoveryAdapterTests
                         },
                         context_length = 262144,
                         meta = new { n_ctx = 65536, n_ctx_train = 262144 },
+                        architecture = new { input_modalities = new[] { "text" }, output_modalities = new[] { "text" } },
                         source = "preset"
                     },
                     new
@@ -208,6 +217,7 @@ public sealed class LlamaCppDiscoveryAdapterTests
                         id = "dormant",
                         status = new { value = "unloaded", args = new[] { "llama-server", "--ctx-size", "0" } },
                         context_length = 131072,
+                        architecture = new { input_modalities = new[] { "text", "image" }, output_modalities = new[] { "text" } },
                         source = "preset"
                     }
                 }
@@ -234,12 +244,18 @@ public sealed class LlamaCppDiscoveryAdapterTests
             Assert.Equal("all", loaded.Runtime.Properties["gpu.layers"]);
             Assert.Equal("qwen35", loaded.Identity.Family);
             Assert.Equal("present", loaded.Runtime.Properties["gguf.mtp"]);
+            Assert.Equal(SupportState.Supported, loaded.Capabilities.TextInput.State);
+            Assert.Equal(SupportState.Unsupported, loaded.Capabilities.ImageInput.State);
+            Assert.Equal(SupportState.Supported, loaded.Capabilities.TextOutput.State);
             Assert.DoesNotContain(modelPath, JsonSerializer.Serialize(loaded), StringComparison.OrdinalIgnoreCase);
 
             var dormant = Assert.Single(models, model => model.Identity.ModelId == "dormant");
             Assert.False(dormant.Runtime.Loaded);
             Assert.Equal(131072, dormant.NativeContext!.Value);
             Assert.Null(dormant.EffectiveContext);
+            Assert.Equal(SupportState.Supported, dormant.Capabilities.TextInput.State);
+            Assert.Equal(SupportState.Supported, dormant.Capabilities.ImageInput.State);
+            Assert.Equal(SupportState.Supported, dormant.Capabilities.TextOutput.State);
         }
         finally { Directory.Delete(directory, true); }
     }

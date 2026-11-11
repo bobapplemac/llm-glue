@@ -314,12 +314,14 @@ public sealed class ConfigurationTests
             url = "http://127.0.0.1:8081"
             probe_mode = "loaded-only"
             probe_timeout_seconds = 20
+            discovery_timeout_seconds = 240
             """);
         try
         {
             var provider = Assert.Single(TomlConfigLoader.Load(path).Providers);
             Assert.Equal(CapabilityProbeMode.LoadedOnly, provider.ProbeMode);
             Assert.Equal(20, provider.ProbeTimeoutSeconds);
+            Assert.Equal(240, provider.DiscoveryTimeoutSeconds);
         }
         finally { File.Delete(path); }
     }

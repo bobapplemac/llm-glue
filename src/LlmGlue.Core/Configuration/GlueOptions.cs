@@ -33,6 +33,7 @@ public sealed record ProviderOptions(
     bool HashModelFiles,
     CapabilityProbeMode ProbeMode,
     int ProbeTimeoutSeconds,
+    int DiscoveryTimeoutSeconds = 300,
     IReadOnlyList<ModelPathMapping>? ModelPathMappings = null);
 
 public sealed record ModelPathMapping(string ProviderPrefix, string LocalDirectory);

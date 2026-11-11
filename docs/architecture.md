@@ -21,8 +21,10 @@ runtime-reported effective state, and empirically observed behavior are distinct
 
 Ollama discovery uses `/api/tags`, `/api/show`, `/api/ps`, and `/api/version`.
 llama.cpp discovery distinguishes direct single-model servers from model routers
-using `/v1/models`, `/models`, and `/props`. Because current direct servers and
-routers can both serve a top-level `data` array, entry-level nested status/source
+using `/v1/models`, `/models?reload=1`, and `/props`. The refresh query makes
+router preset additions/removals visible and may run bounded metadata measurement
+children without loading dormant models for inference. Because current direct
+servers and routers can both serve a top-level `data` array, entry-level nested status/source
 evidence identifies router inventory; plain OpenAI model entries use direct mode.
 Local GGUF inspection is constrained
 to configured directory allowlists; a file is never considered routable merely
@@ -45,7 +47,9 @@ host agent's mount path. `model_path_mappings` explicitly maps a provider prefix
 to a host directory before the same canonical allowlist check; no basename or
 model-name guess is permitted.
 
-Functional text-route probes are also off by default. `loaded-only` probes only a
+Functional text-route probes are also off by default. Router inventory membership
+is independent of loaded state: an available dormant route is published with
+unknown capability fields omitted. `loaded-only` probes only a
 deployment the runtime already reports loaded; `allow-load` is the explicit opt-in
 that may wake a dormant model. Each probe has its own timeout, bounded generation,
 and a one-MiB response cap. Success adds verified text-route evidence. For

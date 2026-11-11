@@ -10,4 +10,7 @@ internal static class ProviderHelpers
 
     public static ModelCapabilities Capabilities(bool? vision, bool? tools, ReasoningCapabilities reasoning, string source, DateTimeOffset now) => new(
         Capability(true, source, now), Capability(vision, source, now), Capability(true, source, now), Capability(tools, source, now), reasoning);
+
+    public static ModelCapabilities Capabilities(bool? textInput, bool? vision, bool? textOutput, bool? tools, ReasoningCapabilities reasoning, string source, DateTimeOffset now) => new(
+        Capability(textInput, source, now), Capability(vision, source, now), Capability(textOutput, source, now), Capability(tools, source, now), reasoning);
 }

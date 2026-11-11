@@ -24,7 +24,9 @@ public sealed class LlamaCppDiscoveryAdapter(
     public async Task<IReadOnlyList<ModelDeployment>> DiscoverAsync(CancellationToken cancellationToken)
     {
         var now = _time.GetUtcNow();
-        using var routerResponse = await httpClient.GetAsync("models", cancellationToken);
+        // Router preset changes are not reflected in the cached inventory until
+        // reload=1 is requested. Direct servers ignore the query parameter.
+        using var routerResponse = await httpClient.GetAsync("models?reload=1", cancellationToken);
         if (routerResponse.IsSuccessStatusCode)
         {
             using var json = await JsonDocument.ParseAsync(await routerResponse.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
@@ -86,7 +88,8 @@ public sealed class LlamaCppDiscoveryAdapter(
             var id = item.GetProperty("id").GetString() ?? throw new JsonException("llama.cpp model id is missing.");
             var native = TryPathLong(item, "meta", "n_ctx_train");
             var effective = props is { } p ? TryPathLong(p, "default_generation_settings", "n_ctx") : null;
-            return Create(id, id, native, effective, true, now, "direct", version, props is { } value ? DirectRuntimeProperties(value) : null);
+            return Create(id, id, native, effective, true, now, "direct", version, props is { } value ? DirectRuntimeProperties(value) : null,
+                ArchitectureSupport(item, "input_modalities", "text"), ArchitectureSupport(item, "input_modalities", "image"), ArchitectureSupport(item, "output_modalities", "text"));
         }).OrderBy(x => x.Identity.ModelId, StringComparer.Ordinal).ToArray();
     }
 
@@ -105,7 +108,10 @@ public sealed class LlamaCppDiscoveryAdapter(
                 ?? TryPathLong(item, "status", "memory", "effective", "n_ctx")
                 ?? (loaded ? TryPathLong(item, "meta", "n_ctx") : null);
             var properties = RouterRuntimeProperties(item, configured);
-            return Create(id, id, native, effective, loaded, now, "router", observedProperties: properties);
+            return Create(id, id, native, effective, loaded, now, "router", observedProperties: properties,
+                textInput: ArchitectureSupport(item, "input_modalities", "text"),
+                imageInput: ArchitectureSupport(item, "input_modalities", "image"),
+                textOutput: ArchitectureSupport(item, "output_modalities", "text"));
         }).OrderBy(x => x.Identity.ModelId, StringComparer.Ordinal).ToArray();
     }
 
@@ -118,11 +124,14 @@ public sealed class LlamaCppDiscoveryAdapter(
         DateTimeOffset now,
         string mode,
         string? version = null,
-        IReadOnlyDictionary<string, string>? observedProperties = null) => new(
+        IReadOnlyDictionary<string, string>? observedProperties = null,
+        bool? textInput = null,
+        bool? imageInput = null,
+        bool? textOutput = null) => new(
         new ModelIdentity("llama.cpp", instanceId, id, display, id, SourceEndpoint: httpClient.BaseAddress?.ToString()), DeploymentStatus.Available, now, now,
         native is > 0 ? new Evidence<long>(native.Value, $"llama.cpp:{mode}:native", now, VerificationState.Reported) : null,
         effective is > 0 ? new Evidence<long>(effective.Value, $"llama.cpp:{mode}:effective", now, VerificationState.Observed) : null,
-        ProviderHelpers.Capabilities(null, null, new(ReasoningModeKind.Unknown, []), $"llama.cpp:{mode}", now), [],
+        ProviderHelpers.Capabilities(textInput, imageInput, textOutput, null, new(ReasoningModeKind.Unknown, []), $"llama.cpp:{mode}:architecture", now), [],
         new RuntimeDetails("llama.cpp", version, loaded, RuntimeProperties(mode, observedProperties)),
         ["Modalities, tools, and reasoning require metadata or bounded probe evidence."]);
 
@@ -235,5 +244,13 @@ public sealed class LlamaCppDiscoveryAdapter(
         var current = element;
         foreach (var part in path) if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(part, out current)) return null;
         return current.ValueKind is JsonValueKind.True or JsonValueKind.False ? current.GetBoolean() : null;
+    }
+
+    private static bool? ArchitectureSupport(JsonElement item, string listName, string modality)
+    {
+        if (!item.TryGetProperty("architecture", out var architecture) || architecture.ValueKind != JsonValueKind.Object
+            || !architecture.TryGetProperty(listName, out var values) || values.ValueKind != JsonValueKind.Array) return null;
+        return values.EnumerateArray().Any(value => value.ValueKind == JsonValueKind.String
+            && string.Equals(value.GetString(), modality, StringComparison.OrdinalIgnoreCase));
     }
 }

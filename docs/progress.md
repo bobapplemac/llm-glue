@@ -6,7 +6,18 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Current status
 
-- **Official releases:** r3 is published from commit
+- **Authorized r4 candidate:** llama.cpp discovery now refreshes router presets,
+  publishes dormant configured routes independently of loaded-only probes, and
+  omits unknown OpenCode capability claims. A configurable 300-second discovery
+  timeout covers changed-preset metadata sweeps. Live labhost03 qualification
+  refreshed ten routes to eleven; the candidate discovered and generated all
+  eleven, including unloaded `bench-01-02` at context 262144. OpenCode 2.2.7
+  loaded the generated artifact and listed all eleven models. The candidate also
+  bundles the PowerShell 5.1 bootstrap fix, automatic Windows service start,
+  optional inference-key persistence, and owned built-in OpenCode catalog policy.
+  Full release gates and r4 publication remain in progress.
+
+- **Previous official release:** r3 is published from commit
   `9d29eca4cf0e6c4eb177f65e115c2d91672a08d5`. Its guarded local PowerShell
   publisher passed all 107 tests, built both self-contained RIDs, and emitted
   LF-only checksums and manifest metadata linked to the exact commit. GitHub's
@@ -204,7 +215,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 - LiteLLM generated files contain only `model_list`; primary YAML is never replaced.
 - LiteLLM production activation uses configured restart plus health/rollback, not
   development auto-reload.
-- Capability unknowns are preserved and excluded from advertised modes.
+- Capability unknowns are preserved; unknown declarations and modes are omitted,
+  while the discovered model remains published unless text is explicitly
+  unsupported.
 
 ## M1 acceptance checklist
 

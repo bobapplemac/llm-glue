@@ -49,7 +49,7 @@ public static class CliCommands
         }
         foreach (var provider in options.Providers)
         {
-            Console.WriteLine($"Provider {provider.Name} policy: probe={provider.ProbeMode} timeout={provider.ProbeTimeoutSeconds}s, gguf={provider.InspectGguf}, full-hash={provider.HashModelFiles}");
+            Console.WriteLine($"Provider {provider.Name} policy: probe={provider.ProbeMode} probe-timeout={provider.ProbeTimeoutSeconds}s, discovery-timeout={provider.DiscoveryTimeoutSeconds}s, gguf={provider.InspectGguf}, full-hash={provider.HashModelFiles}");
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, provider.Type == "ollama" ? "api/version" : "v1/models");
@@ -141,7 +141,7 @@ public static class CliCommands
         var models = new List<ModelDeployment>();
         foreach (var provider in options.Providers)
         {
-            using var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(15) };
+            using var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(provider.DiscoveryTimeoutSeconds) };
             using var probeClient = provider.ProbeMode == CapabilityProbeMode.Off ? null : new HttpClient { BaseAddress = provider.Url, Timeout = Timeout.InfiniteTimeSpan };
             IModelDiscoveryAdapter adapter = provider.Type == "ollama"
                 ? new OllamaDiscoveryAdapter(client, provider.Name)

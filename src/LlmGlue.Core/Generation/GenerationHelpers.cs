@@ -12,9 +12,8 @@ internal static class GenerationHelpers
     public static IEnumerable<ModelDeployment> Publishable(DiscoverySnapshot snapshot) => snapshot.Deployments.Where(x =>
         x.Status is DeploymentStatus.Available or DeploymentStatus.Degraded &&
         !string.IsNullOrWhiteSpace(x.Identity.SourceEndpoint) &&
-        x.Capabilities.TextInput.State == SupportState.Supported &&
-        x.Capabilities.TextOutput.State == SupportState.Supported &&
-        x.Capabilities.Reasoning.Kind != ReasoningModeKind.Unknown);
+        x.Capabilities.TextInput.State != SupportState.Unsupported &&
+        x.Capabilities.TextOutput.State != SupportState.Unsupported);
 
     public static string Slug(params string[] values)
     {

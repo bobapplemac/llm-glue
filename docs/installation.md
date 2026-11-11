@@ -106,10 +106,13 @@ name = "router"
 url = "http://127.0.0.1:8081"
 probe_mode = "loaded-only"
 probe_timeout_seconds = 30
+# Allow the router's changed-preset metadata sweep to finish.
+discovery_timeout_seconds = 300
 ```
 
-`allow-load` may cause the runtime to load a dormant model and must be selected
-explicitly. A loaded llama.cpp route also receives bounded `reasoning_effort=none`
+Router discovery refreshes configured presets and publishes dormant routes without
+loading them. `allow-load` may cause the runtime to load a dormant model and must
+be selected explicitly. A loaded llama.cpp route also receives bounded `reasoning_effort=none`
 and `medium` probes when reasoning is unknown; Off/On profiles appear only after
 distinct response behavior is verified. Tools and named effort semantics remain
 unknown.

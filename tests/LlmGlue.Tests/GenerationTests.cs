@@ -87,20 +87,32 @@ public sealed class GenerationTests
     }
 
     [Fact]
-    public async Task DoesNotPublishDeploymentWithUnknownReasoningCapability()
+    public async Task PublishesDeploymentWithUnknownCapabilitiesWithoutInventingClaims()
     {
         var deployment = Qualified() with
         {
             Capabilities = Qualified().Capabilities with
             {
+                TextInput = new(SupportState.Unknown, []),
+                TextOutput = new(SupportState.Unknown, []),
+                Tools = new(SupportState.Unknown, []),
                 Reasoning = new(ReasoningModeKind.Unknown, [])
             }
         };
+        var snapshot = DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [deployment]);
         var artifact = await new OpenCodeGenerator().GenerateAsync(
-            DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [deployment]),
+            snapshot,
             TestContext.Current.CancellationToken);
         using var json = JsonDocument.Parse(artifact.Content);
-        Assert.Empty(json.RootElement.GetProperty("providers").EnumerateObject());
+        var capabilities = json.RootElement.GetProperty("providers").GetProperty("llm-glue-llama-cpp-lab")
+            .GetProperty("models").GetProperty("qwen-model").GetProperty("capabilities");
+        Assert.False(capabilities.TryGetProperty("input", out _));
+        Assert.False(capabilities.TryGetProperty("output", out _));
+        Assert.False(capabilities.TryGetProperty("tools", out _));
+        Assert.False(capabilities.TryGetProperty("reasoning", out _));
+
+        var liteLlm = Encoding.UTF8.GetString((await new LiteLlmGenerator().GenerateAsync(snapshot, TestContext.Current.CancellationToken)).Content);
+        Assert.Contains("llama-cpp-lab-qwen-model", liteLlm, StringComparison.Ordinal);
     }
 
     public static DiscoverySnapshot Snapshot() => DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [Qualified()]);

@@ -44,16 +44,21 @@ public sealed class OpenCodeGenerator(Uri? inferenceBaseUrl = null) : IConfigura
 
     private JsonObject CreateModel(ModelDeployment deployment)
     {
-        var input = new JsonArray("text");
+        var input = new JsonArray();
+        if (deployment.Capabilities.TextInput.State == SupportState.Supported) input.Add("text");
         if (deployment.Capabilities.ImageInput.State == SupportState.Supported) input.Add("image");
+        var output = new JsonArray();
+        if (deployment.Capabilities.TextOutput.State == SupportState.Supported) output.Add("text");
         var capabilities = new JsonObject
         {
-            ["tools"] = deployment.Capabilities.Tools.State == SupportState.Supported,
-            ["input"] = input,
-            ["output"] = new JsonArray("text"),
-            ["temperature"] = true,
-            ["reasoning"] = Reasoning(deployment.Capabilities.Reasoning)
+            ["temperature"] = true
         };
+        if (input.Count != 0) capabilities["input"] = input;
+        if (output.Count != 0) capabilities["output"] = output;
+        if (deployment.Capabilities.Tools.State != SupportState.Unknown)
+            capabilities["tools"] = deployment.Capabilities.Tools.State == SupportState.Supported;
+        if (deployment.Capabilities.Reasoning.Kind != ReasoningModeKind.Unknown)
+            capabilities["reasoning"] = Reasoning(deployment.Capabilities.Reasoning);
         var model = new JsonObject
         {
             ["modelID"] = inferenceBaseUrl is null ? deployment.Identity.Route : LiteLlmGenerator.Alias(deployment),

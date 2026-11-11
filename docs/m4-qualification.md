@@ -172,9 +172,10 @@ Real MTP artifact loading and speculative behavior remain part of the Debian gat
 
 With the server deliberately configured at 2048 tokens, LLM Glue reported native
 context 8192, effective context 2048, version `b8681-Debian`, loaded state, and a
-verified bounded text route. The production generator correctly excluded this
-model because its reasoning capability remained unknown. To test downstream
-mechanics without weakening that policy, a temporary LiteLLM configuration
+verified bounded text route. At the time, the production generator excluded this
+model because its reasoning capability remained unknown. ADR 0014 corrects that
+policy: the route is now published while its unknown reasoning declaration is
+omitted. For this historical qualification, a temporary LiteLLM configuration
 mirrored the standard generated alias/API-base shape and carried
 `max_input_tokens: 2048`; an actual LiteLLM 1.109.0 request reached llama.cpp and
 returned model text with the same build fingerprint. Installed OpenCode 2.2.7
