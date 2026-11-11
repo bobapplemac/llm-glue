@@ -107,6 +107,15 @@ hosting integrations. Registration stores absolute executable/config paths and i
 separate from target-service activation. Local administrative operations call
 fixed OS tools with argument lists and never a command shell.
 
+Service registration uses stable least-privilege identities: LocalService on
+Windows and the non-login `llm-glue` system account on Linux. The installer grants
+read/execute access to the executable, read access to the sidecar, and write
+access only to resolved state, log, and target directories. Linux systemd
+hardening additionally uses `ProtectSystem=strict`, `ProtectHome=read-only`, and
+quoted `ReadWritePaths` entries. Existing Linux writable directories must already
+authorize the service account; only newly created directories receive group
+permissions from LLM Glue.
+
 Update discovery is pinned to official stable GitHub `rN` releases. Assets are
 RID-specific and checksum-verified before staging; the current executable is
 retained as `.rollback`. Service-mode replacement coordinates the fixed SCM or

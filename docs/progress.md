@@ -46,6 +46,9 @@ Last updated: 2026-11-11
   preflight remain unqualified; publication is not authorized. Unknown reasoning
   capability excludes a deployment from client publication rather than being
   converted to `false`.
+  Service registration now provisions stable least-privilege identities and
+  verifies exact executable, sidecar, state, log, and target access before
+  registering the service; live elevated installation remains unqualified.
 
 ## M0 acceptance checklist
 
@@ -148,7 +151,8 @@ authorization or claim either live gate passed beforehand.
 - [x] PowerShell installer/release scripts parse successfully; dirty worktree
   preflight fails closed before any remote mutation.
 - [x] Windows SCM/systemd install, repair, start, stop, status and uninstall are
-  implemented with fixed tools and preservation defaults; install has a verified
+  implemented with fixed tools, stable LocalService/`llm-glue` identities,
+  path-specific permissions, and preservation defaults; install has a verified
   non-mutating dry-run on both platforms.
 - [x] Explicit update check/apply/rollback accepts pinned stable releases and
   verifies checksums; failed checks do not affect sync. Explicit service mode

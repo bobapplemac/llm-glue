@@ -78,8 +78,18 @@ explicitly. These probes verify only the text route; reasoning and sampling rema
 unknown until separately qualified.
 
 Service registration requires elevation and preserves the sidecar and data on
-uninstall. Copying the executable and sidecar is supported; use `service repair`
-after relocation because OS service metadata does not follow moved files.
+uninstall. Windows installs the service as `NT AUTHORITY\\LocalService`, granting
+read/execute access to the single-file executable, read access to the sidecar,
+and modify access only to configured state, log, and target directories. Linux
+creates or reuses the fixed, non-login `llm-glue` system account, removes all
+other-user access from the sidecar, and grants that account access only to the
+configured writable directories. A missing Linux writable directory is created
+with group access; an existing directory that the account cannot write causes
+installation to fail instead of changing operator-owned permissions. Uninstall
+preserves the Linux account and all ACL/mode changes so retained configuration
+and data ownership remain stable. Copying the executable and sidecar is supported;
+use `service repair` after relocation because OS service metadata does not follow
+moved files.
 
 Updates are opt-in. Use `update check`, then `update apply` for a foreground
 installation. For a registered LLM Glue service, run elevated:

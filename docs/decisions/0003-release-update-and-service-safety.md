@@ -27,6 +27,14 @@ records absolute executable and sidecar paths. Relocation requires `service
 repair`. Uninstall removes only the service registration/unit and preserves
 configuration, logs, state, and target files.
 
+The Windows identity is LocalService. Linux uses a persistent, non-login
+`llm-glue` system account rather than a dynamic identity because operator-owned
+target files, retained state, and rollback executables require stable ownership
+across restarts and uninstall/reinstall cycles. Registration grants only the
+resolved read and write access needed by the configured roles. Existing Linux
+directories are never silently re-owned or broadened; inability to write is an
+installation error.
+
 ## Consequences
 
 `r0` can never be published by the release tooling. A partial remote publication

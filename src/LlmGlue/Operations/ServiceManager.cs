@@ -9,6 +9,7 @@ public static class ServiceManager
 {
     private const string WindowsName = "LLMGlue";
     private const string LinuxName = "llm-glue.service";
+    private const string LinuxUser = "llm-glue";
 
     public static async Task<int> ExecuteAsync(string action, string executable, GlueOptions options, CancellationToken cancellationToken, bool dryRun = false)
     {
@@ -31,9 +32,10 @@ public static class ServiceManager
             var command = $"\"{Path.GetFullPath(executable)}\" run --config \"{options.ConfigPath}\"";
             if (dryRun)
             {
-                Console.WriteLine($"Dry run: would create Windows service {WindowsName} as LocalService with binPath {command}");
+                Console.WriteLine($"Dry run: would grant LocalService read/execute access to the executable, read access to {options.ConfigPath}, modify access only to configured state/log/target directories, and create Windows service {WindowsName} with binPath {command}");
                 return 0;
             }
+            await PrepareWindowsPermissionsAsync(executable, options, cancellationToken);
             var exists = await RunAsync("sc.exe", ["query", WindowsName], cancellationToken, allowedExitCodes: [0, 1060]) == 0;
             if (exists)
             {
@@ -54,16 +56,18 @@ public static class ServiceManager
             var writable = options.Client.Targets.Select(x => Path.GetDirectoryName(Resolve(options, x.Path)))
                 .Where(x => x is not null).Cast<string>().ToList();
             if (options.Roles.Server) writable.Add(Resolve(options, options.Server.StateDirectory));
+            writable.Add(Path.GetDirectoryName(Resolve(options, options.Logging.File))!);
             var unit = new StringBuilder("[Unit]\nDescription=LLM Glue model discovery and configuration synchronization\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=notify\n")
                 .Append("ExecStart=\"").Append(EscapeSystemd(executable)).Append("\" run --config \"").Append(EscapeSystemd(options.ConfigPath)).Append("\"\n")
-                .Append("Restart=on-failure\nRestartSec=5s\nDynamicUser=yes\nNoNewPrivileges=yes\nPrivateTmp=yes\nProtectSystem=strict\nProtectHome=read-only\nStateDirectory=llm-glue\nLogsDirectory=llm-glue\n");
-            foreach (var path in writable.Distinct(StringComparer.Ordinal)) unit.Append("ReadWritePaths=").Append(EscapeSystemd(path)).Append('\n');
+                .Append("Restart=on-failure\nRestartSec=5s\nUser=llm-glue\nGroup=llm-glue\nNoNewPrivileges=yes\nPrivateTmp=yes\nProtectSystem=strict\nProtectHome=read-only\nStateDirectory=llm-glue\nStateDirectoryMode=0750\nLogsDirectory=llm-glue\nLogsDirectoryMode=0750\n");
+            foreach (var path in writable.Distinct(StringComparer.Ordinal)) unit.Append("ReadWritePaths=\"").Append(EscapeSystemd(path)).Append("\"\n");
             unit.Append("\n[Install]\nWantedBy=multi-user.target\n");
             if (dryRun)
             {
-                Console.WriteLine($"Dry run: would write {unitPath}:\n{unit}");
+                Console.WriteLine($"Dry run: would ensure fixed system account {LinuxUser}, grant it read/execute access to the executable, group-read access to {options.ConfigPath}, and write access only to newly created or already-authorized configured state/log/target directories; then write {unitPath}:\n{unit}");
                 return 0;
             }
+            await PrepareLinuxPermissionsAsync(executable, options, writable.Distinct(StringComparer.Ordinal).ToArray(), cancellationToken);
             await File.WriteAllTextAsync(unitPath, unit.ToString(), new UTF8Encoding(false), cancellationToken);
             await RunAsync("systemctl", ["daemon-reload"], cancellationToken);
             await RunAsync("systemctl", ["enable", LinuxName], cancellationToken);
@@ -87,7 +91,7 @@ public static class ServiceManager
             await RunAsync("systemctl", ["disable", "--now", LinuxName], cancellationToken, [0, 1, 5]);
             if (File.Exists("/etc/systemd/system/llm-glue.service")) File.Delete("/etc/systemd/system/llm-glue.service");
             await RunAsync("systemctl", ["daemon-reload"], cancellationToken);
-            Console.WriteLine("Removed /etc/systemd/system/llm-glue.service. Configuration and data were preserved.");
+            Console.WriteLine("Removed /etc/systemd/system/llm-glue.service. Configuration, data, permissions, and the fixed llm-glue account were preserved.");
             return 0;
         }
         throw new PlatformNotSupportedException();
@@ -123,4 +127,46 @@ public static class ServiceManager
 
     private static string Resolve(GlueOptions options, string path) => Path.IsPathRooted(path) ? Path.GetFullPath(path) : Path.GetFullPath(path, options.BaseDirectory);
     private static string EscapeSystemd(string value) => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+
+    private static async Task PrepareWindowsPermissionsAsync(string executable, GlueOptions options, CancellationToken cancellationToken)
+    {
+        await RunAsync("icacls.exe", [Path.GetFullPath(executable), "/grant", "*S-1-5-19:(RX)"], cancellationToken);
+        await RunAsync("icacls.exe", [options.ConfigPath, "/grant", "*S-1-5-19:(R)"], cancellationToken);
+        var directories = options.Client.Targets.Select(x => Path.GetDirectoryName(Resolve(options, x.Path)))
+            .Where(x => x is not null).Cast<string>().ToList();
+        if (options.Roles.Server) directories.Add(Resolve(options, options.Server.StateDirectory));
+        directories.Add(Path.GetDirectoryName(Resolve(options, options.Logging.File))!);
+        foreach (var directory in directories.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            Directory.CreateDirectory(directory);
+            await RunAsync("icacls.exe", [directory, "/grant", "*S-1-5-19:(OI)(CI)(M)"], cancellationToken);
+        }
+    }
+
+    private static async Task PrepareLinuxPermissionsAsync(string executable, GlueOptions options, IReadOnlyList<string> writableDirectories, CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException();
+        var exists = await RunAsync("id", ["-u", LinuxUser], cancellationToken, [0, 1]) == 0;
+        if (!exists) await RunAsync("useradd", ["--system", "--home-dir", "/nonexistent", "--shell", "/usr/sbin/nologin", LinuxUser], cancellationToken);
+        await RunAsync("chgrp", [LinuxUser, options.ConfigPath], cancellationToken);
+        var mode = File.GetUnixFileMode(options.ConfigPath);
+        mode |= UnixFileMode.GroupRead;
+        mode &= ~(UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute);
+        File.SetUnixFileMode(options.ConfigPath, mode);
+        await RunAsync("runuser", ["-u", LinuxUser, "--", "test", "-x", Path.GetFullPath(executable)], cancellationToken);
+        await RunAsync("runuser", ["-u", LinuxUser, "--", "test", "-r", options.ConfigPath], cancellationToken);
+        foreach (var directory in writableDirectories)
+        {
+            var created = !Directory.Exists(directory);
+            if (created)
+            {
+                Directory.CreateDirectory(directory);
+                await RunAsync("chgrp", [LinuxUser, directory], cancellationToken);
+                var directoryMode = File.GetUnixFileMode(directory) | UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute;
+                directoryMode &= ~(UnixFileMode.OtherWrite);
+                File.SetUnixFileMode(directory, directoryMode);
+            }
+            await RunAsync("runuser", ["-u", LinuxUser, "--", "test", "-w", directory], cancellationToken);
+        }
+    }
 }
