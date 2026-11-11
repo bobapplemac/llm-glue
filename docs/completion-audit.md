@@ -4,8 +4,8 @@ Last audited: 2026-11-11
 
 This document maps the specification's qualification gates to authoritative
 evidence. “Implemented” is not treated as “live-qualified,” and fixture/captured
-upstream results are identified separately. The product remains `r0`; no release
-is authorized.
+upstream results are identified separately. Development builds remain `r0`; the
+authorized official `r1` release was published on 2026-11-11.
 
 ## Milestone gates
 
@@ -16,7 +16,7 @@ is authorized.
 | M2 publication | Golden JSON/YAML, real Kestrel/ETag/auth tests, captured LiteLLM forwarding, real OpenCode forwarding, persisted catalog integrity tests | Passed. Central backend interpretation still belongs to M4. |
 | M3 synchronization | Atomic/no-op/rollback/collision tests; source-scoped OpenCode ownership v2 and migration tests; live LiteLLM include/restart/fail-once rollback; current Linux and Windows LocalService JSONC/sidecar lifecycle | Passed for implementation and live central/standalone target activation. |
 | M4 live paths | Native Windows Ollama lifecycle/inference; current LocalService ProgramData JSONC/ownership plus second-account catalog; Debian 13.7 Qwen/Gemma/GPT-OSS router and GGUF evidence; generated LiteLLM 1.106.3 route; MarkIV OpenCode Off/On inference; Paseo 0.15.4 catalog/Off/On presentation; central add/change/remove, outage/grace/recovery, restart/rollback, and exact-unit polkit delegation | **Passed.** Both supported deployment paths and representative failure/lifecycle cases have live evidence. |
-| M5 release hardening | Dual-RID binaries, minimal-Debian no-ICU execution, installers, services, updates/rollback, CI, docs, guarded release matrices, and full clean-clone r1 dry-run at `292fec7` with exact-commit manifest/checksums | **Not passed.** Local packaging is qualified. The remaining official-release update and clean authenticated upstream preflight require explicit release authorization, a pushed commit, GitHub CLI auth, and the resulting immutable asset. |
+| M5 release hardening | Dual-RID binaries, minimal-Debian no-ICU execution, installers, services, updates/rollback, CI, docs, guarded release matrices, clean-clone dry run, authenticated final preflight, official `r1` publication from `dd070d2`, and live official-asset update/apply/rollback | **Passed.** The public stable release contains both platform archives, checksums, and an exact-commit manifest; an isolated r0 Windows binary checksum-verified and applied r1, then restored its exact original hash. |
 
 ## Representative model matrix
 
@@ -45,11 +45,5 @@ sidecar, and second native account are also live-qualified. M4 is complete.
 
 ## External actions still required
 
-1. Explicitly authorize the first official `r1`
-   release. The checksum-verified portable GitHub CLI 2.103.3 is present but
-   logged out, and the clean branch is ahead of `origin/main`. Push the
-   clean commit, authenticate `gh`, run the guarded preflight, publish once, and
-   qualify update/apply from that immutable asset.
-
-None of these missing live results may be replaced by the existing fixtures or
-captured mock upstream.
+None for r1 qualification. Future releases still require explicit owner
+authorization and the guarded clean/pushed/authenticated publication process.

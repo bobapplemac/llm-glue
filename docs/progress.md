@@ -96,7 +96,7 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   environment-backed client/backend authentication, `temperature`, and the binary
   `enable_thinking` field.
   See `docs/m4-qualification.md`.
-- **M5 — release hardening:** implementation substantially complete: dual-RID
+- **M5 — release hardening:** passed. Dual-RID
   self-contained single files, runtime-derived rN version identity, interactive
   bootstrap installers, SCM and
   systemd lifecycle commands, portable console/rolling-file logs, doctor and
@@ -106,18 +106,21 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   and led to removal of the Linux binary's undeclared ICU dependency; the
   invariant-globalization binary and full fixed-account systemd lifecycle now
   pass there, and CI reruns the binary/config check in `debian:13-slim`.
-  Isolated Bash/PowerShell release matrices now
+  Isolated Bash/PowerShell release matrices
   qualify fail-closed Git states and a local-only partial-publication recovery path.
-  The PowerShell matrix was rerun successfully on 2026-11-11. Official GitHub CLI
-  2.103.3 was downloaded from GitHub Releases, checksum-verified, and executed as
-  a portable tool; it is not authenticated. A read-only origin fetch confirmed
-  the clean branch is ahead of `origin/main` and zero behind. A full isolated
+  passed on 2026-11-11. Official GitHub CLI 2.103.3 was downloaded from GitHub
+  Releases, checksum-verified, authenticated, and used by the guarded publisher.
+  A full isolated
   clean-clone r1 dry-run at commit `292fec7` then passed preflight and all 103
   tests, published both self-contained RIDs locally, reported `LLM Glue r1`, and
   generated a matching `1.1.0.0` file-version manifest plus SHA-256 package list
-  before stopping prior to tag/release creation. Live official-release update and
-  an authenticated clean-pushed release preflight remain unqualified;
-  publication is not authorized. Unknown reasoning
+  before stopping prior to tag/release creation. After an authenticated final
+  preflight, immutable `r1` was published from
+  `dd070d215d91f3518ce71a443d8867ddd11b91e0` with win-x64 and linux-x64 assets,
+  manifest, and checksums. An isolated r0 Windows binary then discovered the
+  public stable release, downloaded and checksum-verified the official asset,
+  applied it to report `LLM Glue r1`, and restored the exact original r0 SHA-256
+  through `update rollback`. Unknown reasoning
   capability excludes a deployment from client publication rather than being
   converted to `false`.
   Service registration now provisions stable least-privilege identities and
@@ -186,10 +189,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Next steps
 
-Obtain explicit authorization for the first r1 release, push the clean branch,
-authenticate GitHub CLI, run the guarded preflight, publish immutable assets, and
-qualify live update/apply from that asset. Do not publish without explicit
-authorization or claim M5 passed beforehand.
+No r1 acceptance gate remains. Continue normal maintenance from `main`; use the
+same guarded process and obtain explicit authorization before any later official
+release.
 
 ## M3 acceptance checklist
 
@@ -273,8 +275,10 @@ authorization or claim M5 passed beforehand.
 - [x] Current all-role Windows `-SystemOpenCode` harness qualifies ADR 0007 JSONC
   ownership-sidecar access, real Ollama discovery, and a temporary second Windows
   account in one guarded LocalService pass, including rollback and exact cleanup.
-- [ ] Live update-apply from an official release asset; publication is authorized
-  but the asset does not exist yet. Windows service rollback is live-qualified.
+- [x] Live foreground update/apply/rollback from the official r1 Windows asset:
+  r0 discovered r1, verified its published SHA-256, applied it, reported r1, and
+  restored the byte-identical original r0 executable. Windows service rollback is
+  separately live-qualified.
 - [x] Authenticated preflight against the actual clean, already-pushed upstream
   passed at `51932effb5e68c0f6f72508238cbf36804ef2c97` with GitHub CLI 2.103.3.
   The first publication attempt stopped before creating a tag or release because
@@ -282,7 +286,8 @@ authorization or claim M5 passed beforehand.
   prefix when the annotated-tag `-a` option was reached. The helper now uses an
   explicit `GitArguments` remainder parameter; the isolated PowerShell Git-state
   matrix passes after the correction. Publication must target the final pushed
-  correction commit and re-run the authenticated preflight.
+  correction commit and re-run the authenticated preflight. The corrected path
+  subsequently passed and published r1 from `dd070d2`.
 - [x] M4 representative live suite and both supported deployment paths pass.
 
 Latest available verification: Windows and native Ubuntu/WSL Release builds with

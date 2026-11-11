@@ -22,6 +22,15 @@ It exposed and corrected a PowerShell remainder-argument binding defect in the
 annotated-tag call; the final release must be rebuilt and rechecked from the
 subsequent correction commit.
 
+Official `r1` was published from
+`dd070d215d91f3518ce71a443d8867ddd11b91e0` on 2026-11-11. The published archive
+SHA-256 values are `467502d273c8ed39d3f0c1bbc376fc41e4235b0924422a4899bfc12c16d76ea5`
+for linux-x64 and
+`a5525380d87a94874c34bcf75fc94d9bca80c71361be1903839d881a440885a9`
+for win-x64. GitHub's asset digests matched `SHA256SUMS`; a live isolated r0
+Windows executable downloaded, verified, applied, and rolled back the official
+asset with exact original-hash restoration.
+
 Both publishers require exactly one remote named `origin`, an `origin/<branch>`
 upstream, and the pinned raw remote URL `github.com/bobapplemac/llm-glue`. This
 prevents an otherwise clean checkout from publishing the project identity from an
