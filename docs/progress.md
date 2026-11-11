@@ -40,7 +40,8 @@ Last updated: 2026-11-11
   residency, and loaded-only route probing passed for Qwen 3.5 4B. The installed
   OpenCode 2.2.7 selected a generated `thinking-on` variant and completed real
   native inference; direct OpenAI-compatible probes verified the generated
-  `reasoning_effort` Off/On bodies. Two actual Linux accounts also passed system
+  `reasoning_effort` Off/On bodies. A repeat run suppressed OpenCode's duplicate
+  built-in Ollama entry while retaining the enriched route. Two actual Linux accounts also passed system
   precedence and unrelated user-setting preservation. The Debian llama.cpp/LiteLLM,
   Windows multi-account, restart/change/removal, and Paseo paths remain blocked on
   unavailable environments. Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
@@ -137,7 +138,8 @@ authorization or claim either live gate passed beforehand.
 - [x] Validation failure leaves the destination untouched.
 - [x] Activation failure restores and reactivates last-known-good state.
 - [x] OpenCode scoped reconciliation preserves unrelated user/system settings and
-  removes only reserved stale provider keys.
+  removes only reserved stale provider keys. Direct Ollama synchronization also
+  ownership-tracks and reversibly suppresses OpenCode's duplicate native provider.
 - [x] LiteLLM requires the operator include, preserves the primary config, rejects
   alias collisions, parses YAML, and uses constrained service restart/health check.
 - [x] Client-only role does not bind a web listener; remote sources require a token
@@ -211,13 +213,14 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: Windows Release build and 72 tests; native
-Ubuntu/WSL Release restore/build and 72 tests;
+Latest available verification: Windows Release build and 78 tests; native
+Ubuntu/WSL Release restore/build and 78 tests;
 OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
 native OpenCode 2.2.7 → Ollama 0.40.16 real-model inference with verified
-`thinking-off`/`thinking-on` variants; two-account Linux system precedence;
+`thinking-off`/`thinking-on` variants and no duplicate native Ollama catalog row;
+two-account Linux system precedence;
 PowerShell and Bash bootstrap
 matrices validate all three modes with real
-single-file binaries; r1 win-x64/linux-x64 execution and Windows/Linux service
+single-file binaries; r0 win-x64/linux-x64 execution and Windows/Linux service
 install dry runs pass. These are implementation/packaging evidence, not substitutes
 for the unchecked live gates above.

@@ -15,7 +15,8 @@ public sealed class OpenCodeGenerator(Uri? inferenceBaseUrl = null) : IConfigura
     {
         cancellationToken.ThrowIfCancellationRequested();
         var providers = new JsonObject();
-        foreach (var group in GenerationHelpers.Publishable(snapshot).GroupBy(x => new { x.Identity.ProviderId, x.Identity.InstanceId, x.Identity.SourceEndpoint }).OrderBy(x => x.Key.ProviderId, StringComparer.Ordinal).ThenBy(x => x.Key.InstanceId, StringComparer.Ordinal))
+        var deployments = GenerationHelpers.Publishable(snapshot).ToArray();
+        foreach (var group in deployments.GroupBy(x => new { x.Identity.ProviderId, x.Identity.InstanceId, x.Identity.SourceEndpoint }).OrderBy(x => x.Key.ProviderId, StringComparer.Ordinal).ThenBy(x => x.Key.InstanceId, StringComparer.Ordinal))
         {
             var models = new JsonObject();
             foreach (var deployment in group.OrderBy(x => x.Identity.ModelId, StringComparer.Ordinal))
@@ -35,6 +36,8 @@ public sealed class OpenCodeGenerator(Uri? inferenceBaseUrl = null) : IConfigura
             providers[GenerationHelpers.Slug("llm-glue", group.Key.ProviderId, group.Key.InstanceId)] = provider;
         }
         var root = new JsonObject { ["$schema"] = "https://opencode.ai/config.json", ["providers"] = providers };
+        if (inferenceBaseUrl is null && deployments.Any(x => x.Identity.ProviderId == "ollama"))
+            root["disabled_providers"] = new JsonArray("ollama");
         var text = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true, TypeInfoResolver = new DefaultJsonTypeInfoResolver() }) + "\n";
         return ValueTask.FromResult(GenerationHelpers.Artifact("application/json", text));
     }

@@ -36,6 +36,14 @@ The M2 generated golden artifact was loaded by the same 2.2.7 executable. Its
 effective `/api/model` entry retained the exact `thinking-on` request body,
 reported context 65536, and did not invent additional reasoning variants.
 
+On the native Windows host, OpenCode's built-in `ollama` provider discovered all
+three local models with native context but no reasoning variants. A live isolated
+test showed `disabled_providers: ["ollama"]` removed those entries while all three
+enriched `llm-glue-ollama-*` entries remained. Direct Ollama artifacts therefore
+disable the built-in provider to avoid duplicates. Client ownership state tracks
+only a disablement LLM Glue added; pre-existing and unrelated user values survive
+reconciliation and rollback.
+
 Sources: <https://opencode.ai/docs/config>,
 <https://opencode.ai/config.json>, <https://opencode.ai/docs/api>, and
 <https://github.com/anomalyco/opencode/releases/tag/v2.2.7>.
@@ -102,7 +110,8 @@ models on the qualified 0.40.16-or-newer contract; named efforts preserve the
 reported model-defined name. Earlier versions remain fail-closed without these
 profiles. A real installed OpenCode 2.2.7 run selected the generated
 `#thinking-on` variant and received `LLM_GLUE_WINDOWS_OK`. The isolated test did
-not modify the user's normal OpenCode configuration and unloaded the model.
+not modify the user's normal OpenCode configuration, exposed no duplicate native
+`ollama/<model>` row, and unloaded the model.
 
 Sources: <https://github.com/ollama/ollama/blob/main/docs/api.md>,
 <https://github.com/ollama/ollama/blob/main/docs/openapi.yaml>, and

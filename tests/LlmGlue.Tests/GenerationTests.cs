@@ -46,6 +46,28 @@ public sealed class GenerationTests
     }
 
     [Fact]
+    public async Task DirectOllamaArtifactDisablesNativeDuplicateButCentralArtifactDoesNot()
+    {
+        var ollama = Qualified() with
+        {
+            Identity = Qualified().Identity with
+            {
+                ProviderId = "ollama",
+                InstanceId = "windows",
+                SourceEndpoint = "http://127.0.0.1:11434"
+            }
+        };
+        var snapshot = DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [ollama]);
+        var direct = await new OpenCodeGenerator().GenerateAsync(snapshot, TestContext.Current.CancellationToken);
+        using var directJson = JsonDocument.Parse(direct.Content);
+        Assert.Equal("ollama", Assert.Single(directJson.RootElement.GetProperty("disabled_providers").EnumerateArray()).GetString());
+
+        var central = await new OpenCodeGenerator(new Uri("https://litellm.example.test")).GenerateAsync(snapshot, TestContext.Current.CancellationToken);
+        using var centralJson = JsonDocument.Parse(central.Content);
+        Assert.False(centralJson.RootElement.TryGetProperty("disabled_providers", out _));
+    }
+
+    [Fact]
     public async Task DoesNotPublishUnavailableOrInvalidDeployments()
     {
         var deployment = Qualified() with { Status = DeploymentStatus.Unavailable };

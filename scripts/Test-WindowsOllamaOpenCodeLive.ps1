@@ -113,6 +113,9 @@ try {
         if ($LASTEXITCODE -ne 0 -or $models -notcontains "$providerId/$Model") {
             throw "Installed OpenCode did not expose generated model $providerId/$Model."
         }
+        if ($models -contains "ollama/$Model") {
+            throw "Installed OpenCode exposed a duplicate native Ollama entry for $Model."
+        }
         $prompt = 'Reply with exactly LLM_GLUE_WINDOWS_OK and nothing else.'
         $runOutput = & $OpenCodeExecutable --standalone run --model $selection --format json --archived $prompt 2>&1
         $runOutput | Set-Content -LiteralPath $openCodeOutput -Encoding utf8NoBOM
@@ -138,6 +141,7 @@ try {
         target = $target
         productionConfigModified = $false
         modelInitiallyLoaded = $wasInitiallyLoaded
+        nativeOllamaDuplicateSuppressed = $true
     }
     $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $resultPath -Encoding utf8NoBOM
     Write-Host "PASS native Windows Ollama/OpenCode inference. Evidence: $resultPath"

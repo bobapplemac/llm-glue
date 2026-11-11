@@ -49,6 +49,12 @@ OpenAI-compatible probes proved `reasoning_effort=none` yielded no reasoning and
 variables and repository-contained temporary paths; the user's normal config and
 system config were not modified.
 
+A repeat run after duplicate reconciliation required both the enriched LLM Glue
+model and absence of `ollama/qwen3.5:4b-q4_K_M`. OpenCode honored the generated
+`disabled_providers` entry, exposed only the enriched route, completed the same
+real inference, and left `/api/ps` empty after cleanup. Adjacent generated
+ownership state recorded that LLM Glue—not the user—owned this disablement.
+
 Reproduce the isolated Windows path with
 `scripts/Test-WindowsOllamaOpenCodeLive.ps1`; it refuses a missing binary/model,
 uses a fresh evidence directory, and preserves pre-existing model residency.

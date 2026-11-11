@@ -47,6 +47,12 @@ OpenCode synchronization performs scoped reconciliation inside the documented
 system-managed document. It owns only its deterministic provider namespace and
 model keys and preserves every unrelated property. User and project documents
 are read only.
+For a direct Ollama deployment, the generated document also disables OpenCode's
+built-in `ollama` provider so enriched models do not appear twice. The target
+merges `disabled_providers`, preserves unrelated and pre-existing values, and
+records only entries it added in adjacent generated ownership state. A
+destination-scoped process lock covers read/merge/write; activation rollback
+restores both configuration and ownership state.
 
 LiteLLM synchronization owns one generated include whose content is limited to
 `model_list`. The operator owns the primary YAML and must authorize the include

@@ -14,6 +14,9 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
   values, and behavior verified by a probe.
 - Preserve operator-owned configuration. LLM Glue may reconcile only keys or
   files explicitly assigned to it.
+- Direct Ollama/OpenCode output must suppress the duplicate built-in `ollama`
+  provider. Preserve unrelated and pre-existing `disabled_providers` values and
+  keep the adjacent generated ownership state transactional with target apply.
 - Generated artifacts must be deterministic and must not contain credentials.
 - Network schemas are versioned independently from the product revision.
 - Product version remains `r0` until the user authorizes the first release.

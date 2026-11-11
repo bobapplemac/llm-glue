@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using LlmGlue.Core.Client;
+using LlmGlue.Core.Domain;
 using LlmGlue.Core.Generation;
 
 namespace LlmGlue.Tests;
@@ -29,6 +30,113 @@ public sealed class ConfigurationTargetTests
             Assert.True(providers.TryGetProperty("manual", out _));
             Assert.True(providers.TryGetProperty("llm-glue-llama-cpp-lab", out _));
             Assert.False(providers.TryGetProperty("llm-glue-stale", out _));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task OpenCodeReconcilesOnlyOwnedNativeProviderDisablement()
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.json");
+            await File.WriteAllTextAsync(path, """{ "disabled_providers": ["manual"], "providers": {} }""", TestContext.Current.CancellationToken);
+            var ollama = GenerationTests.Qualified() with
+            {
+                Identity = GenerationTests.Qualified().Identity with
+                {
+                    ProviderId = "ollama",
+                    InstanceId = "windows",
+                    SourceEndpoint = "http://127.0.0.1:11434"
+                }
+            };
+            var target = new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator());
+            var generated = await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [ollama]), TestContext.Current.CancellationToken);
+            await target.ApplyAsync(generated, TestContext.Current.CancellationToken);
+            using (var applied = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken)))
+                Assert.Equal(["manual", "ollama"], applied.RootElement.GetProperty("disabled_providers").EnumerateArray().Select(x => x.GetString()!).ToArray());
+            var ownershipPath = path + ".llm-glue-ownership.json";
+            File.SetLastWriteTimeUtc(ownershipPath, new DateTime(2001, 2, 3, 4, 5, 6, DateTimeKind.Utc));
+            var ownershipWriteTime = File.GetLastWriteTimeUtc(ownershipPath);
+            await target.ApplyAsync(generated, TestContext.Current.CancellationToken);
+            Assert.Equal(ownershipWriteTime, File.GetLastWriteTimeUtc(ownershipPath));
+
+            var empty = await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, []), TestContext.Current.CancellationToken);
+            await target.ApplyAsync(empty, TestContext.Current.CancellationToken);
+            using var reconciled = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            Assert.Equal("manual", Assert.Single(reconciled.RootElement.GetProperty("disabled_providers").EnumerateArray()).GetString());
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task OpenCodePreservesPreexistingNativeProviderDisablement()
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.json");
+            await File.WriteAllTextAsync(path, """{ "disabled_providers": ["ollama"], "providers": {} }""", TestContext.Current.CancellationToken);
+            var ollama = GenerationTests.Qualified() with
+            {
+                Identity = GenerationTests.Qualified().Identity with
+                {
+                    ProviderId = "ollama",
+                    InstanceId = "windows",
+                    SourceEndpoint = "http://127.0.0.1:11434"
+                }
+            };
+            var target = new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator());
+            await target.ApplyAsync(await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [ollama]), TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
+            await target.ApplyAsync(await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, []), TestContext.Current.CancellationToken), TestContext.Current.CancellationToken);
+            using var reconciled = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            Assert.Equal("ollama", Assert.Single(reconciled.RootElement.GetProperty("disabled_providers").EnumerateArray()).GetString());
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task OpenCodeRestoresOwnershipStateWhenActivationRollsBack()
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.json");
+            await File.WriteAllTextAsync(path, """{ "providers": {} }""", TestContext.Current.CancellationToken);
+            var ollama = GenerationTests.Qualified() with
+            {
+                Identity = GenerationTests.Qualified().Identity with
+                {
+                    ProviderId = "ollama",
+                    InstanceId = "windows",
+                    SourceEndpoint = "http://127.0.0.1:11434"
+                }
+            };
+            var artifact = await new OpenCodeGenerator().GenerateAsync(DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [ollama]), TestContext.Current.CancellationToken);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => new OpenCodeTarget(path, new AtomicFileInstaller(), new FailOnceActivator()).ApplyAsync(artifact, TestContext.Current.CancellationToken));
+            using var ownership = JsonDocument.Parse(await File.ReadAllBytesAsync(path + ".llm-glue-ownership.json", TestContext.Current.CancellationToken));
+            Assert.Empty(ownership.RootElement.GetProperty("disabledProviders").EnumerateArray());
+            using var restored = JsonDocument.Parse(await File.ReadAllBytesAsync(path, TestContext.Current.CancellationToken));
+            Assert.False(restored.RootElement.TryGetProperty("disabled_providers", out _));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Theory]
+    [InlineData("{ \"providers\": [] }")]
+    [InlineData("{ \"providers\": {}, \"disabled_providers\": \"ollama\" }")]
+    public async Task OpenCodeRejectsInvalidExistingOwnershipShapesWithoutWriting(string original)
+    {
+        var directory = AtomicFileInstallerTests.TempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "opencode.json");
+            await File.WriteAllTextAsync(path, original, TestContext.Current.CancellationToken);
+            var artifact = await new OpenCodeGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
+            await Assert.ThrowsAsync<InvalidDataException>(() => new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator()).ApplyAsync(artifact, TestContext.Current.CancellationToken));
+            Assert.Equal(original, await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken));
+            Assert.False(File.Exists(path + ".llm-glue-ownership.json"));
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -67,5 +175,15 @@ public sealed class ConfigurationTargetTests
             Assert.Contains("alias collision", (await Assert.ThrowsAsync<InvalidOperationException>(() => target.ApplyAsync(artifact, TestContext.Current.CancellationToken))).Message);
         }
         finally { Directory.Delete(directory, true); }
+    }
+
+    private sealed class FailOnceActivator : ITargetActivator
+    {
+        private int calls;
+        public Task ActivateAndVerifyAsync(string managedPath, CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref calls) == 1) throw new InvalidOperationException("test activation failure");
+            return Task.CompletedTask;
+        }
     }
 }
