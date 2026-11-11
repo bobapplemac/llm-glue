@@ -117,7 +117,8 @@ static void AddServer(IServiceCollection services, GlueOptions options)
         provider.GetRequiredService<CatalogStateRepository>()));
     services.AddSingleton(new ApiAuthenticationOptions(
         ResolveSecret(options.Server.ReadToken, options.Server.ReadTokenEnvironment, "Server read token"),
-        ResolveSecret(options.Server.WriteToken, options.Server.WriteTokenEnvironment, "Server write token")));
+        ResolveSecret(options.Server.WriteToken, options.Server.WriteTokenEnvironment, "Server write token"),
+        options.Server.Listen.IsLoopback));
 }
 
 static void AddAgent(IServiceCollection services, GlueOptions options)

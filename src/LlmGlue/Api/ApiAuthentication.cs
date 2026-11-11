@@ -4,14 +4,14 @@ using System.Text;
 
 namespace LlmGlue.Api;
 
-public sealed record ApiAuthenticationOptions(string? ReadToken, string? WriteToken);
+public sealed record ApiAuthenticationOptions(string? ReadToken, string? WriteToken, bool AllowUnauthenticatedLoopback = true);
 
 public sealed class ApiAuthenticationMiddleware(RequestDelegate next, ApiAuthenticationOptions options)
 {
     public async Task InvokeAsync(HttpContext context)
     {
         var address = context.Connection.RemoteIpAddress;
-        if (address is null || IPAddress.IsLoopback(address))
+        if (options.AllowUnauthenticatedLoopback && address is not null && IPAddress.IsLoopback(address))
         {
             await next(context);
             return;

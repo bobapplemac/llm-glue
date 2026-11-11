@@ -56,6 +56,38 @@ public sealed class ApiIntegrationTests
     }
 
     [Fact]
+    public async Task NonLoopbackListenerStillAuthenticatesLoopbackProxyPeer()
+    {
+        var called = false;
+        var middleware = new ApiAuthenticationMiddleware(_ => { called = true; return Task.CompletedTask; }, new ApiAuthenticationOptions("read-secret", "write-secret", AllowUnauthenticatedLoopback: false));
+        var denied = new DefaultHttpContext();
+        denied.Connection.RemoteIpAddress = IPAddress.Loopback;
+        denied.Request.Method = HttpMethods.Get;
+        denied.Response.Body = new MemoryStream();
+        await middleware.InvokeAsync(denied);
+        Assert.Equal(StatusCodes.Status401Unauthorized, denied.Response.StatusCode);
+        Assert.False(called);
+
+        var allowed = new DefaultHttpContext();
+        allowed.Connection.RemoteIpAddress = IPAddress.Loopback;
+        allowed.Request.Method = HttpMethods.Get;
+        allowed.Request.Headers.Authorization = "Bearer read-secret";
+        await middleware.InvokeAsync(allowed);
+        Assert.True(called);
+    }
+
+    [Fact]
+    public async Task LoopbackListenerMayAllowUnauthenticatedLoopbackPeer()
+    {
+        var called = false;
+        var middleware = new ApiAuthenticationMiddleware(_ => { called = true; return Task.CompletedTask; }, new ApiAuthenticationOptions(null, null, AllowUnauthenticatedLoopback: true));
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        await middleware.InvokeAsync(context);
+        Assert.True(called);
+    }
+
+    [Fact]
     public async Task CorrelationMiddlewarePreservesValidIdsAndReplacesUnsafeValues()
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });

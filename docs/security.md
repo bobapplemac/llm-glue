@@ -6,9 +6,11 @@ is inventory submission and read-only catalog/artifact retrieval.
 - Kestrel defaults to loopback and serves plain HTTP. Remote binding requires
   explicit insecure-transport acknowledgement plus separate read and write bearer
   credentials. Use an encrypted private network or operator TLS reverse proxy.
-- Proxy headers never convert a remote peer into loopback. Tokens are fixed-time
-  compared, environment-referenced where practical, and never logged or embedded
-  in generated artifacts.
+- Proxy headers never convert a remote peer into loopback. The unauthenticated
+  loopback exception applies only when the configured Server listener is itself
+  loopback; a non-loopback deployment still authenticates requests arriving from
+  a local TLS proxy. Tokens are fixed-time compared, environment-referenced where
+  practical, and never logged or embedded in generated artifacts.
 - Agent-only hosts use the write credential only for canonical inventory POSTs;
   read credentials cannot authorize submission. Exact server exclusions affect
   publication only and never issue provider or filesystem operations.

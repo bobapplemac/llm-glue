@@ -71,6 +71,11 @@ Agent-only mode submits through that authenticated HTTP boundary and retains its
 local grace state for retry. Server publication is serialized and refuses older
 snapshots so a delayed request cannot roll artifacts backward.
 
+Authentication bypass for a loopback peer is enabled only when `server.listen`
+is also loopback. A Server bound for remote access requires bearer credentials
+even when the immediate connection comes from a same-host TLS reverse proxy; its
+co-located Client uses the read credential as well.
+
 Exact, conjunctive `[[server.exclusions]]` rules are evaluated only at the
 publication boundary. Hidden deployments remain in inventory/model diagnostics
 with their exclusion reason but are omitted from both target artifacts; provider
