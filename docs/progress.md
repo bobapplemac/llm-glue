@@ -21,7 +21,10 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   The first subsequent Windows PowerShell 5.1 bootstrap exposed that its
   `Set-Content` does not recognize the PowerShell 7 `utf8NoBOM` encoding name.
   The main-branch bootstrap now uses the cross-version .NET UTF-8 encoder and
-  its matrix explicitly rejects a generated BOM.
+  its matrix explicitly rejects a generated BOM. That live install also exposed
+  that the Windows bootstrap registered but did not start the automatic service;
+  it now matches Linux by starting after successful registration, with a matrix
+  guard for the install/start sequence.
 
 - **M0 — evidence/interface validation:** implementation design complete;
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,

@@ -27,6 +27,8 @@ try {
     }
 
     $installer = Join-Path $root 'install.ps1'
+    $installerSource = Get-Content -LiteralPath $installer -Raw
+    if ($installerSource -notmatch '(?s)service install --config \$config.*service start --config \$config') { throw 'Windows service bootstrap does not install and start in sequence.' }
     $remote = Join-Path $temporary 'remote'
     & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://catalog.example -ServerToken test-read
     & (Join-Path $remote 'llm-glue.exe') config validate --config (Join-Path $remote 'llm-glue.conf')

@@ -117,7 +117,12 @@ try {
         & icacls.exe $config '/inheritance:r' '/grant:r' "*$currentSid`:(F)" '*S-1-5-18:(F)' '*S-1-5-32-544:(F)' | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'Could not protect the generated sidecar ACL.' }
     }
-    if ($InstallService) { & $executable service install --config $config; if ($LASTEXITCODE -ne 0) { throw 'Service installation failed.' } }
+    if ($InstallService) {
+        & $executable service install --config $config
+        if ($LASTEXITCODE -ne 0) { throw 'Service installation failed.' }
+        & $executable service start --config $config
+        if ($LASTEXITCODE -ne 0) { throw 'Service start failed.' }
+    }
     Write-Host "Installed $($release.tag_name) to $InstallDirectory with config $config"
 } finally {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }

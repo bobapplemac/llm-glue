@@ -58,7 +58,9 @@ installed service does not inherit the bootstrap environment. Interactive secret
 prompts do not echo. Generated sidecars use mode `0600` on Linux and a restricted
 owner/SYSTEM/Administrators ACL on Windows; service registration then grants its
 fixed identity read access. Never configure both literal and environment forms
-for one credential.
+for one credential. Selecting service installation in either bootstrap registers,
+enables, and starts the service; initial target synchronization normally occurs
+within seconds and no later than the configured client polling interval.
 
 Then run:
 
