@@ -147,15 +147,26 @@ documentation defines this as response parsing behavior: thoughts remain in
 keeps reasoning capability unknown for `none` and every other parsing format
 unless separate model and request evidence exists.
 
+The same build reports effective speculative decoding under
+`default_generation_settings.params["speculative.type"]`; current upstream also
+documents a top-level `speculative` boolean and source emits the plural
+`speculative.types` form. The adapter accepts both explicit shapes, normalizes
+them to diagnostics, and derives enabled/disabled only when an explicit type is
+present (`none` versus a named implementation). A live build-8681 run reported
+`speculative.enabled=false` and `speculative.types=none`.
+
 The implemented GGUF path enriches only provider-confirmed routes. A direct
 server's `/props.model_path` may identify an aliased route; otherwise the route
 must exactly match an allowlisted filename. In either case the canonical file,
 including any symlink target, must remain inside a configured directory. It
 records `general.architecture`, architecture context, `general.type`, file type,
-and `split.count` when present. Full-file SHA-256 is disabled by default and
+`split.count`, and positive architecture-scoped `nextn_predict_layers` when
+present. The latter becomes `gguf.mtp=present` plus an observed layer count, and
+is deliberately not converted into a reasoning or sampling variant. Full-file SHA-256 is disabled by default and
 explicitly opt-in. Native Ubuntu/WSL qualification inspected the aliased SmolLM2
-GGUF through its reported path and published no local path. Live multipart/MTP
-classification and reasoning behavior remain unqualified.
+GGUF through its reported path and published no local path. Synthetic GGUF
+coverage qualifies MTP metadata classification; a real MTP artifact and behavior
+remain unqualified.
 
 The implemented opt-in functional probe uses `/v1/chat/completions` for llama.cpp
 and native `/api/chat` for Ollama, with bounded time and response size. Fixture
@@ -166,12 +177,15 @@ live probes. A live SmolLM2 run verified this probe and a real LiteLLM 1.109.0
 forwarding response, but it is not evidence for the required representative
 reasoning/sampling profiles.
 
-Source: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>.
+Sources: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>,
+<https://github.com/ggml-org/llama.cpp/blob/master/src/llama-arch.cpp>.
 
 ## Unqualified environments
 
-- Debian `labhost03`, actual llama.cpp models, MTP/draft artifacts, and LiteLLM
-  service ownership are unavailable in this workspace.
+- Debian `labhost03`, actual representative llama.cpp models, MTP/draft
+  artifacts, and LiteLLM service ownership are unavailable in this workspace.
+  A noninteractive SSH preflight on 2026-11-11 could not resolve `labhost03` from
+  this Windows environment.
 - Two-account system precedence is qualified on Linux/WSL, but not Windows or
   Windows Server 2025.
 - Gemma and GPT-OSS runtime behavior is represented only by sanitized recorded

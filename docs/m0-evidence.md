@@ -18,7 +18,7 @@ represented as production-ready.
 | Modalities/tools | Provider capability fields, GGUF architecture, bounded probe | Per-field evidence | Tri-state unknown |
 | Reasoning modes | Ollama show `thinking`; llama versioned flags/model evidence (`reasoning_format` controls output parsing, not capability) | End-to-end request/response probe for controllable modes | Omit modes; never infer from name or a response parsing format |
 | Sampling transport | Versioned provider/LiteLLM path | Mock capture plus live representative probes | Drop unsupported fields with warning |
-| Runtime residency/KV/MTP | Runtime live APIs/args | Reported versus observed labels | Diagnostics only; not client variants |
+| Runtime residency/KV/MTP | Runtime live APIs/args; architecture-scoped GGUF `nextn_predict_layers` | Reported versus observed labels; versioned `/props` shapes | Diagnostics only; not client variants |
 | LiteLLM route | Generated include and proxy model endpoint | Restart, `/v1/models`, functional completion | Roll back and retain LKG |
 | OpenCode visibility | Generated 2.x schema and effective `/api/model` | Model/variant selection | Reject incompatible schema/version |
 

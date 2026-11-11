@@ -160,6 +160,15 @@ local path. Automated companion tests reject provider-reported files outside the
 allowlist without leaking the path. This qualifies live single-file GGUF
 enrichment, not multipart or MTP classification.
 
+The subsequent MTP implementation audit found that build 8681 reports
+`default_generation_settings.params["speculative.type"]`, whereas newer upstream
+shapes may expose `speculative.types` and a top-level boolean. The adapter now
+normalizes both explicit forms. A fresh live run reported
+`speculative.enabled=false` and `speculative.types=none`. Synthetic GGUF coverage
+also verifies that a positive architecture-scoped `nextn_predict_layers` value is
+reported only as an MTP runtime artifact trait and never as a client variant.
+Real MTP artifact loading and speculative behavior remain part of the Debian gate.
+
 With the server deliberately configured at 2048 tokens, LLM Glue reported native
 context 8192, effective context 2048, version `b8681-Debian`, loaded state, and a
 verified bounded text route. The production generator correctly excluded this

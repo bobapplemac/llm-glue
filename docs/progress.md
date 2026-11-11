@@ -10,14 +10,17 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.109.0, and Ollama
   0.40.16. Two-account Linux precedence is live-qualified; Windows multi-account
   and live llama.cpp/model qualification remain deferred to M4 and fail closed.
-- **M1 — core domain/discovery:** implemented; build and 12 fixture/unit tests
+- **M1 — core domain/discovery:** implemented; the full 84-test suite
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
   inventory hashes. Configured llama.cpp directories now enrich only
   provider-confirmed GGUF routes selected by an allowlisted reported path or exact
   filename; full-file hashing is opt-in. A live native Ubuntu/WSL run enriched an
   aliased route without publishing its path, while outside-allowlist tests fail
-  closed. Live Ollama API shape was additionally confirmed in M0. Opt-in functional text-route probes are
+  closed. Positive GGUF `nextn_predict_layers` is now recorded as MTP runtime
+  metadata without inventing a client mode, and versioned llama.cpp `/props`
+  shapes report effective speculative state. Live build 8681 reported
+  speculation disabled. Live Ollama API shape was additionally confirmed in M0. Opt-in functional text-route probes are
   timeout/size bounded, preserve unknown non-text capabilities, and never load a
   dormant model under `loaded-only` policy.
 - **M2 — server/generation:** implemented; reconciliation grace/conflict handling,
@@ -239,8 +242,8 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: Windows Release build and 82 tests; native
-Ubuntu/WSL Release restore/build and 82 tests;
+Latest available verification: Windows Release build and 84 tests; native
+Ubuntu/WSL Release restore/build and 84 tests;
 OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
 native OpenCode 2.2.7 → Ollama 0.40.16 real-model inference with verified
 `thinking-off`/`thinking-on` variants and no duplicate native Ollama catalog row;

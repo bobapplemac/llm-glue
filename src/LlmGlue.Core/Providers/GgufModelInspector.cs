@@ -26,6 +26,12 @@ internal sealed class GgufModelInspector(IReadOnlyList<string> allowedDirectorie
             Copy(metadata, properties, "general.type", "gguf.type");
             Copy(metadata, properties, "general.file_type", "gguf.file_type");
             Copy(metadata, properties, "split.count", "gguf.split_count");
+            var mtpLayers = architecture is null ? null : Integer(metadata, $"{architecture}.nextn_predict_layers");
+            if (mtpLayers is > 0)
+            {
+                properties["gguf.mtp"] = "present";
+                properties["gguf.mtp_layers"] = mtpLayers.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
 
             string? hash = deployment.Identity.FileHash;
             if (hashModelFiles)
@@ -34,6 +40,13 @@ internal sealed class GgufModelInspector(IReadOnlyList<string> allowedDirectorie
                 hash = Convert.ToHexStringLower(await SHA256.HashDataAsync(stream, cancellationToken));
                 properties["gguf.file_hash"] = "sha256-observed";
             }
+
+            var warnings = AddWarning(deployment, providerConfirmedPath is null
+                ? "GGUF metadata was inspected only after an exact allowlisted filename matched a provider-confirmed route; the local path is not published."
+                : "GGUF metadata was inspected only after the provider-reported path resolved inside a configured directory; the local path is not published.");
+            if (mtpLayers is > 0)
+                warnings = warnings.Concat([$"GGUF metadata reports {mtpLayers.Value} NextN/MTP layer(s); this is a runtime artifact trait, not a client-selectable variant."])
+                    .Distinct(StringComparer.Ordinal).ToArray();
 
             return deployment with
             {
@@ -46,9 +59,7 @@ internal sealed class GgufModelInspector(IReadOnlyList<string> allowedDirectorie
                     ? new Evidence<long>(nativeContext.Value, "gguf:metadata", deployment.LastSeenAt, VerificationState.Observed)
                     : null),
                 Runtime = deployment.Runtime with { Properties = properties },
-                Warnings = AddWarning(deployment, providerConfirmedPath is null
-                    ? "GGUF metadata was inspected only after an exact allowlisted filename matched a provider-confirmed route; the local path is not published."
-                    : "GGUF metadata was inspected only after the provider-reported path resolved inside a configured directory; the local path is not published.")
+                Warnings = warnings
             };
         }
         catch (OperationCanceledException) { throw; }

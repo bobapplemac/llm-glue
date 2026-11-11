@@ -74,7 +74,7 @@ public sealed class LlamaCppDiscoveryAdapter(
             var id = item.GetProperty("id").GetString() ?? throw new JsonException("llama.cpp model id is missing.");
             var native = TryPathLong(item, "meta", "n_ctx_train");
             var effective = props is { } p ? TryPathLong(p, "default_generation_settings", "n_ctx") : null;
-            return Create(id, id, native, effective, true, now, "direct", version);
+            return Create(id, id, native, effective, true, now, "direct", version, props is { } value ? DirectRuntimeProperties(value) : null);
         }).OrderBy(x => x.Identity.ModelId, StringComparer.Ordinal).ToArray();
     }
 
@@ -101,13 +101,34 @@ public sealed class LlamaCppDiscoveryAdapter(
         bool loaded,
         DateTimeOffset now,
         string mode,
-        string? version = null) => new(
+        string? version = null,
+        IReadOnlyDictionary<string, string>? observedProperties = null) => new(
         new ModelIdentity("llama.cpp", instanceId, id, display, id, SourceEndpoint: httpClient.BaseAddress?.ToString()), DeploymentStatus.Available, now, now,
         native is > 0 ? new Evidence<long>(native.Value, $"llama.cpp:{mode}:native", now, VerificationState.Reported) : null,
         effective is > 0 ? new Evidence<long>(effective.Value, $"llama.cpp:{mode}:effective", now, VerificationState.Observed) : null,
         ProviderHelpers.Capabilities(null, null, new(ReasoningModeKind.Unknown, []), $"llama.cpp:{mode}", now), [],
-        new RuntimeDetails("llama.cpp", version, loaded, new SortedDictionary<string, string>(StringComparer.Ordinal) { ["mode"] = mode }),
+        new RuntimeDetails("llama.cpp", version, loaded, RuntimeProperties(mode, observedProperties)),
         ["Modalities, tools, and reasoning require metadata or bounded probe evidence."]);
+
+    private static SortedDictionary<string, string> RuntimeProperties(string mode, IReadOnlyDictionary<string, string>? observed)
+    {
+        var properties = new SortedDictionary<string, string>(StringComparer.Ordinal) { ["mode"] = mode };
+        if (observed is not null) foreach (var property in observed) properties[property.Key] = property.Value;
+        return properties;
+    }
+
+    private static IReadOnlyDictionary<string, string> DirectRuntimeProperties(JsonElement props)
+    {
+        var properties = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        var speculative = TryPathBool(props, "default_generation_settings", "speculative");
+        var types = TryPathString(props, "default_generation_settings", "params", "speculative.types")
+            ?? TryPathString(props, "default_generation_settings", "params", "speculative.type");
+        if (speculative is null && !string.IsNullOrWhiteSpace(types))
+            speculative = !string.Equals(types, "none", StringComparison.OrdinalIgnoreCase);
+        if (speculative is not null) properties["speculative.enabled"] = speculative.Value ? "true" : "false";
+        if (!string.IsNullOrWhiteSpace(types)) properties["speculative.types"] = types;
+        return properties;
+    }
 
     private static bool HasDirectData(JsonElement root) => root.ValueKind == JsonValueKind.Object
         && root.TryGetProperty("data", out var data)
@@ -125,5 +146,11 @@ public sealed class LlamaCppDiscoveryAdapter(
         var current = element;
         foreach (var part in path) if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(part, out current)) return null;
         return current.ValueKind == JsonValueKind.Number && current.TryGetInt64(out var value) ? value : null;
+    }
+    private static bool? TryPathBool(JsonElement element, params string[] path)
+    {
+        var current = element;
+        foreach (var part in path) if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(part, out current)) return null;
+        return current.ValueKind is JsonValueKind.True or JsonValueKind.False ? current.GetBoolean() : null;
     }
 }

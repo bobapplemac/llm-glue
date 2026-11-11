@@ -31,8 +31,11 @@ For a provider-confirmed llama.cpp route, optional GGUF enrichment uses the
 direct server's reported `model_path` or an exact route-basename match, and only
 when the resolved file remains inside an allowlisted directory. Canonicalized
 paths, including symlink targets, are checked before bounded metadata reads. Metadata may
-fill otherwise-unknown native context, architecture, GGUF type, and multipart
-count; it cannot establish routing or reasoning support. Local paths are never
+fill otherwise-unknown native context, architecture, GGUF type, multipart count,
+and an architecture-scoped positive `nextn_predict_layers` MTP marker. MTP is
+retained only as a runtime artifact trait; it cannot establish routing, reasoning
+support, or a client-selectable variant. Direct-server `/props` speculative state
+is recorded separately as effective runtime configuration. Local paths are never
 placed in the network model. Whole-file SHA-256 is separately opt-in because model
 files can be very large.
 

@@ -35,7 +35,7 @@ public sealed class LlamaCppDiscoveryAdapterTests
                 {"models":[{"name":"smollm-live","model":"smollm-live"}],"object":"list","data":[{"id":"smollm-live","meta":{"n_ctx_train":8192}}]}
                 """),
             "/props" => TestHttpHandler.Json("""
-                {"default_generation_settings":{"n_ctx":2048,"params":{"reasoning_format":"none"}},"build_info":"b8681-Debian"}
+                {"default_generation_settings":{"n_ctx":2048,"params":{"reasoning_format":"none","speculative.type":"draft-mtp"}},"build_info":"b8681-Debian"}
                 """),
             "/v1/models" => throw new InvalidOperationException("The compatibility alias should not trigger a second model request."),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound)
@@ -49,6 +49,8 @@ public sealed class LlamaCppDiscoveryAdapterTests
         Assert.True(model.Runtime.Loaded);
         Assert.Equal("b8681-Debian", model.Runtime.Version);
         Assert.Equal("direct", model.Runtime.Properties["mode"]);
+        Assert.Equal("true", model.Runtime.Properties["speculative.enabled"]);
+        Assert.Equal("draft-mtp", model.Runtime.Properties["speculative.types"]);
         Assert.Equal(ReasoningModeKind.Unknown, model.Capabilities.Reasoning.Kind);
         Assert.Empty(model.Capabilities.Reasoning.Modes);
         Assert.Null(model.Capabilities.Reasoning.Evidence);
@@ -70,6 +72,24 @@ public sealed class LlamaCppDiscoveryAdapterTests
 
         Assert.Equal(ReasoningModeKind.Unknown, model.Capabilities.Reasoning.Kind);
         Assert.Null(model.Capabilities.Reasoning.Evidence);
+    }
+
+    [Fact]
+    public async Task DirectServerAcceptsPluralSpeculativeShape()
+    {
+        var handler = new TestHttpHandler(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/models" => TestHttpHandler.Json("{\"object\":\"list\",\"data\":[{\"id\":\"model.gguf\"}]}"),
+            "/props" => TestHttpHandler.Json("{\"default_generation_settings\":{\"speculative\":false,\"params\":{\"speculative.types\":\"none\"}}}"),
+            _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+        });
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+
+        var model = Assert.Single(await new LlamaCppDiscoveryAdapter(client, "local")
+            .DiscoverAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal("false", model.Runtime.Properties["speculative.enabled"]);
+        Assert.Equal("none", model.Runtime.Properties["speculative.types"]);
     }
 
     [Fact]
@@ -188,17 +208,49 @@ public sealed class LlamaCppDiscoveryAdapterTests
         finally { Directory.Delete(directory, true); }
     }
 
-    private static void WriteGguf(string path, string architecture, ulong context, uint splitCount)
+    [Fact]
+    public async Task ReportsMtpMetadataAsRuntimeTraitWithoutInventingClientModes()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"llm-glue-llama-mtp-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var routeFile = Path.Combine(directory, "qwen-mtp.gguf");
+        try
+        {
+            WriteGguf(routeFile, "qwen35", 262144, splitCount: 1, mtpLayers: 1);
+            var handler = new TestHttpHandler(request => request.RequestUri!.AbsolutePath switch
+            {
+                "/models" => TestHttpHandler.Json("[{\"id\":\"qwen-mtp.gguf\",\"status\":\"loaded\"}]"),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            });
+            using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+
+            var model = Assert.Single(await new LlamaCppDiscoveryAdapter(client, "router", [directory])
+                .DiscoverAsync(TestContext.Current.CancellationToken));
+
+            Assert.Equal("present", model.Runtime.Properties["gguf.mtp"]);
+            Assert.Equal("1", model.Runtime.Properties["gguf.mtp_layers"]);
+            Assert.Equal(ReasoningModeKind.Unknown, model.Capabilities.Reasoning.Kind);
+            Assert.Empty(model.Capabilities.Reasoning.Modes);
+            Assert.Contains(model.Warnings, warning => warning.Contains("runtime artifact trait", StringComparison.Ordinal));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    private static void WriteGguf(string path, string architecture, ulong context, uint splitCount, uint? mtpLayers = null)
     {
         using var writer = new BinaryWriter(File.Create(path), Encoding.UTF8, false);
         writer.Write("GGUF"u8);
         writer.Write((uint)3);
         writer.Write((ulong)0);
-        writer.Write((ulong)4);
+        writer.Write((ulong)(mtpLayers is null ? 4 : 5));
         WriteString(writer, "general.architecture"); writer.Write((uint)8); WriteString(writer, architecture);
         WriteString(writer, $"{architecture}.context_length"); writer.Write((uint)10); writer.Write(context);
         WriteString(writer, "general.file_type"); writer.Write((uint)4); writer.Write((uint)15);
         WriteString(writer, "split.count"); writer.Write((uint)4); writer.Write(splitCount);
+        if (mtpLayers is not null)
+        {
+            WriteString(writer, $"{architecture}.nextn_predict_layers"); writer.Write((uint)4); writer.Write(mtpLayers.Value);
+        }
     }
 
     private static void WriteString(BinaryWriter writer, string value)
