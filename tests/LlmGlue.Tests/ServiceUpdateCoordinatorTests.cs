@@ -55,6 +55,8 @@ public sealed class ServiceUpdateCoordinatorTests
         Assert.Contains("Wait-Healthy", script, StringComparison.Ordinal);
         Assert.Contains("$Rollback", script, StringComparison.Ordinal);
         Assert.Contains("failed and rolled back", script, StringComparison.Ordinal);
+        Assert.Contains("-Encoding UTF8", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("utf8NoBOM", script, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Invoke-Expression", script, StringComparison.OrdinalIgnoreCase);
     }
 

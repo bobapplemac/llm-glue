@@ -121,6 +121,11 @@ quoted `ReadWritePaths` entries. Existing Linux writable directories must alread
 authorize the service account; only newly created directories receive group
 permissions from LLM Glue.
 
+The generic host content root is the configured log directory rather than the
+executable directory. LLM Glue serves no static content, and this prevents
+ASP.NET from requiring directory-list permission around a portable single-file
+binary while retaining explicit configuration-relative data paths.
+
 Update discovery is pinned to official stable GitHub `rN` releases. Assets are
 RID-specific and checksum-verified before staging; the current executable is
 retained as `.rollback`. Service-mode replacement coordinates the fixed SCM or

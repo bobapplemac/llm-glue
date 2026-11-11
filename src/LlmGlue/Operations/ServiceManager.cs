@@ -130,17 +130,18 @@ public static class ServiceManager
 
     private static async Task PrepareWindowsPermissionsAsync(string executable, GlueOptions options, CancellationToken cancellationToken)
     {
-        await RunAsync("icacls.exe", [Path.GetFullPath(executable), "/grant", "*S-1-5-19:(RX)"], cancellationToken);
+        var executablePath = Path.GetFullPath(executable);
+        await RunAsync("icacls.exe", [executablePath, "/grant", "*S-1-5-19:(RX)"], cancellationToken);
         await RunAsync("icacls.exe", [options.ConfigPath, "/grant", "*S-1-5-19:(R)"], cancellationToken);
         var directories = options.Client.Targets.Select(x => Path.GetDirectoryName(Resolve(options, x.Path)))
             .Where(x => x is not null).Cast<string>().ToList();
         if (options.Roles.Server) directories.Add(Resolve(options, options.Server.StateDirectory));
         directories.Add(Path.GetDirectoryName(Resolve(options, options.Logging.File))!);
         foreach (var directory in directories.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
             Directory.CreateDirectory(directory);
-            await RunAsync("icacls.exe", [directory, "/grant", "*S-1-5-19:(OI)(CI)(M)"], cancellationToken);
-        }
+
+        foreach (var directory in directories.Distinct(StringComparer.OrdinalIgnoreCase))
+            await RunAsync("icacls.exe", [directory, "/grant", "*S-1-5-19:(M)"], cancellationToken);
     }
 
     private static async Task PrepareLinuxPermissionsAsync(string executable, GlueOptions options, IReadOnlyList<string> writableDirectories, CancellationToken cancellationToken)

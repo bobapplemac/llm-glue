@@ -30,10 +30,15 @@ public sealed class AgentDiscoveryService(
                 catch (Exception ex) { logger.LogError(ex, "Provider {Provider} discovery failed; retaining prior deployments through grace", adapter.ProviderType); }
             }
 
-            var now = state.TimeProvider.GetUtcNow();
-            var reconciled = CatalogReconciler.Reconcile(state.Snapshot, discovered, now, removalGrace);
-            foreach (var conflict in reconciled.Conflicts) logger.LogError("Catalog conflict: {Conflict}", conflict);
-            await state.PublishAsync(reconciled.Snapshot, stoppingToken);
+            try
+            {
+                var now = state.TimeProvider.GetUtcNow();
+                var reconciled = CatalogReconciler.Reconcile(state.Snapshot, discovered, now, removalGrace);
+                foreach (var conflict in reconciled.Conflicts) logger.LogError("Catalog conflict: {Conflict}", conflict);
+                await state.PublishAsync(reconciled.Snapshot, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
+            catch (Exception ex) { logger.LogError(ex, "Catalog publication failed; retaining last-known-good state for retry"); }
             await Task.Delay(interval, stoppingToken);
         }
     }

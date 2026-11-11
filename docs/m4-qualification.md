@@ -24,6 +24,22 @@ effective loaded context, parameter transport, model add/remove propagation,
 service restart recovery, or Paseo UI behavior. No production configuration was
 modified; the run used isolated temporary paths and all processes were stopped.
 
+## Windows service lifecycle — pass
+
+An elevated, isolated all-role r1 qualification ran as
+`NT AUTHORITY\\LocalService` against local Ollama and a temporary OpenCode target.
+It verified SCM install/start, HTTP health, controlled stop, executable relocation,
+`service repair` updating the absolute path, restart/health from the new location,
+the hidden Windows PowerShell service rollback helper, and uninstall cleanup. The
+rollback result was `success`; the sidecar, state, log, and target stayed in the
+isolated evidence directory, and no `LLMGlue` service remained afterward.
+
+The live run found and corrected two issues that dry-runs could not expose: ASP.NET
+was trying to enumerate a portable executable directory inaccessible to
+LocalService, and the hidden helper used PowerShell 7-only encoding plus a string
+to `[bool]` binding incompatible with Windows PowerShell 5.1. The host now uses its
+authorized log directory as content root, and the helper is 5.1-compatible.
+
 The run also exposed and led to fixes for two real issues: duplicate DI adapter
 registration caused duplicate model identities on the second cycle, and the
 default Windows Event Log provider failed under a non-elevated identity. The
@@ -41,6 +57,7 @@ environment. The following remain mandatory:
 - Captured Off/On and effort-level request bodies at llama.cpp.
 - Functional inference and context/KV/runtime observation.
 - Model add, change, removal, outage, stale-grace, restart, and rollback scenarios.
+- Native systemd install/repair/restart/update/rollback/uninstall behavior.
 
 ## Multi-user and UI — not run
 

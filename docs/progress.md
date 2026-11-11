@@ -31,6 +31,8 @@ Last updated: 2026-11-11
   write-auth boundary; delayed snapshots cannot replace newer Server state.
 - **M4 — live end-to-end:** partial. Live Windows Ollama discovery → Server →
   Client → isolated OpenCode 2.2.7 catalog visibility passed for two models.
+  An elevated all-role Windows service run also passed LocalService identity,
+  health, relocation/repair, restart, service rollback, and uninstall cleanup.
   Functional inference and the Debian llama.cpp/LiteLLM, multi-account, restart,
   change/removal, parameter-capture, and Paseo paths remain blocked on unavailable
   environments. See `docs/m4-qualification.md`.
@@ -48,7 +50,8 @@ Last updated: 2026-11-11
   converted to `false`.
   Service registration now provisions stable least-privilege identities and
   verifies exact executable, sidecar, state, log, and target access before
-  registering the service; live elevated installation remains unqualified.
+  registering the service. Elevated Windows all-role lifecycle and rollback now
+  pass; native systemd remains unqualified.
   Both bootstrap scripts now cover remote-client, standalone Ollama, and central
   llama.cpp/LiteLLM modes, validate before privileged copying, protect generated
   sidecars, and preserve existing configuration. Isolated mocked-release matrices
@@ -175,16 +178,19 @@ authorization or claim either live gate passed beforehand.
 - [x] Isolated Bash and PowerShell preflight matrices cover clean, dirty, ahead,
   behind, detached, collision, ambiguous/wrong remote, and unavailable-remote
   states without GitHub mutation; Bash also verifies partial-failure guidance.
-- [ ] Live Windows SCM and Linux systemd install/move/repair/uninstall qualification.
-- [ ] Live service-mode update, health rollback, and Windows rollback helper qualification.
+- [x] Live Windows SCM install/start/health/move/repair/restart/service rollback/
+  uninstall passes under LocalService with isolated all-role paths.
+- [ ] Native Linux systemd install/move/repair/update/rollback/uninstall qualification.
+- [ ] Live update-apply from an official release asset; none exists without release
+  authorization. Windows service rollback is live-qualified.
 - [ ] Authenticated preflight against the actual clean, already-pushed upstream
   with GitHub CLI available. No publication authorized; isolated Git-state
   success/failure matrices already pass.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Release build and 68 tests; native
-Ubuntu/WSL Release restore/build and 68 tests; PowerShell and Bash bootstrap
+Latest available verification: clean Windows Release build and 69 tests; native
+Ubuntu/WSL Release restore/build and 69 tests; PowerShell and Bash bootstrap
 matrices validate all three modes with real
 single-file binaries; r1 win-x64/linux-x64 execution and Windows/Linux service
 install dry runs pass. These are implementation/packaging evidence, not substitutes

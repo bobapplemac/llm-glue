@@ -29,6 +29,8 @@ is inventory submission and read-only catalog/artifact retrieval.
   and sidecar plus write access only to configured state, log, and target
   directories. Existing Linux directories are verified, not silently
   re-permissioned; installation fails if the service account cannot write them.
+  The host uses the authorized log directory as its content root, avoiding any
+  need to broaden read/list ACLs on executable ancestors after relocation.
 - Persisted Server catalogs are written under the configured owned state directory
   and restored only after canonical inventory and artifact SHA-256 validation.
   Retention ignores non-hash/operator directories.

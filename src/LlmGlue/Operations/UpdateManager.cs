@@ -67,7 +67,7 @@ public static partial class UpdateManager
             var script = options.ServiceMode ? WindowsServiceHelperScript : WindowsStandaloneHelperScript;
             await File.WriteAllTextAsync(helper, script, cancellationToken);
             var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
-            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-File", helper, "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture), "-Source", replacement, "-Destination", executable, "-Rollback", rollback, "-ServiceMode", options.ServiceMode.ToString(), "-HealthUrl", options.HealthUrl?.AbsoluteUri ?? string.Empty, "-ResultPath", Path.Combine(stage, "update-result.log") }) start.ArgumentList.Add(argument);
+            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-File", helper, "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture), "-Source", replacement, "-Destination", executable, "-Rollback", rollback, "-HealthUrl", options.HealthUrl?.AbsoluteUri ?? string.Empty, "-ResultPath", Path.Combine(stage, "update-result.log") }) start.ArgumentList.Add(argument);
             Process.Start(start);
             Console.WriteLine($"Verified {update.Tag}; replacement is staged and will apply after this process exits. ServiceMode={options.ServiceMode}. Result: {Path.Combine(stage, "update-result.log")}. Rollback: {rollback}");
         }
@@ -105,7 +105,7 @@ public static partial class UpdateManager
             var helper = Path.Combine(stage, "apply-rollback.ps1");
             await File.WriteAllTextAsync(helper, serviceMode ? WindowsServiceHelperScript : WindowsStandaloneHelperScript, cancellationToken);
             var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
-            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-File", helper, "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture), "-Source", rollback, "-Destination", executable, "-Rollback", fallback, "-ServiceMode", serviceMode.ToString(), "-HealthUrl", healthUrl?.AbsoluteUri ?? string.Empty, "-ResultPath", Path.Combine(stage, "rollback-result.log") }) start.ArgumentList.Add(argument);
+            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-File", helper, "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture), "-Source", rollback, "-Destination", executable, "-Rollback", fallback, "-HealthUrl", healthUrl?.AbsoluteUri ?? string.Empty, "-ResultPath", Path.Combine(stage, "rollback-result.log") }) start.ArgumentList.Add(argument);
             Process.Start(start);
             Console.WriteLine($"Rollback is staged and will apply after this process exits. Result: {Path.Combine(stage, "rollback-result.log")}");
             return;
@@ -182,20 +182,20 @@ public static partial class UpdateManager
     }
 
     internal const string WindowsStandaloneHelperScript = """
-param([int]$ProcessId,[string]$Source,[string]$Destination,[string]$Rollback,[bool]$ServiceMode,[string]$HealthUrl,[string]$ResultPath)
+param([int]$ProcessId,[string]$Source,[string]$Destination,[string]$Rollback,[string]$HealthUrl,[string]$ResultPath)
 $ErrorActionPreference='Stop'
 try {
   Wait-Process -Id $ProcessId -ErrorAction SilentlyContinue
   Copy-Item -LiteralPath $Source -Destination $Destination -Force
-  Set-Content -LiteralPath $ResultPath -Value 'success' -Encoding utf8NoBOM
+  Set-Content -LiteralPath $ResultPath -Value 'success' -Encoding UTF8
 } catch {
-  Set-Content -LiteralPath $ResultPath -Value "failed: $($_.Exception.Message)" -Encoding utf8NoBOM
+  Set-Content -LiteralPath $ResultPath -Value "failed: $($_.Exception.Message)" -Encoding UTF8
   exit 1
 }
 """;
 
     internal const string WindowsServiceHelperScript = """
-param([int]$ProcessId,[string]$Source,[string]$Destination,[string]$Rollback,[bool]$ServiceMode,[string]$HealthUrl,[string]$ResultPath)
+param([int]$ProcessId,[string]$Source,[string]$Destination,[string]$Rollback,[string]$HealthUrl,[string]$ResultPath)
 $ErrorActionPreference='Stop'
 $service='LLMGlue'
 function Invoke-Sc([string[]]$Arguments,[int[]]$Allowed=@(0)) {
@@ -229,7 +229,7 @@ try {
   Copy-Item -LiteralPath $Source -Destination $Destination -Force
   Invoke-Sc @('start',$service)
   Wait-Healthy
-  Set-Content -LiteralPath $ResultPath -Value 'success' -Encoding utf8NoBOM
+  Set-Content -LiteralPath $ResultPath -Value 'success' -Encoding UTF8
 } catch {
   $activation=$_.Exception.Message
   try {
@@ -238,9 +238,9 @@ try {
     Copy-Item -LiteralPath $Rollback -Destination $Destination -Force
     Invoke-Sc @('start',$service)
     Wait-Healthy
-    Set-Content -LiteralPath $ResultPath -Value "failed and rolled back: $activation" -Encoding utf8NoBOM
+    Set-Content -LiteralPath $ResultPath -Value "failed and rolled back: $activation" -Encoding UTF8
   } catch {
-    Set-Content -LiteralPath $ResultPath -Value "failed; rollback unhealthy: $activation; $($_.Exception.Message)" -Encoding utf8NoBOM
+    Set-Content -LiteralPath $ResultPath -Value "failed; rollback unhealthy: $activation; $($_.Exception.Message)" -Encoding UTF8
   }
   exit 1
 }

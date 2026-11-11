@@ -75,7 +75,7 @@ if (args.Take(2).SequenceEqual(["update", "rollback"]))
 
 if (options.Roles.Server)
 {
-    var builder = WebApplication.CreateBuilder(args);
+    var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = OperationalDirectory(options) });
     ConfigureLogging(builder.Logging, options);
     builder.WebHost.UseUrls(options.Server.Listen.ToString());
     builder.WebHost.ConfigureKestrel(server => server.Limits.MaxRequestBodySize = 4 * 1024 * 1024);
@@ -93,7 +93,7 @@ if (options.Roles.Server)
 }
 else
 {
-    var builder = Host.CreateApplicationBuilder(args);
+    var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { Args = args, ContentRootPath = OperationalDirectory(options) });
     ConfigureLogging(builder.Logging, options);
     builder.Services.AddWindowsService(service => service.ServiceName = "LLMGlue");
     builder.Services.AddSystemd();
@@ -196,6 +196,13 @@ static string? ResolveSecret(string? literal, string? environmentName, string la
     if ((literal is not null || environmentName is not null) && string.IsNullOrEmpty(value))
         throw new ConfigurationException($"{label} source is configured but unavailable.");
     return value;
+}
+
+static string OperationalDirectory(GlueOptions options)
+{
+    var directory = Path.GetDirectoryName(ResolveConfigPath(options, options.Logging.File))!;
+    Directory.CreateDirectory(directory);
+    return directory;
 }
 
 static void ConfigureLogging(ILoggingBuilder logging, GlueOptions options)

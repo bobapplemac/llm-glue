@@ -35,6 +35,11 @@ resolved read and write access needed by the configured roles. Existing Linux
 directories are never silently re-owned or broadened; inability to write is an
 installation error.
 
+Windows uses the configured log directory as the host content root, so a relocated
+single-file executable needs only its file ACL rather than broad read/list access
+on ancestor directories. Hidden activation helpers target inbox Windows
+PowerShell 5.1 syntax and write durable UTF-8 result files.
+
 ## Consequences
 
 `r0` can never be published by the release tooling. A partial remote publication
