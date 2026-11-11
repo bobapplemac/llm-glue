@@ -273,12 +273,16 @@ authorization or claim M5 passed beforehand.
 - [x] Current all-role Windows `-SystemOpenCode` harness qualifies ADR 0007 JSONC
   ownership-sidecar access, real Ollama discovery, and a temporary second Windows
   account in one guarded LocalService pass, including rollback and exact cleanup.
-- [ ] Live update-apply from an official release asset; none exists without release
-  authorization. Windows service rollback is live-qualified.
-- [ ] Authenticated preflight against the actual clean, already-pushed upstream
-  with GitHub CLI authenticated. A verified portable CLI is available, but it is
-  logged out and the branch remains unpushed. No publication is
-  authorized; isolated Git-state success/failure matrices already pass.
+- [ ] Live update-apply from an official release asset; publication is authorized
+  but the asset does not exist yet. Windows service rollback is live-qualified.
+- [x] Authenticated preflight against the actual clean, already-pushed upstream
+  passed at `51932effb5e68c0f6f72508238cbf36804ef2c97` with GitHub CLI 2.103.3.
+  The first publication attempt stopped before creating a tag or release because
+  PowerShell treated the helper parameter name `Arguments` as a named-parameter
+  prefix when the annotated-tag `-a` option was reached. The helper now uses an
+  explicit `GitArguments` remainder parameter; the isolated PowerShell Git-state
+  matrix passes after the correction. Publication must target the final pushed
+  correction commit and re-run the authenticated preflight.
 - [x] M4 representative live suite and both supported deployment paths pass.
 
 Latest available verification: Windows and native Ubuntu/WSL Release builds with

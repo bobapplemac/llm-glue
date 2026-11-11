@@ -10,9 +10,12 @@ param(
 $ErrorActionPreference = 'Stop'
 foreach ($tool in 'git','gh','dotnet','tar') { if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Required tool is missing: $tool" } }
 
-function Invoke-Git([Parameter(ValueFromRemainingArguments)][string[]]$Arguments) {
-    $text = & git @Arguments 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed: $text" }
+function Invoke-Git {
+    [CmdletBinding()]
+    param([Parameter(Position=0, ValueFromRemainingArguments=$true)][string[]]$GitArguments)
+
+    $text = & git @GitArguments 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "git $($GitArguments -join ' ') failed: $text" }
     return ($text | Out-String).Trim()
 }
 function Require-CleanReleaseState {

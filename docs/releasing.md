@@ -16,6 +16,12 @@ passed. `-DryRun` stopped before tag or GitHub release creation. This evidence
 does not replace the required authenticated check against the final pushed commit
 or live update/apply from the official immutable asset.
 
+An authenticated publication rehearsal at `51932ef` also confirmed that the
+guarded path leaves no tag or GitHub release after a local pre-publication error.
+It exposed and corrected a PowerShell remainder-argument binding defect in the
+annotated-tag call; the final release must be rebuilt and rechecked from the
+subsequent correction commit.
+
 Both publishers require exactly one remote named `origin`, an `origin/<branch>`
 upstream, and the pinned raw remote URL `github.com/bobapplemac/llm-glue`. This
 prevents an otherwise clean checkout from publishing the project identity from an

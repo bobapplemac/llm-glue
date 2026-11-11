@@ -17,9 +17,12 @@ $env:PATH = "$tools;$oldPath"
 $oldPrompt = $env:GIT_TERMINAL_PROMPT
 $env:GIT_TERMINAL_PROMPT = '0'
 
-function Invoke-TestGit([Parameter(ValueFromRemainingArguments)][string[]]$Arguments) {
-    & git @Arguments *> $null
-    if ($LASTEXITCODE -ne 0) { throw "git $($Arguments -join ' ') failed" }
+function Invoke-TestGit {
+    [CmdletBinding()]
+    param([Parameter(Position=0, ValueFromRemainingArguments=$true)][string[]]$GitArguments)
+
+    & git @GitArguments *> $null
+    if ($LASTEXITCODE -ne 0) { throw "git $($GitArguments -join ' ') failed" }
 }
 function New-Case([string]$Name) {
     $script:caseRoot = Join-Path $scratch $Name
