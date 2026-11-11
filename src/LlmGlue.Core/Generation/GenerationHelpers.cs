@@ -13,7 +13,8 @@ internal static class GenerationHelpers
         x.Status is DeploymentStatus.Available or DeploymentStatus.Degraded &&
         !string.IsNullOrWhiteSpace(x.Identity.SourceEndpoint) &&
         x.Capabilities.TextInput.State == SupportState.Supported &&
-        x.Capabilities.TextOutput.State == SupportState.Supported);
+        x.Capabilities.TextOutput.State == SupportState.Supported &&
+        x.Capabilities.Reasoning.Kind != ReasoningModeKind.Unknown);
 
     public static string Slug(params string[] values)
     {

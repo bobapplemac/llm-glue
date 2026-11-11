@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-11-10
+Last updated: 2026-11-11
 
 ## Current status
 
@@ -26,7 +26,16 @@ Last updated: 2026-11-10
   Functional inference and the Debian llama.cpp/LiteLLM, multi-account, restart,
   change/removal, parameter-capture, and Paseo paths remain blocked on unavailable
   environments. See `docs/m4-qualification.md`.
-- **M5 — release hardening:** not started. Publication is not authorized.
+- **M5 — release hardening:** implementation substantially complete: dual-RID
+  self-contained single files, runtime-derived rN version identity, interactive
+  bootstrap installers, SCM and
+  systemd lifecycle commands, portable console/rolling-file logs, doctor and
+  operational CLI, checksum-verified stable updates/rollback, guarded equivalent
+  release scripts, packaging manifests, CI, and operator/developer docs. Native
+  Windows and WSL builds/tests pass. Live service install/update/rollback and a
+  clean-pushed release-preflight success remain unqualified; publication is not
+  authorized. Unknown reasoning capability now excludes a deployment from client
+  publication rather than being converted to `false`.
 
 ## M0 acceptance checklist
 
@@ -72,8 +81,10 @@ Last updated: 2026-11-10
 Run M4 live qualification on Debian `labhost03` and representative Windows hosts:
 real llama.cpp/LiteLLM and Ollama inference, model add/change/removal, outage and
 restart recovery, transmitted-parameter capture, two actual OS accounts, and
-OpenCode/Paseo catalog/variant visibility. Continue M5 implementation that does
-not depend on those external environments, but do not claim the M4 gate passed.
+OpenCode/Paseo catalog/variant visibility. Then exercise the implemented M5
+service install/move/update/rollback/uninstall flows on both OSes and the guarded
+release preflight from a clean pushed branch. Do not publish without explicit
+authorization or claim either live gate passed beforehand.
 
 ## M3 acceptance checklist
 
@@ -108,3 +119,36 @@ not depend on those external environments, but do not claim the M4 gate passed.
 - [x] Remote bearer checks distinguish read and write credentials and use fixed-time
   comparison; loopback authentication remains optional.
 - [x] Artifact updates validate before publication and retain bounded history.
+
+## M5 acceptance checklist
+
+- [x] Product remains r0 with Assembly/File `0.0.0.0`; official release build
+  overrides map `rN` to Assembly `1.0.0.0` and File `1.N.0.0`. An r1 qualification
+  publish reported `LLM Glue r1` and Windows FileVersion `1.1.0.0`.
+- [x] Self-contained single-file win-x64 and linux-x64 outputs build; both execute
+  and report `LLM Glue r0` (Windows host and Ubuntu/WSL respectively).
+- [x] GNU Make help, native Linux restore/build/test, Linux script syntax, r0
+  packaging, checksum verification, and commit/version manifest pass.
+- [x] PowerShell installer/release scripts parse successfully; dirty worktree
+  preflight fails closed before any remote mutation.
+- [x] Windows SCM/systemd install, repair, start, stop, status and uninstall are
+  implemented with fixed tools and preservation defaults; install has a verified
+  non-mutating dry-run on both platforms.
+- [x] Explicit update check/apply/rollback accepts pinned stable releases and
+  verifies checksums; failed checks do not affect sync.
+- [x] Console plus bounded rolling-file logs use standard logging abstractions and
+  avoid prompt/request bodies and credentials.
+- [x] CI, installation, quick-start, troubleshooting, security, release, ADR and
+  v2 roadmap documentation are present.
+- [ ] Live Windows SCM and Linux systemd install/move/repair/uninstall qualification.
+- [ ] Live service-mode update, health rollback, and Windows rollback helper qualification.
+- [ ] Clean, already-pushed branch success preflight and dirty/ahead/behind/detached/
+  tag-collision test matrix with GitHub CLI available. No publication authorized.
+- [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
+  until the release's required live suite passes.
+
+Latest available verification: clean Windows Debug build and 37 tests; native
+Ubuntu/WSL Release restore/build and 37 tests; PowerShell AST and Bash syntax
+checks; r1 win-x64/linux-x64 self-contained single-file execution; Windows and
+Linux service-install dry runs. These are implementation/packaging evidence, not
+substitutes for the unchecked live gates above.

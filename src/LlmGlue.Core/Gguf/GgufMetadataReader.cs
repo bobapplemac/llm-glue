@@ -39,9 +39,19 @@ public static class GgufMetadataReader
 
     private static object? ReadValue(BinaryReader reader, uint type) => type switch
     {
-        0 => reader.ReadByte(), 1 => reader.ReadSByte(), 2 => reader.ReadUInt16(), 3 => reader.ReadInt16(),
-        4 => reader.ReadUInt32(), 5 => reader.ReadInt32(), 6 => reader.ReadSingle(), 7 => reader.ReadByte() switch { 0 => false, 1 => true, _ => throw new GgufFormatException("Invalid GGUF boolean.") },
-        8 => ReadString(reader), 9 => ReadArray(reader), 10 => reader.ReadUInt64(), 11 => reader.ReadInt64(), 12 => reader.ReadDouble(),
+        0 => reader.ReadByte(),
+        1 => reader.ReadSByte(),
+        2 => reader.ReadUInt16(),
+        3 => reader.ReadInt16(),
+        4 => reader.ReadUInt32(),
+        5 => reader.ReadInt32(),
+        6 => reader.ReadSingle(),
+        7 => reader.ReadByte() switch { 0 => false, 1 => true, _ => throw new GgufFormatException("Invalid GGUF boolean.") },
+        8 => ReadString(reader),
+        9 => ReadArray(reader),
+        10 => reader.ReadUInt64(),
+        11 => reader.ReadInt64(),
+        12 => reader.ReadDouble(),
         _ => throw new GgufFormatException($"Unsupported GGUF metadata type {type}.")
     };
 

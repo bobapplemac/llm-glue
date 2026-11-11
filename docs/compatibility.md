@@ -1,6 +1,6 @@
 # Compatibility and integration evidence
 
-Evidence date: 2026-11-10. “Live” means executed in the current Windows test
+Evidence date: 2026-11-11. “Live” means executed in the current Windows test
 environment; “source” means inspected official documentation or the installed
 release source. Live production qualification is tracked separately.
 
@@ -11,8 +11,11 @@ release source. Live production qualification is tracked separately.
 | Ollama | 0.40.16 | Live local HTTP API | `/api/tags`, `/api/show`, `/api/ps`, and `/api/version` match the current documented shapes. `/api/show` supplied native context and explicit thinking metadata. |
 | llama.cpp | v0.9.0 stable target | Official server documentation/source | Direct `/v1/models`, router `/models`, and `/props` have distinct discovery roles. Runtime executable/model qualification remains pending. |
 | .NET SDK | 10.0.401 | Live | Build toolchain available on Windows. |
+| .NET SDK (Ubuntu/WSL) | 10.0.115 | Live native Linux build/test | GNU Make restore/build/test and linux-x64 executable startup passed. |
 | Tomlyn | 2.10.2 | Live NuGet restore/build on net10.0 | Compatible parser selected; strict binding tests are an M1 gate. |
 | YamlDotNet | 18.1.0 | Automated net10.0 target tests | LiteLLM primary/generated YAML parsing, include and alias ownership checks. |
+| NLog.Extensions.Logging | 6.2.2 | Build/test | Standard logging provider with console and bounded rolling file targets. |
+| LLM Glue release outputs | r1 qualification build | Live Windows and Ubuntu/WSL execution | Both RID outputs are single files and report `LLM Glue r1`; Windows FileVersion is `1.1.0.0`. No release was published. |
 
 ## OpenCode 2.2.7
 

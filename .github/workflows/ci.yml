@@ -1,0 +1,26 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore LlmGlue.slnx
+      - run: dotnet build LlmGlue.slnx -c Release --no-restore
+      - run: dotnet test LlmGlue.slnx -c Release --no-build --verbosity minimal
+      - if: runner.os == 'Linux'
+        run: make help
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $failed = $false
+          try { ./scripts/Publish-Release.ps1 -Revision 1 -DryRun -CheckOnly } catch { $failed = $true; Write-Host "Expected fail-closed preflight: $_" }
+          if (-not $failed) { throw 'An unpushed CI merge ref unexpectedly passed release preflight.' }

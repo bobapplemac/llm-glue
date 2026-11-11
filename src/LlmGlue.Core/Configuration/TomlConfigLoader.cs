@@ -17,7 +17,7 @@ public static class TomlConfigLoader
         try { root = TomlSerializer.Deserialize<TomlTable>(text) ?? throw new ConfigurationException("Configuration is empty."); }
         catch (Exception ex) when (ex is not ConfigurationException)
         { throw new ConfigurationException($"Invalid TOML in '{fullPath}': {ex.Message}"); }
-        CheckKeys(root, "root", "roles", "agent", "server", "client");
+        CheckKeys(root, "root", "roles", "agent", "server", "client", "logging");
         var roles = RequiredTable(root, "roles");
         CheckKeys(roles, "roles", "agent", "server", "client");
         var roleOptions = new RoleOptions(Bool(roles, "agent", false), Bool(roles, "server", false), Bool(roles, "client", false));
@@ -40,6 +40,12 @@ public static class TomlConfigLoader
         var tokenEnvironment = OptionalString(client, "token_environment");
         var targets = TableArray(client, "targets").Select(ReadTarget).ToArray();
 
+        var logging = OptionalTable(root, "logging");
+        CheckKeys(logging, "logging", "level", "file", "archive_size_mb", "retention");
+        var level = String(logging, "level", "Information");
+        if (level is not ("Trace" or "Debug" or "Information" or "Warning" or "Error" or "Critical")) throw new ConfigurationException("logging.level is invalid.");
+        var loggingOptions = new LoggingOptions(level, String(logging, "file", "logs/llm-glue.log"), PositiveInt(logging, "archive_size_mb", 10), PositiveInt(logging, "retention", 7));
+
         if (!roleOptions.Agent && !roleOptions.Server && !roleOptions.Client)
             throw new ConfigurationException("At least one role must be enabled.");
         if (roleOptions.Agent && providers.Length == 0)
@@ -51,7 +57,7 @@ public static class TomlConfigLoader
 
         var baseDirectory = Path.GetDirectoryName(fullPath)!;
         return new GlueOptions(roleOptions, providers, serverOptions,
-            new ClientOptions(source is null ? null : AbsoluteUri(source, "client.source"), tokenEnvironment, PositiveInt(client, "poll_interval_seconds", 30), targets), fullPath, baseDirectory);
+            new ClientOptions(source is null ? null : AbsoluteUri(source, "client.source"), tokenEnvironment, PositiveInt(client, "poll_interval_seconds", 30), targets), loggingOptions, fullPath, baseDirectory);
     }
 
     private static ProviderOptions ReadProvider(TomlTable table)

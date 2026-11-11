@@ -7,13 +7,15 @@ public static class ApiEndpoints
     public static IEndpointRouteBuilder MapGlueApi(this IEndpointRouteBuilder endpoints)
     {
         var api = endpoints.MapGroup("/api/v1");
-        api.MapGet("/health", () => Results.Ok(new { status = "healthy", version = "r0", schemaVersion = 1 }));
+        api.MapGet("/health", () => Results.Ok(new { status = "healthy", version = ProductInfo.Revision, schemaVersion = 1 }));
         api.MapGet("/inventory", (ApiState state, HttpContext context) => Etag(context, state.Snapshot.ContentHash, state.Snapshot));
         api.MapGet("/models", (ApiState state, HttpContext context) => Etag(context, state.Snapshot.ContentHash, new { schemaVersion = 1, revision = state.Snapshot.ContentHash, models = state.Snapshot.Deployments }));
         api.MapGet("/artifacts/{target}", (string target, ApiState state, HttpContext context) => Artifact(target, state, context));
         api.MapGet("/status", (ApiState state) => Results.Ok(new
         {
-            version = "r0", schemaVersion = 1, revision = state.Snapshot.ContentHash,
+            version = ProductInfo.Revision,
+            schemaVersion = 1,
+            revision = state.Snapshot.ContentHash,
             modelCount = state.Snapshot.Deployments.Count,
             artifacts = new[] { "opencode", "litellm" }.Where(x => state.Store.Latest(x) is not null).ToArray()
         }));

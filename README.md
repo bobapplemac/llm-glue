@@ -32,13 +32,20 @@ dotnet build
 dotnet test
 ```
 
-Installation, service, update, and operator quick-start instructions will be
-completed as the corresponding milestones qualify.
+Operator documentation: [installation](docs/installation.md),
+[troubleshooting](docs/troubleshooting.md), [security](docs/security.md), and
+[release process](docs/releasing.md).
 
 Validated starting configurations are available in [`examples`](examples). The
 all-in-one example discovers local Ollama and targets the system OpenCode file;
 the Linux example discovers llama.cpp and owns only a LiteLLM include; the remote
 example is a Client-only OpenCode consumer.
+
+Useful commands include `run`, `status`, `discover`, `doctor`, `config validate`,
+`config preview opencode|litellm`, `sync --once`, `service
+install|repair|start|stop|status|uninstall`, and `update check|apply|rollback`.
+All commands accept `--config`; otherwise the executable-side `llm-glue.conf` is
+used, with `/etc/llm-glue.conf` as the Linux fallback.
 
 ## Security
 

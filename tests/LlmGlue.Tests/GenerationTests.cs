@@ -37,6 +37,23 @@ public sealed class GenerationTests
         Assert.Empty(json.RootElement.GetProperty("providers").EnumerateObject());
     }
 
+    [Fact]
+    public async Task DoesNotPublishDeploymentWithUnknownReasoningCapability()
+    {
+        var deployment = Qualified() with
+        {
+            Capabilities = Qualified().Capabilities with
+            {
+                Reasoning = new(ReasoningModeKind.Unknown, [])
+            }
+        };
+        var artifact = await new OpenCodeGenerator().GenerateAsync(
+            DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [deployment]),
+            TestContext.Current.CancellationToken);
+        using var json = JsonDocument.Parse(artifact.Content);
+        Assert.Empty(json.RootElement.GetProperty("providers").EnumerateObject());
+    }
+
     public static DiscoverySnapshot Snapshot() => DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [Qualified()]);
 
     public static ModelDeployment Qualified()

@@ -68,3 +68,15 @@ local service identity before checking its configured health URL.
 There is one human-managed TOML sidecar, `llm-glue.conf`. Explicit `--config`
 wins, followed by an executable-side sidecar and, on Linux, `/etc/llm-glue.conf`.
 Relative data paths resolve against the selected config directory.
+
+## Operations and release
+
+The executable hosts under Windows Service or systemd using official .NET 10
+hosting integrations. Registration stores absolute executable/config paths and is
+separate from target-service activation. Local administrative operations call
+fixed OS tools with argument lists and never a command shell.
+
+Update discovery is pinned to official stable GitHub `rN` releases. Assets are
+RID-specific and checksum-verified before staging; the current executable is
+retained as `.rollback`. Release tooling implements the same fail-closed contract
+on GNU Make/bash and PowerShell. See ADR 0003.
