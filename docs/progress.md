@@ -6,24 +6,18 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Current status
 
-- **Official releases:** r2 is published from commit
-  `131bf67f68b5a95c1cc693720e01805f953ab005`. Its guarded local publisher ran
-  all 105 tests and produced both self-contained RIDs. A live labhost03 upgrade
-  then exposed CRLF line endings in the published `SHA256SUMS`; the immutable r2
-  Linux archive verified after normalizing that input and was installed manually.
-  The r2 service, authenticated health endpoint, discovery of ten llama.cpp
-  deployments, generated LiteLLM include, and a real authenticated
-  LiteLLM-to-llama.cpp completion all passed. MarkIV OpenCode 2.2.7 then loaded
-  the generated central provider, selected its `thinking-on` variant,
-  authenticated to the r2-managed LiteLLM route, and returned the exact live
-  marker `OPENCODE_R2_OK`. The Linux bootstrap now normalizes checksum input,
-  the Windows publisher emits LF-only metadata, and the mocked
-  bootstrap matrix exercises CRLF input. A second live finding was that this
-  host's LiteLLM cold start exceeds r2's approximately 20-second health window;
-  the next revision allows a two-minute bounded health qualification window.
-  These corrections are implemented and locally verified but are not published.
-  The authorized r3 preflight additionally exposed and corrected a PowerShell
-  multiline-tag parsing defect before any tag or release was created.
+- **Official releases:** r3 is published from commit
+  `9d29eca4cf0e6c4eb177f65e115c2d91672a08d5`. Its guarded local PowerShell
+  publisher passed all 107 tests, built both self-contained RIDs, and emitted
+  LF-only checksums and manifest metadata linked to the exact commit. GitHub's
+  asset digests match the published checksums. The authorized preflight first
+  exposed and corrected a multiline-tag parsing defect before any remote state
+  was created. The labhost03 r2→r3 post-exit update then reported success;
+  authenticated r3 health, `doctor`, ten-deployment llama.cpp discovery, and
+  LiteLLM health passed. Regeneration triggered the host's 45–50 second LiteLLM
+  cold start and r3's expanded bounded activation window passed it without the
+  r2 rollback loop. MarkIV OpenCode 2.2.7 selected `thinking-on` through the
+  r3-managed route and returned the exact live marker `OPENCODE_R3_OK`.
 
 - **M0 — evidence/interface validation:** implementation design complete;
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,

@@ -50,8 +50,19 @@ endings, which its immutable Linux bootstrap cannot parse, and that its fixed
 activation health window is too short for a 45–50 second LiteLLM cold start.
 Manual checksum normalization allowed safe installation and the complete
 llama.cpp → LiteLLM → MarkIV OpenCode inference path passed. ADR 0012 records the
-corrections prepared for the next release. Publishing that revision requires
-fresh explicit authorization.
+corrections subsequently shipped in r3.
+
+Official `r3` was published from
+`9d29eca4cf0e6c4eb177f65e115c2d91672a08d5` on 2026-11-11 after explicit
+authorization. The guarded local PowerShell publisher passed 107 tests and built
+both RIDs. The published SHA-256 values are
+`45703166f5285ccf683e330db8828bf55718e63891072191cda28f704bb664b1`
+for linux-x64 and
+`b4e38ff4f4e44082301c6d61b837f8738b2ab7e434556c6dd8e10e671426f078`
+for win-x64. GitHub's asset digests match; both metadata files are LF-only and
+the manifest records FileVersion `1.3.0.0` plus the exact commit. A live r2→r3
+post-exit service update passed on labhost03, including the previously failing
+slow LiteLLM activation, followed by real MarkIV OpenCode inference.
 
 Both publishers require exactly one remote named `origin`, an `origin/<branch>`
 upstream, and the pinned raw remote URL `github.com/bobapplemac/llm-glue`. This
@@ -61,9 +72,9 @@ ambiguous or substituted repository.
 Dry runs:
 
 ```text
-make release-check REVISION=1
-make release REVISION=1 DRY_RUN=1
-pwsh ./scripts/Publish-Release.ps1 -Revision 1 -DryRun
+make release-check REVISION=4
+make release REVISION=4 DRY_RUN=1
+pwsh ./scripts/Publish-Release.ps1 -Revision 4 -DryRun
 ```
 
 Both implementations build/test both RIDs, create immutable archives, SHA-256
