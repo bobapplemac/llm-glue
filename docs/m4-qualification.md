@@ -325,6 +325,18 @@ Reproduce on an isolated Linux/WSL host with
 
 Equivalent Windows multi-account behavior remains unqualified.
 
+On MarkIV, a later reversible probe created the exact default
+`C:\ProgramData\opencode\opencode.jsonc` with a unique enabled provider and model.
+OpenCode 2.2.7 parsed its JSONC comment and exposed the unique model through the
+effective `/api/model` endpoint even though the user document had its own provider
+allowlist. The test removed the only file and directory it created. OpenCode's
+source listing duplicated the system document and one immediate post-removal
+invocation retained stale source metadata; after three seconds a fresh process
+listed only the user document. Effective catalog behavior, not the source array,
+is therefore the qualification evidence. This passes the real ProgramData path
+for the installed user, but not LocalService reconciliation or a second Windows
+account.
+
 Paseo 0.15.4 on MarkIV was inspected through its real model chooser. Searching
 for `llm` displayed the exact generated central route
 `llm-glue-llama-cpp-labhost03-router/bench-01-01` and all three generated local
@@ -338,6 +350,7 @@ above rather than being inferred from the UI.
 
 The representative Debian central inference, generated include/restart/rollback,
 catalog lifecycle, fixed-account Compose delegation, native Windows
-OpenCode/Ollama inference, and Linux multi-account precedence paths are verified.
-M4 remains **partial** only for Windows multi-account/system-target behavior;
-this is not simulated or waived.
+OpenCode/Ollama inference, MarkIV ProgramData precedence, and Linux multi-account
+precedence paths are verified. M4 remains **partial** only for current Windows
+LocalService ownership-sidecar access and a second native Windows account; these
+are not simulated or waived.

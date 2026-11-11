@@ -28,6 +28,13 @@ low/medium/high variants during the live test. The system locations are
 `%ProgramData%\opencode\opencode.jsonc` and `/etc/opencode/opencode.jsonc` for
 new LLM Glue installations. OpenCode 2.2.7 live-discovered and parsed the Windows
 system `.jsonc` path with a line comment. Existing `.json` paths remain compatible.
+On MarkIV, a reversible live probe then placed a unique provider/model at that
+exact ProgramData path and the effective `/api/model` endpoint exposed it, despite
+the installed user allowlist. This qualifies current-user system-path precedence.
+`debug config` listed the same system document twice and briefly retained the
+deleted source in one immediate post-cleanup invocation; a fresh invocation three
+seconds later listed only the user document. Source arrays remain diagnostic, not
+effective-state evidence.
 
 An isolated WSL qualification created two actual Linux accounts. For each,
 `/etc/opencode/opencode.json` won conflicting provider/model ID, name, endpoint,
@@ -222,8 +229,9 @@ Sources: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.
   real sync, health, unrelated-unit denial, persistent-service handoff, and
   authenticated inference passed. Other deployments must install and verify an
   equivalent unit-specific rule; LLM Glue does not grant itself privileges.
-- Two-account system precedence is qualified on Linux/WSL, but not Windows or
-  Windows Server 2025.
+- Two-account system precedence is qualified on Linux/WSL. MarkIV current-user
+  ProgramData precedence is qualified, but a second native Windows account and
+  Windows Server 2025 remain unqualified.
 - OpenCode functional inference and CLI variant selection are qualified on native
   Windows; Paseo 0.15.4 catalog and binary-variant presentation are also
   live-qualified.

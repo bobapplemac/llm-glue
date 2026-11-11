@@ -82,7 +82,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   reasoning-off remains unknown because `reasoning_effort=none` still emitted
   reasoning. Paseo 0.15.4 displayed the generated central and local model IDs and
   exposed `Thinking off`/`Thinking on` for the selected central route. Windows
-  multi-account/system-target service remains open. The lab Compose path now runs
+  LocalService ownership-sidecar and second-account checks remain open. A
+  reversible MarkIV probe proved that the exact ProgramData JSONC path wins in
+  the installed user's effective model catalog. The lab Compose path now runs
   as the fixed `llm-glue` account: a polkit rule permits only restart of the exact
   root-owned activation unit, an unrelated-unit restart was denied, real sync and
   health passed, and authenticated LiteLLM-to-llama.cpp inference survived the
@@ -174,7 +176,7 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Next steps
 
-Complete the remaining Windows multi-account/system-target checks. Then
+Complete the remaining Windows LocalService sidecar and second-account checks. Then
 exercise the implemented M5
 service install/move/update/rollback/uninstall flows on both OSes and the guarded
 release preflight from a clean pushed branch. Do not publish without explicit
@@ -267,7 +269,7 @@ authorization or claim either live gate passed beforehand.
 - [ ] Authenticated preflight against the actual clean, already-pushed upstream
   with GitHub CLI available. No publication authorized; isolated Git-state
   success/failure matrices already pass.
-- [ ] Remaining M4 Windows multi-account/system-target gate; M5 cannot be
+- [ ] Remaining M4 Windows LocalService-sidecar and second-account gate; M5 cannot be
   declared passed until the
   release's required live suite passes.
 
