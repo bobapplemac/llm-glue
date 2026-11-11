@@ -26,8 +26,8 @@
 - The default Agent discovery interval is now 60 seconds instead of 30. Discovery
   still runs immediately at service startup, waits only after a completed cycle,
   and remains configurable through `agent.discovery_interval_seconds`.
-- Client conditional artifact polling remains independently configurable and
-  defaults to 30 seconds.
+- Client conditional artifact polling remains independently configurable and now
+  also defaults to 60 seconds for a consistent low-churn synchronization cadence.
 
 Last updated: 2026-11-11
 

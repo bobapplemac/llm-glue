@@ -44,6 +44,7 @@ public sealed class ConfigurationTests
             Assert.False(options.Providers[0].HashModelFiles);
             Assert.Equal(CapabilityProbeMode.Off, options.Providers[0].ProbeMode);
             Assert.Equal(60, options.Agent.DiscoveryIntervalSeconds);
+            Assert.Equal(60, options.Client.PollIntervalSeconds);
             Assert.Equal("litellm", Assert.Single(options.Client.Targets).Type);
             Assert.Equal("state", options.Server.StateDirectory);
             Assert.Equal(5, options.Server.ArtifactRetention);

@@ -96,7 +96,7 @@ public static class TomlConfigLoader
             throw new ConfigurationException("Remote client.source requires client.token_environment or a protected client.token.");
 
         return new GlueOptions(roleOptions, agentOptions, serverOptions,
-            new ClientOptions(sourceUri, tokenEnvironment, token, PositiveInt(client, "poll_interval_seconds", 30), targets), loggingOptions, fullPath, baseDirectory);
+            new ClientOptions(sourceUri, tokenEnvironment, token, PositiveInt(client, "poll_interval_seconds", 60), targets), loggingOptions, fullPath, baseDirectory);
     }
 
     private static void ValidateOpenCodeInferenceSecret(ServerOptions server)

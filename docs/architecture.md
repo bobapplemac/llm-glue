@@ -28,7 +28,8 @@ servers and routers can both serve a top-level `data` array, entry-level nested 
 evidence identifies router inventory; plain OpenAI model entries use direct mode.
 Agent discovery runs immediately at service start and then waits 60 seconds by
 default after each completed cycle. `agent.discovery_interval_seconds` can tune
-that cadence independently of lightweight Client artifact polling.
+that cadence. Client conditional artifact polling independently defaults to 60
+seconds and is configurable through `client.poll_interval_seconds`.
 Local GGUF inspection is constrained
 to configured directory allowlists; a file is never considered routable merely
 because it exists.
