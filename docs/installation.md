@@ -24,7 +24,15 @@ Interactive installation offers `remote-client`, `standalone-ollama`, and
 `central-llama`. It asks only for the URLs, secrets, provider/target paths, and
 optional service registration needed by that mode. The central mode configures
 llama.cpp discovery, authenticated Server publication, and the owned LiteLLM
-include; it never edits the operator's primary LiteLLM YAML.
+include; it never edits the operator's primary LiteLLM YAML. Central mode also
+requires the externally reachable LiteLLM base URL (`-LiteLlmUrl` or
+`LLM_GLUE_LITELLM_URL`). LLM Glue publishes that URL and its generated stable
+aliases to OpenCode; it must not be the private llama.cpp discovery URL.
+Each OpenCode/Paseo runtime must receive a valid LiteLLM client key as
+`LLM_GLUE_INFERENCE_API_KEY` in its process/service environment. This is a
+one-time client credential setup; generated configuration contains only the
+OpenCode `{env:...}` reference and never the key. LiteLLM's master key or a
+properly scoped virtual key may be used according to the operator's policy.
 
 Headless PowerShell installs use `-NonInteractive` with the corresponding named
 parameters. Headless Linux installs set `LLM_GLUE_NONINTERACTIVE=1`,
@@ -32,7 +40,7 @@ parameters. Headless Linux installs set `LLM_GLUE_NONINTERACTIVE=1`,
 `LLM_GLUE_SERVER_TOKEN`, `LLM_GLUE_OLLAMA_URL`, `LLM_GLUE_LLAMA_URL`,
 `LLM_GLUE_LISTEN_URL`, `LLM_GLUE_READ_TOKEN`, `LLM_GLUE_WRITE_TOKEN`,
 `LLM_GLUE_MODEL_DIRECTORY`, `LLM_GLUE_OPENCODE_PATH`, the
-`LLM_GLUE_LITELLM_*` paths/service/health settings, and
+`LLM_GLUE_LITELLM_*` URL/paths/service/health settings, and
 `LLM_GLUE_INSTALL_SERVICE`. `LLM_GLUE_INSTALL_DIR` and
 `LLM_GLUE_CONFIG_PATH` override destinations. Linux service installs otherwise
 use `/opt/llm-glue` and `/etc/llm-glue.conf`; foreground installs remain

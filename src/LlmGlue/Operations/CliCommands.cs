@@ -17,6 +17,7 @@ public static class CliCommands
         Console.WriteLine($"Config: {options.ConfigPath}");
         Console.WriteLine($"Roles: agent={options.Roles.Agent}, server={options.Roles.Server}, client={options.Roles.Client}");
         Console.WriteLine($"Server: {options.Server.Listen}");
+        Console.WriteLine($"OpenCode inference route: {(options.Server.OpenCodeInferenceUrl is null ? "direct provider endpoints" : options.Server.OpenCodeInferenceUrl)}");
         Console.WriteLine($"Server read token: {SecretStatus(options.Server.ReadToken, options.Server.ReadTokenEnvironment)}");
         Console.WriteLine($"Server write token: {SecretStatus(options.Server.WriteToken, options.Server.WriteTokenEnvironment)}");
         Console.WriteLine($"Server state: {ResolvePath(options, options.Server.StateDirectory)} (retention {options.Server.ArtifactRetention})");
@@ -52,7 +53,7 @@ public static class CliCommands
     {
         IConfigurationGenerator generator = target switch
         {
-            "opencode" => new OpenCodeGenerator(),
+            "opencode" => new OpenCodeGenerator(options.Server.OpenCodeInferenceUrl),
             "litellm" => new LiteLlmGenerator(),
             _ => throw new ConfigurationException("config preview target must be opencode or litellm.")
         };

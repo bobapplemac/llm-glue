@@ -46,6 +46,8 @@ The root bootstrap scripts install a checksum-verified stable release and can
 configure a remote OpenCode client, standalone Ollama/OpenCode host, or central
 llama.cpp/LiteLLM host. They validate the candidate sidecar before installation,
 preserve an existing sidecar, and retain the previous executable for rollback.
+Central mode requires a LiteLLM URL reachable by OpenCode clients so generated
+catalogs follow the required OpenCode → LiteLLM → llama.cpp path.
 See [installation](docs/installation.md) before using the network-pipe form.
 
 Useful commands include `run`, `status`, `discover`, `doctor`, `config validate`,

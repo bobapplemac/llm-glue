@@ -106,7 +106,7 @@ else
 
 static void AddServer(IServiceCollection services, GlueOptions options)
 {
-    services.AddSingleton<IConfigurationGenerator, OpenCodeGenerator>();
+    services.AddSingleton<IConfigurationGenerator>(_ => new OpenCodeGenerator(options.Server.OpenCodeInferenceUrl));
     services.AddSingleton<IConfigurationGenerator>(_ => new LiteLlmGenerator());
     services.AddSingleton(new ArtifactStore(options.Server.ArtifactRetention));
     services.AddSingleton(new CatalogStateRepository(ResolveConfigPath(options, options.Server.StateDirectory), options.Server.ArtifactRetention));

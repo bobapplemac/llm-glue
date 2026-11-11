@@ -22,6 +22,7 @@ public sealed class ConfigurationTests
 
             [server]
             listen = "http://127.0.0.1:8765"
+            opencode_inference_url = "https://litellm.example.test"
 
             [client]
             source = "http://127.0.0.1:8765"
@@ -44,6 +45,7 @@ public sealed class ConfigurationTests
             Assert.Equal("litellm", Assert.Single(options.Client.Targets).Type);
             Assert.Equal("state", options.Server.StateDirectory);
             Assert.Equal(5, options.Server.ArtifactRetention);
+            Assert.Equal(new Uri("https://litellm.example.test"), options.Server.OpenCodeInferenceUrl);
         }
         finally { File.Delete(path); }
     }
@@ -59,6 +61,28 @@ public sealed class ConfigurationTests
             surprise = true
             """);
         try { Assert.Contains("Unknown setting", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void RejectsCentralLiteLlmTargetWithoutClientReachableInferenceUrl()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = false
+            server = true
+            client = true
+            [server]
+            listen = "http://127.0.0.1:8765"
+            [client]
+            source = "http://127.0.0.1:8765"
+            [[client.targets]]
+            type = "litellm"
+            path = "generated.yaml"
+            primary_config_path = "config.yaml"
+            service_name = "litellm.service"
+            """);
+        try { Assert.Contains("opencode_inference_url", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
         finally { File.Delete(path); }
     }
 

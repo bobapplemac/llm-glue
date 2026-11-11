@@ -5,6 +5,7 @@ RID ?= linux-x64
 OUT ?= artifacts
 REVISION ?= 0
 DRY_RUN ?= 0
+PYTHON ?= python3
 
 ifeq ($(REVISION),0)
 ASSEMBLY_VERSION := 0.0.0.0
@@ -17,10 +18,10 @@ PACKAGE_VERSION := 1.$(REVISION).0
 endif
 VERSION_ARGS := -p:AssemblyVersion=$(ASSEMBLY_VERSION) -p:FileVersion=$(FILE_VERSION) -p:InformationalVersion=r$(REVISION) -p:Version=$(PACKAGE_VERSION)
 
-.PHONY: help restore build test clean publish-linux publish-windows package release-check release
+.PHONY: help restore build test test-litellm clean publish-linux publish-windows package release-check release
 
 help: ## Show this help and configurable variables
-	@awk 'BEGIN {FS = ":.*## "; printf "LLM Glue r0 build\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2} END {printf "\nVariables: CONFIG=%s RID=%s OUT=%s REVISION=%s DRY_RUN=%s\n", "$(CONFIG)", "$(RID)", "$(OUT)", "$(REVISION)", "$(DRY_RUN)"}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "; printf "LLM Glue r0 build\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2} END {printf "\nVariables: CONFIG=%s RID=%s OUT=%s REVISION=%s DRY_RUN=%s PYTHON=%s\n", "$(CONFIG)", "$(RID)", "$(OUT)", "$(REVISION)", "$(DRY_RUN)", "$(PYTHON)"}' $(MAKEFILE_LIST)
 
 restore: ## Restore pinned .NET dependencies
 	dotnet restore LlmGlue.slnx
@@ -30,6 +31,9 @@ build: ## Build the solution with warnings as errors
 
 test: ## Run all automated tests
 	dotnet test LlmGlue.slnx -c $(CONFIG) --no-restore --verbosity minimal
+
+test-litellm: ## Run opt-in LiteLLM 1.109.0 forwarding integration test
+	$(PYTHON) scripts/test-litellm-forwarding.py
 
 clean: ## Clean owned build output only
 	dotnet clean LlmGlue.slnx -c $(CONFIG)

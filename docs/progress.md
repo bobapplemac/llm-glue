@@ -23,6 +23,9 @@ Last updated: 2026-11-11
   the exact verified variant body without inventing modes. Exact scoped exclusions
   retain diagnostic visibility while filtering both generated artifacts. Catalog
   state and artifacts are transactionally persisted and hash-validated on restart.
+  Central OpenCode artifacts now fail closed unless configured with a
+  client-reachable LiteLLM URL, and use LiteLLM's stable alias rather than a
+  private llama.cpp route.
 - **M3 — client/targets:** implemented; conditional polling with bearer auth,
   bounded downloads/backoff, destination locks, validation/staging, atomic replace,
   no-op detection, bounded backups, reactivation rollback, scoped OpenCode merge,
@@ -35,9 +38,12 @@ Last updated: 2026-11-11
   health, relocation/repair, restart, service rollback, and uninstall cleanup.
   Native Ollama Off/On inference, effective/native context separation, full-VRAM
   residency, and loaded-only route probing passed for Qwen 3.5 4B. OpenCode/Paseo
-  parameter forwarding and the Debian llama.cpp/LiteLLM, multi-account, restart,
+  reasoning/thinking parameter forwarding and the Debian llama.cpp/LiteLLM, multi-account, restart,
   change/removal, parameter-capture, and Paseo paths remain blocked on unavailable
-  environments. See `docs/m4-qualification.md`.
+  environments. A real LiteLLM 1.109.0 proxy with a captured mock upstream did
+  verify stable alias routing, response flow, standard inference parameters, the
+  binary `enable_thinking` field, and environment-backed backend authentication.
+  See `docs/m4-qualification.md`.
 - **M5 — release hardening:** implementation substantially complete: dual-RID
   self-contained single files, runtime-derived rN version identity, interactive
   bootstrap installers, SCM and
@@ -142,6 +148,10 @@ authorization or claim either live gate passed beforehand.
   transport-verified request-body variants.
 - [x] LiteLLM output owns only `model_list`, uses stable aliases and environment
   secret references.
+- [x] LiteLLM 1.109.0 executable forwarding test verifies `openai/` route mapping,
+  stable alias resolution, response flow, standard parameters, binary
+  `enable_thinking`, and backend auth;
+  the representative llama.cpp/thinking path remains M4.
 - [x] Golden JSON/YAML are deterministic across platform newlines.
 - [x] Generated OpenCode artifact accepted by OpenCode 2.2.7 effective model API.
 - [x] Versioned health/inventory/models/artifact/status/Agent endpoints exist.
@@ -192,8 +202,9 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Release build and 69 tests; native
-Ubuntu/WSL Release restore/build and 69 tests; PowerShell and Bash bootstrap
+Latest available verification: clean Windows Release build and 71 tests; native
+Ubuntu/WSL Release restore/build and 71 tests;
+LiteLLM 1.109.0 proxy forwarding with a captured upstream; PowerShell and Bash bootstrap
 matrices validate all three modes with real
 single-file binaries; r1 win-x64/linux-x64 execution and Windows/Linux service
 install dry runs pass. These are implementation/packaging evidence, not substitutes

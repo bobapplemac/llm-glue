@@ -41,10 +41,11 @@ try {
     if (-not (Select-String -Quiet -SimpleMatch '[[agent.providers]]' (Join-Path $standalone 'llm-glue.conf'))) { throw 'Standalone provider was not generated.' }
 
     $central = Join-Path $temporary 'central'
-    & $installer -NonInteractive -Mode central-llama -InstallDirectory $central -ReadToken test-read -WriteToken test-write -ListenUrl http://0.0.0.0:9876 -ModelDirectory (Join-Path $temporary 'models') -LiteLlmGeneratedPath (Join-Path $temporary 'generated.yaml') -LiteLlmPrimaryPath (Join-Path $temporary 'litellm.yaml')
+    & $installer -NonInteractive -Mode central-llama -InstallDirectory $central -ReadToken test-read -WriteToken test-write -ListenUrl http://0.0.0.0:9876 -LiteLlmUrl http://litellm.test:4000 -ModelDirectory (Join-Path $temporary 'models') -LiteLlmGeneratedPath (Join-Path $temporary 'generated.yaml') -LiteLlmPrimaryPath (Join-Path $temporary 'litellm.yaml')
     & (Join-Path $central 'llm-glue.exe') config validate --config (Join-Path $central 'llm-glue.conf')
     if (-not (Select-String -Quiet -SimpleMatch 'source = "http://127.0.0.1:9876"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central loopback source did not follow the listen port.' }
     if (-not (Select-String -Quiet -SimpleMatch 'type = "litellm"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central LiteLLM target was not generated.' }
+    if (-not (Select-String -Quiet -SimpleMatch 'opencode_inference_url = "http://litellm.test:4000"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central OpenCode route does not use LiteLLM.' }
     Write-Host 'PowerShell bootstrap configuration matrix passed.'
 } finally {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }

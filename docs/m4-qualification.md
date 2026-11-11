@@ -35,6 +35,21 @@ dormant routes. The model was explicitly unloaded afterward. This verifies the
 native provider contract and probe policy; OpenCode/Paseo forwarding and UI
 selection remain unqualified.
 
+## LiteLLM forwarding with captured upstream — pass
+
+Pinned LiteLLM 1.109.0 was launched with its required master key using the
+generated golden route shape and an environment-backed provider credential. A
+real `/v1/chat/completions` request traversed the proxy to a local capturing
+OpenAI-compatible upstream and returned through LiteLLM. The capture verified the
+stable alias translated to the upstream model, the provider bearer credential was
+used, and `temperature`, `top_p`, `max_tokens`, and the binary variant field
+`enable_thinking = true` arrived unchanged. This test also found and corrected
+two integration assumptions: `openai_like/` is unmapped
+at request time in 1.109.0 (use `openai/` with `api_base`), and central OpenCode
+artifacts must use the client-reachable LiteLLM URL plus LiteLLM alias rather than
+the private llama.cpp route. Live llama.cpp interpretation of the thinking field,
+effort-level profiles, and real model output remain part of the Debian gate below.
+
 ## Windows service lifecycle — pass
 
 An elevated, isolated all-role r1 qualification ran as

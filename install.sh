@@ -16,6 +16,7 @@ opencode_path="${LLM_GLUE_OPENCODE_PATH:-/etc/opencode/opencode.json}"
 litellm_generated="${LLM_GLUE_LITELLM_GENERATED:-/opt/litellm/llm-glue-models.yaml}"
 litellm_primary="${LLM_GLUE_LITELLM_PRIMARY:-/opt/litellm/config.yaml}"
 litellm_service="${LLM_GLUE_LITELLM_SERVICE:-litellm.service}"
+litellm_url="${LLM_GLUE_LITELLM_URL:-http://replace-with-your-litellm:4000}"
 litellm_health="${LLM_GLUE_LITELLM_HEALTH:-http://127.0.0.1:4000/health/liveliness}"
 tmp="$(mktemp -d)"
 trap 'rm -rf -- "$tmp"' EXIT
@@ -63,6 +64,7 @@ if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
       litellm_primary="$(prompt 'LiteLLM primary config path' "$litellm_primary")"
       litellm_generated="$(prompt 'LLM Glue LiteLLM include path' "$litellm_generated")"
       litellm_service="$(prompt 'LiteLLM systemd service' "$litellm_service")"
+      litellm_url="$(prompt 'Externally reachable LiteLLM URL for OpenCode clients' "$litellm_url")"
       litellm_health="$(prompt 'LiteLLM health URL' "$litellm_health")"
       ;;
     *) echo 'invalid installation mode' >&2; exit 2 ;;
@@ -83,6 +85,10 @@ if [[ "$install_service" == 1 && "$mode" == remote-client && -z "$server_token" 
 fi
 if [[ "$mode" == central-llama && ( -z "$read_token" || -z "$write_token" ) ]]; then
   echo 'central-llama requires LLM_GLUE_READ_TOKEN and LLM_GLUE_WRITE_TOKEN values (or interactive secret prompts).' >&2
+  exit 2
+fi
+if [[ "$mode" == central-llama && "$litellm_url" == http://replace-with-your-litellm:4000 ]]; then
+  echo 'central-llama requires LLM_GLUE_LITELLM_URL reachable by remote OpenCode clients.' >&2
   exit 2
 fi
 
@@ -117,7 +123,7 @@ elif [[ "$mode" == standalone-ollama ]]; then
 else
   [[ "$listen_url" =~ :([0-9]+)(/.*)?$ ]] || { echo 'LLM_GLUE_LISTEN_URL must include an explicit port' >&2; exit 2; }
   local_source="http://127.0.0.1:${BASH_REMATCH[1]}"
-  printf '%s\n' '[roles]' 'agent = true' 'server = true' 'client = true' '' '[[agent.providers]]' 'name = "local-llama"' 'type = "llama.cpp"' "url = \"$(toml_escape "$llama_url")\"" "model_directories = [\"$(toml_escape "$model_directory")\"]" 'inspect_gguf = true' 'hash_model_files = false' 'probe_mode = "loaded-only"' '' '[server]' "listen = \"$(toml_escape "$listen_url")\"" "read_token = \"$(toml_escape "$read_token")\"" "write_token = \"$(toml_escape "$write_token")\"" 'acknowledge_insecure_remote_http = true' 'state_directory = "/var/lib/llm-glue"' '' '[client]' "source = \"$local_source\"" "token = \"$(toml_escape "$read_token")\"" '' '[[client.targets]]' 'type = "litellm"' "path = \"$(toml_escape "$litellm_generated")\"" "primary_config_path = \"$(toml_escape "$litellm_primary")\"" "service_name = \"$(toml_escape "$litellm_service")\"" "health_url = \"$(toml_escape "$litellm_health")\"" '' '[logging]' 'file = "/var/log/llm-glue/llm-glue.log"' > "$candidate"
+  printf '%s\n' '[roles]' 'agent = true' 'server = true' 'client = true' '' '[[agent.providers]]' 'name = "local-llama"' 'type = "llama.cpp"' "url = \"$(toml_escape "$llama_url")\"" "model_directories = [\"$(toml_escape "$model_directory")\"]" 'inspect_gguf = true' 'hash_model_files = false' 'probe_mode = "loaded-only"' '' '[server]' "listen = \"$(toml_escape "$listen_url")\"" "opencode_inference_url = \"$(toml_escape "$litellm_url")\"" "read_token = \"$(toml_escape "$read_token")\"" "write_token = \"$(toml_escape "$write_token")\"" 'acknowledge_insecure_remote_http = true' 'state_directory = "/var/lib/llm-glue"' '' '[client]' "source = \"$local_source\"" "token = \"$(toml_escape "$read_token")\"" '' '[[client.targets]]' 'type = "litellm"' "path = \"$(toml_escape "$litellm_generated")\"" "primary_config_path = \"$(toml_escape "$litellm_primary")\"" "service_name = \"$(toml_escape "$litellm_service")\"" "health_url = \"$(toml_escape "$litellm_health")\"" '' '[logging]' 'file = "/var/log/llm-glue/llm-glue.log"' > "$candidate"
 fi
 chmod 0600 "$candidate"
 "$staged" config validate --config "$candidate"

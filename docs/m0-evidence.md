@@ -73,6 +73,13 @@ values. An included-file change was not watched. A root-file change was noticed 
 restart applied the generated change. Production design therefore uses validated
 atomic replacement plus configured restart/health/rollback.
 
+Later executable forwarding qualification corrected two assumptions that parsing
+could not validate: chat routes must use `openai/<model>` plus `api_base` because
+1.109.0 rejects `openai_like/<model>` as unmapped, and central OpenCode artifacts
+must use the public LiteLLM URL plus generated alias rather than the private
+llama.cpp discovery endpoint. LiteLLM also requires a master key by default.
+These corrections are captured in ADR 0005 and a repeatable captured-upstream test.
+
 ## TOML choice
 
 Tomlyn 2.10.2 is the selected maintained .NET TOML parser. Its package restored

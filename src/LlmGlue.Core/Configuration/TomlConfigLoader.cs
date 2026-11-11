@@ -35,9 +35,11 @@ public static class TomlConfigLoader
             PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");
-        CheckKeys(server, "server", "listen", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
+        CheckKeys(server, "server", "listen", "opencode_inference_url", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
+        var openCodeInferenceUrl = OptionalString(server, "opencode_inference_url");
         var serverOptions = new ServerOptions(
             AbsoluteUri(String(server, "listen", "http://127.0.0.1:8765"), "server.listen"),
+            openCodeInferenceUrl is null ? null : HttpUri(openCodeInferenceUrl, "server.opencode_inference_url"),
             OptionalString(server, "read_token_environment"), OptionalString(server, "write_token_environment"),
             OptionalString(server, "read_token"), OptionalString(server, "write_token"),
             Bool(server, "acknowledge_insecure_remote_http", false),
@@ -52,6 +54,8 @@ public static class TomlConfigLoader
         var tokenEnvironment = OptionalString(client, "token_environment");
         var token = OptionalString(client, "token");
         var targets = TableArray(client, "targets").Select(ReadTarget).ToArray();
+        if (roleOptions.Server && targets.Any(x => x.Type == "litellm") && serverOptions.OpenCodeInferenceUrl is null)
+            throw new ConfigurationException("A Server with a LiteLLM target requires server.opencode_inference_url so remote OpenCode artifacts route through LiteLLM instead of private provider endpoints.");
 
         var logging = OptionalTable(root, "logging");
         CheckKeys(logging, "logging", "level", "file", "archive_size_mb", "retention");

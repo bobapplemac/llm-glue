@@ -36,6 +36,7 @@ public sealed record ProviderOptions(
 
 public sealed record ServerOptions(
     Uri Listen,
+    Uri? OpenCodeInferenceUrl,
     string? ReadTokenEnvironment,
     string? WriteTokenEnvironment,
     string? ReadToken,

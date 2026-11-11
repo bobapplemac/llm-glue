@@ -53,7 +53,17 @@ LiteLLM synchronization owns one generated include whose content is limited to
 once. Activation uses an explicitly configured, narrowly allowlisted local
 restart/health-check mechanism; it does not rely on development auto-reload.
 
-See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md).
+Central llama.cpp deployments set `server.opencode_inference_url` to the
+client-reachable LiteLLM base URL. Their OpenCode artifact uses that URL and the
+same deterministic aliases generated into LiteLLM, while the LiteLLM include
+continues to use each private llama.cpp route. Configuration validation rejects a
+Server/LiteLLM target without this boundary. Standalone Ollama deployments omit
+the setting and continue to publish direct provider routes. Central provider
+settings reference `LLM_GLUE_INFERENCE_API_KEY` through OpenCode's `{env:...}`
+substitution; the secret itself never enters an artifact.
+
+See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md) and
+[ADR 0005](decisions/0005-central-litellm-routing.md).
 
 ## Network and persistence
 

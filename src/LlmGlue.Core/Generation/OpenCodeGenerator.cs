@@ -6,8 +6,9 @@ using LlmGlue.Core.Domain;
 
 namespace LlmGlue.Core.Generation;
 
-public sealed class OpenCodeGenerator : IConfigurationGenerator
+public sealed class OpenCodeGenerator(Uri? inferenceBaseUrl = null) : IConfigurationGenerator
 {
+    public const string InferenceApiKeyEnvironment = "LLM_GLUE_INFERENCE_API_KEY";
     public string TargetType => "opencode";
 
     public ValueTask<GeneratedArtifact> GenerateAsync(DiscoverySnapshot snapshot, CancellationToken cancellationToken)
@@ -19,13 +20,15 @@ public sealed class OpenCodeGenerator : IConfigurationGenerator
             var models = new JsonObject();
             foreach (var deployment in group.OrderBy(x => x.Identity.ModelId, StringComparer.Ordinal))
                 models[deployment.Identity.ModelId] = CreateModel(deployment);
-            var endpoint = group.Key.SourceEndpoint!.TrimEnd('/');
+            var endpoint = (inferenceBaseUrl?.AbsoluteUri ?? group.Key.SourceEndpoint!).TrimEnd('/');
             if (!endpoint.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)) endpoint += "/v1";
+            var settings = new JsonObject { ["baseURL"] = endpoint };
+            if (inferenceBaseUrl is not null) settings["apiKey"] = $"{{env:{InferenceApiKeyEnvironment}}}";
             providers[GenerationHelpers.Slug("llm-glue", group.Key.ProviderId, group.Key.InstanceId)] = new JsonObject
             {
                 ["name"] = $"LLM Glue {group.Key.InstanceId}",
                 ["package"] = "@opencode/ai/providers/openai-compatible",
-                ["settings"] = new JsonObject { ["baseURL"] = endpoint },
+                ["settings"] = settings,
                 ["models"] = models
             };
         }
@@ -34,7 +37,7 @@ public sealed class OpenCodeGenerator : IConfigurationGenerator
         return ValueTask.FromResult(GenerationHelpers.Artifact("application/json", text));
     }
 
-    private static JsonObject CreateModel(ModelDeployment deployment)
+    private JsonObject CreateModel(ModelDeployment deployment)
     {
         var input = new JsonArray("text");
         if (deployment.Capabilities.ImageInput.State == SupportState.Supported) input.Add("image");
@@ -48,7 +51,7 @@ public sealed class OpenCodeGenerator : IConfigurationGenerator
         };
         var model = new JsonObject
         {
-            ["modelID"] = deployment.Identity.Route,
+            ["modelID"] = inferenceBaseUrl is null ? deployment.Identity.Route : LiteLlmGenerator.Alias(deployment),
             ["name"] = deployment.Identity.DisplayName,
             ["capabilities"] = capabilities
         };

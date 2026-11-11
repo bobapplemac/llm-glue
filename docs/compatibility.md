@@ -50,6 +50,23 @@ working restarted child. A controlled full process restart loaded the change.
 Production activation therefore requires an operator-configured service action,
 post-restart health check, and rollback.
 
+Executable forwarding qualification found that the previously parseable
+`openai_like/<model>` route is no longer mapped for chat completion requests in
+1.109.0. Generated routes therefore use `openai/<model>` with `api_base`; a live
+proxy-to-capturing-upstream test verified model alias resolution, response
+forwarding, `temperature`, `top_p`, `max_tokens`, and the environment-backed
+provider Authorization header. The verified nonstandard variant field
+`enable_thinking = true` also arrived unchanged. Version 1.109.0 refuses proxy
+startup without a master key by default; the test and deployment guidance
+preserve that secure default. Central OpenCode output references the client
+credential with the documented `{env:LLM_GLUE_INFERENCE_API_KEY}` substitution. This
+captured-upstream test is not a substitute for representative
+llama.cpp model inference.
+
+Reproduce with Python 3.10+ and `litellm[proxy]==1.109.0` installed by running
+`make test-litellm PYTHON=/path/to/venv/bin/python`. The harness binds only
+ephemeral loopback ports and uses test credentials.
+
 Sources: <https://github.com/BerriAI/litellm/releases/tag/v1.109.0> and
 <https://docs.litellm.ai/docs/proxy/ui_credentials>.
 

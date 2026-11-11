@@ -17,7 +17,7 @@ public sealed class LiteLlmGenerator(string apiKeyEnvironment = "LLM_GLUE_PROVID
         {
             builder.Append("  - model_name: ").Append(Quote(Alias(deployment))).Append('\n'
                 ).Append("    litellm_params:\n")
-                .Append("      model: ").Append(Quote($"openai_like/{deployment.Identity.Route}")).Append('\n')
+                .Append("      model: ").Append(Quote($"openai/{deployment.Identity.Route}")).Append('\n')
                 .Append("      api_base: ").Append(Quote(ApiBase(deployment))).Append('\n')
                 .Append("      api_key: ").Append(Quote($"os.environ/{apiKeyEnvironment}")).Append('\n');
             var context = deployment.EffectiveContext?.Value ?? deployment.NativeContext?.Value;

@@ -14,6 +14,7 @@ param(
     [string]$LiteLlmGeneratedPath = 'C:\ProgramData\LiteLLM\llm-glue-models.yaml',
     [string]$LiteLlmPrimaryPath = 'C:\ProgramData\LiteLLM\config.yaml',
     [string]$LiteLlmService = 'LiteLLM',
+    [string]$LiteLlmUrl = 'http://replace-with-your-litellm:4000',
     [string]$LiteLlmHealthUrl = 'http://127.0.0.1:4000/health/liveliness',
     [switch]$InstallService,
     [switch]$NonInteractive
@@ -39,6 +40,7 @@ if (-not $NonInteractive) {
         $answer = Read-Host "LiteLLM primary config path ($LiteLlmPrimaryPath)"; if ($answer) { $LiteLlmPrimaryPath = $answer }
         $answer = Read-Host "LLM Glue LiteLLM include path ($LiteLlmGeneratedPath)"; if ($answer) { $LiteLlmGeneratedPath = $answer }
         $answer = Read-Host "LiteLLM Windows service ($LiteLlmService)"; if ($answer) { $LiteLlmService = $answer }
+        $answer = Read-Host "Externally reachable LiteLLM URL for OpenCode clients ($LiteLlmUrl)"; if ($answer) { $LiteLlmUrl = $answer }
         $answer = Read-Host "LiteLLM health URL ($LiteLlmHealthUrl)"; if ($answer) { $LiteLlmHealthUrl = $answer }
     }
     if (-not $InstallService) { $InstallService = (Read-Host 'Register the Windows service? [y/N]') -match '^[Yy]$' }
@@ -46,6 +48,7 @@ if (-not $NonInteractive) {
 if ($InstallService -and $Mode -eq 'remote-client' -and -not $ServerToken) { throw 'Service-mode remote-client requires -ServerToken; Windows services do not inherit the installer environment.' }
 if ($NonInteractive -and $Mode -eq 'remote-client' -and $ServerUrl -eq 'https://replace-with-your-server') { throw 'Noninteractive remote-client installation requires -ServerUrl.' }
 if ($Mode -eq 'central-llama' -and (-not $ReadToken -or -not $WriteToken)) { throw 'central-llama requires -ReadToken and -WriteToken.' }
+if ($Mode -eq 'central-llama' -and $LiteLlmUrl -eq 'http://replace-with-your-litellm:4000') { throw 'central-llama requires -LiteLlmUrl reachable by remote OpenCode clients.' }
 if ($InstallService) {
     $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Service installation requires an elevated PowerShell session. Re-run the inspected script with Run as administrator.' }
@@ -93,7 +96,7 @@ try {
         $localSource = "http://127.0.0.1:$($listen.Port)"
         $statePath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\state' } else { 'state' }
         $logPath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\logs\llm-glue.log' } else { 'logs\llm-glue.log' }
-        $content = @('[roles]','agent = true','server = true','client = true','','[[agent.providers]]','name = "local-llama"','type = "llama.cpp"',('url = ' + (ConvertTo-TomlString $LlamaUrl)),('model_directories = [' + (ConvertTo-TomlString $ModelDirectory) + ']'),'inspect_gguf = true','hash_model_files = false','probe_mode = "loaded-only"','','[server]',('listen = ' + (ConvertTo-TomlString $ListenUrl)),('read_token = ' + (ConvertTo-TomlString $ReadToken)),('write_token = ' + (ConvertTo-TomlString $WriteToken)),'acknowledge_insecure_remote_http = true',('state_directory = ' + (ConvertTo-TomlString $statePath)),'','[client]',('source = ' + (ConvertTo-TomlString $localSource)),('token = ' + (ConvertTo-TomlString $ReadToken)),'','[[client.targets]]','type = "litellm"',('path = ' + (ConvertTo-TomlString $LiteLlmGeneratedPath)),('primary_config_path = ' + (ConvertTo-TomlString $LiteLlmPrimaryPath)),('service_name = ' + (ConvertTo-TomlString $LiteLlmService)),('health_url = ' + (ConvertTo-TomlString $LiteLlmHealthUrl)),'','[logging]',('file = ' + (ConvertTo-TomlString $logPath)))
+        $content = @('[roles]','agent = true','server = true','client = true','','[[agent.providers]]','name = "local-llama"','type = "llama.cpp"',('url = ' + (ConvertTo-TomlString $LlamaUrl)),('model_directories = [' + (ConvertTo-TomlString $ModelDirectory) + ']'),'inspect_gguf = true','hash_model_files = false','probe_mode = "loaded-only"','','[server]',('listen = ' + (ConvertTo-TomlString $ListenUrl)),('opencode_inference_url = ' + (ConvertTo-TomlString $LiteLlmUrl)),('read_token = ' + (ConvertTo-TomlString $ReadToken)),('write_token = ' + (ConvertTo-TomlString $WriteToken)),'acknowledge_insecure_remote_http = true',('state_directory = ' + (ConvertTo-TomlString $statePath)),'','[client]',('source = ' + (ConvertTo-TomlString $localSource)),('token = ' + (ConvertTo-TomlString $ReadToken)),'','[[client.targets]]','type = "litellm"',('path = ' + (ConvertTo-TomlString $LiteLlmGeneratedPath)),('primary_config_path = ' + (ConvertTo-TomlString $LiteLlmPrimaryPath)),('service_name = ' + (ConvertTo-TomlString $LiteLlmService)),('health_url = ' + (ConvertTo-TomlString $LiteLlmHealthUrl)),'','[logging]',('file = ' + (ConvertTo-TomlString $logPath)))
     }
     $content | Set-Content -LiteralPath $candidate -Encoding utf8NoBOM
     & $stagedExecutable config validate --config $candidate

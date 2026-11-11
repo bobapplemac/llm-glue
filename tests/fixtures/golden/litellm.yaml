@@ -2,7 +2,7 @@
 model_list:
   - model_name: 'llama-cpp-lab-qwen-model'
     litellm_params:
-      model: 'openai_like/qwen-model'
+      model: 'openai/qwen-model'
       api_base: 'http://127.0.0.1:8081/v1'
       api_key: 'os.environ/LLM_GLUE_PROVIDER_API_KEY'
     model_info:
