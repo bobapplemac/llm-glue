@@ -8,7 +8,7 @@ release source. Live production qualification is tracked separately.
 |---|---:|---|---|
 | OpenCode | 2.2.7 | Live Windows executable, official schema/docs | System config wins conflicts; nonconflicting user/project values survive; effective models available at `/api/model`; source arrays are not effective config; watched files apply without explicit reload in this test. |
 | LiteLLM Proxy | 1.109.0 | Live isolated Windows install and installed source | Relative YAML includes work; lists concatenate; non-list include values replace rather than deep-merge. Development `--reload` did not watch the included file and did not reliably restart after a root edit on Windows. |
-| Ollama | 0.40.16 | Live local HTTP API | `/api/tags`, `/api/show`, `/api/ps`, and `/api/version` match the current documented shapes. `/api/show` supplied native context and explicit thinking metadata. |
+| Ollama | 0.40.16 | Live local HTTP API and bounded inference | `/api/tags`, `/api/show`, `/api/ps`, and `/api/version` match documented shapes. Native Off/On thinking requests, effective/native context separation, full VRAM residency, and loaded-only route probing passed for Qwen 3.5 4B. |
 | llama.cpp | v0.9.0 stable target | Official server documentation/source | Direct `/v1/models`, router `/models`, and `/props` have distinct discovery roles. Runtime executable/model qualification remains pending. |
 | .NET SDK | 10.0.401 | Live | Build toolchain available on Windows. |
 | .NET SDK (Ubuntu/WSL) | 10.0.115 | Live native Linux build/test/systemd | GNU Make restore/build/test, linux-x64 execution, and isolated fixed-account systemd install/repair/rollback/uninstall passed. |
@@ -59,6 +59,12 @@ The live model reported native context `262144`, completion/vision/tools, and
 thinking values `[false]`. No model was loaded, so `/api/ps` correctly supplied
 no effective runtime context. An omitted thinking object is unknown; `[false]`
 is authoritative non-reasoning; strings and booleans are preserved exactly.
+
+In the later inference run, the standard Qwen 3.5 4B route returned a plain `OK`
+with `think=false` and a separate thinking trace plus `OK` with `think=true`.
+While loaded, `/api/ps` reported effective context 4096 and equal total/VRAM
+sizes of 3,140,495,604 bytes. A loaded-only LLM Glue discovery probe verified
+that route without waking either dormant route; the model was then unloaded.
 
 Sources: <https://github.com/ollama/ollama/blob/main/docs/api.md>,
 <https://github.com/ollama/ollama/blob/main/docs/openapi.yaml>, and

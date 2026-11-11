@@ -33,7 +33,9 @@ Last updated: 2026-11-11
   Client → isolated OpenCode 2.2.7 catalog visibility passed for two models.
   An elevated all-role Windows service run also passed LocalService identity,
   health, relocation/repair, restart, service rollback, and uninstall cleanup.
-  Functional inference and the Debian llama.cpp/LiteLLM, multi-account, restart,
+  Native Ollama Off/On inference, effective/native context separation, full-VRAM
+  residency, and loaded-only route probing passed for Qwen 3.5 4B. OpenCode/Paseo
+  parameter forwarding and the Debian llama.cpp/LiteLLM, multi-account, restart,
   change/removal, parameter-capture, and Paseo paths remain blocked on unavailable
   environments. See `docs/m4-qualification.md`.
 - **M5 — release hardening:** implementation substantially complete: dual-RID

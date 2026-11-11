@@ -19,10 +19,21 @@ live Ollama 0.40.16 endpoint and an isolated OpenCode system target:
    named variants.
 
 This validates discovery → publication → download → scoped configuration apply →
-OpenCode catalog visibility. It does **not** validate functional inference,
-effective loaded context, parameter transport, model add/remove propagation,
-service restart recovery, or Paseo UI behavior. No production configuration was
-modified; the run used isolated temporary paths and all processes were stopped.
+OpenCode catalog visibility. That catalog run did **not** validate parameter
+transport, model add/remove propagation, provider restart recovery, or Paseo UI
+behavior. No production configuration was modified; it used isolated temporary
+paths and all processes were stopped.
+
+A later bounded native Ollama qualification used the existing
+`qwen3.5:4b-q4_K_M` route. `think=false` returned `OK` with no thinking field;
+`think=true` returned `OK` with a separate nonempty thinking field. `/api/ps`
+reported effective context 4096 versus native context 262144 and
+`size_vram == size == 3,140,495,604`, confirming full VRAM residency for that
+load. With the model held loaded, LLM Glue's `loaded-only` policy added verified
+`ollama:bounded-route-probe` evidence only to that route and did not probe the two
+dormant routes. The model was explicitly unloaded afterward. This verifies the
+native provider contract and probe policy; OpenCode/Paseo forwarding and UI
+selection remain unqualified.
 
 ## Windows service lifecycle — pass
 
@@ -40,7 +51,7 @@ LocalService, and the hidden helper used PowerShell 7-only encoding plus a strin
 to `[bool]` binding incompatible with Windows PowerShell 5.1. The host now uses its
 authorized log directory as content root, and the helper is 5.1-compatible.
 
-The run also exposed and led to fixes for two real issues: duplicate DI adapter
+The catalog run also exposed and led to fixes for two real issues: duplicate DI adapter
 registration caused duplicate model identities on the second cycle, and the
 default Windows Event Log provider failed under a non-elevated identity. The
 application now registers each adapter once and uses explicit portable logging
