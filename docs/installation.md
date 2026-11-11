@@ -130,6 +130,17 @@ and data ownership remain stable. Copying the executable and sidecar is supporte
 use `service repair` after relocation because OS service metadata does not follow
 moved files.
 
+A Linux LiteLLM target may need to restart a root-owned systemd or Docker Compose
+unit. Do not run LLM Glue as root for that purpose. Install `polkitd`, keep the
+activation unit root-owned, and install a rule based on
+`examples/49-llm-glue-litellm.rules` after changing its exact unit name to match
+`service_name`. The example grants the `llm-glue` account only the
+`org.freedesktop.systemd1.manage-units` `restart` verb for that one unit. Verify
+both the allowed restart and denial of an unrelated unit before starting the
+LLM Glue service. Existing state created by an earlier root-run installation must
+be deliberately migrated to `llm-glue:llm-glue`; the installer refuses to seize
+operator-owned directories automatically.
+
 OpenCode synchronization defaults to an `opencode.jsonc` document and may create
 `<opencode-target>.llm-glue-ownership.json` beside it. Existing `.json` targets
 remain supported when explicitly configured.
@@ -174,6 +185,22 @@ LLM Glue emits a comment above each managed group. Comments within a managed
 provider value are replaced with that owned value on the next synchronization.
 Normally configure either the system target or selected user targets: when both
 define the same OpenCode keys, OpenCode's system precedence wins.
+
+To hide OpenCode's built-in/default provider catalog and show only selected LLM
+Glue providers, add an operator-owned provider allowlist to the same JSONC file:
+
+```jsonc
+"enabled_providers": [
+  "llm-glue-ollama-local-ollama",
+  "llm-glue-llama-cpp-labhost03-router"
+]
+```
+
+Use the provider keys generated for that installation. OpenCode 2.2.7 normalizes
+this legacy-compatible setting to a deny-all `provider.use` policy followed by
+explicit allows. LLM Glue deliberately preserves this setting instead of owning
+or generating it: an operator may still need a non-LLM-Glue provider, and a
+catalog change must not silently alter that policy.
 
 Updates are opt-in. Use `update check`, then `update apply` for a foreground
 installation. For a registered LLM Glue service, run elevated:

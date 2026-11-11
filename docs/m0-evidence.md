@@ -104,5 +104,6 @@ test fixtures and validated by the M1 configuration test suite.
 
 The later M4 run qualified actual llama.cpp Qwen/Gemma/GPT-OSS/MTP inference,
 LiteLLM forwarding, lifecycle, outage recovery, and rollback on Debian 13.7 plus
-MarkIV OpenCode. Windows multi-account/system-target behavior, Paseo UI behavior,
-and least-privilege delegation of the lab Compose restart unit remain mandatory.
+MarkIV OpenCode. Paseo UI presentation and least-privilege delegation of the lab
+Compose restart unit subsequently passed. Windows multi-account/system-target
+behavior remains mandatory.

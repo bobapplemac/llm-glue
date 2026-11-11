@@ -267,10 +267,18 @@ inference recovered. Finally, a dedicated fail-once activation unit caused a
 real sync failure, exact include restoration, successful prior-state
 reactivation, LiteLLM HTTP 200, and canonical reapply.
 
-The central qualification process used an isolated root transient unit because
-this Docker host lacks polkit delegation for the exact Compose restart unit.
-Least-privilege systemd lifecycle is separately qualified below; production
-authorization for this particular activation unit remains an operator step.
+The initial central qualification process used an isolated root transient unit.
+On 2026-11-11, Debian `polkitd` was installed and an exact rule granted the fixed
+`llm-glue` account only `restart` for
+`llm-glue-litellm-compose.service`. A real unprivileged `sync --once` replaced a
+deliberately drifted generated include, restarted the root-owned Compose unit,
+and passed its configured health check. Restart of the unrelated `polkit.service`
+was denied with interactive authorization required. The current persistent r0
+service then took over from the root transient unit, ran as `llm-glue:llm-glue`,
+published ten routes, produced stable 304/no-op client polls, and completed an
+authenticated LiteLLM-to-llama.cpp request with nonempty reasoning output. One
+final root-owned catalog revision created during handoff was migrated inside the
+LLM Glue state tree; the next discovery cycle and warning journal were clean.
 
 ## Linux systemd lifecycle — pass in Ubuntu and Debian 13/WSL
 
@@ -329,8 +337,7 @@ above rather than being inferred from the UI.
 ## Gate status
 
 The representative Debian central inference, generated include/restart/rollback,
-catalog lifecycle, native Windows OpenCode/Ollama inference, and Linux
-multi-account precedence paths are verified. M4 remains **partial** only for
-Windows multi-account/system-target behavior and
-least-privilege delegation of the lab's Docker Compose restart unit; these are
-not simulated or waived.
+catalog lifecycle, fixed-account Compose delegation, native Windows
+OpenCode/Ollama inference, and Linux multi-account precedence paths are verified.
+M4 remains **partial** only for Windows multi-account/system-target behavior;
+this is not simulated or waived.

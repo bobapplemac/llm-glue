@@ -55,6 +55,12 @@ restore preceded the corrected rerun; the live migrated target retained all thre
 local Ollama models, `disabled_providers: [ollama]`, and the central Qwen provider.
 Unowned and cross-source provider-key collisions fail closed.
 
+On MarkIV, OpenCode 2.2.7 also accepted an operator-owned
+`enabled_providers` allowlist containing only the local and central LLM Glue
+provider keys. `opencode debug config` normalized it to a deny-all
+`provider.use` policy followed by the two explicit allows, hiding the unused
+default catalog. LLM Glue preserves this unrelated root setting.
+
 Sources: <https://opencode.ai/docs/config>,
 <https://opencode.ai/config.json>, <https://opencode.ai/docs/api>, and
 <https://github.com/anomalyco/opencode/releases/tag/v2.2.7>.
@@ -211,11 +217,11 @@ Sources: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.
 
 ## Unqualified environments
 
-- The lab central process was intentionally run as an isolated root transient
-  unit because the Docker Compose host has no polkit service for delegating the
-  exact restart unit to the fixed `llm-glue` account. Least-privilege systemd
-  mechanics are separately qualified on Debian; this Compose activation
-  permission remains an operator deployment step.
+- The lab central process now runs under the fixed `llm-glue` account. Debian
+  polkit 126 delegates only restart of the exact root-owned LiteLLM Compose unit;
+  real sync, health, unrelated-unit denial, persistent-service handoff, and
+  authenticated inference passed. Other deployments must install and verify an
+  equivalent unit-specific rule; LLM Glue does not grant itself privileges.
 - Two-account system precedence is qualified on Linux/WSL, but not Windows or
   Windows Server 2025.
 - OpenCode functional inference and CLI variant selection are qualified on native
