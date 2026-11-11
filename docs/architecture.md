@@ -109,5 +109,8 @@ fixed OS tools with argument lists and never a command shell.
 
 Update discovery is pinned to official stable GitHub `rN` releases. Assets are
 RID-specific and checksum-verified before staging; the current executable is
-retained as `.rollback`. Release tooling implements the same fail-closed contract
-on GNU Make/bash and PowerShell. See ADR 0003.
+retained as `.rollback`. Service-mode replacement coordinates the fixed SCM or
+systemd identity, verifies the LLM Glue health endpoint/running state, and restores
+and reverifies the fallback on activation failure or interruption. Windows uses a
+post-exit helper with a durable result log. Release tooling implements the same
+fail-closed contract on GNU Make/bash and PowerShell. See ADR 0003.

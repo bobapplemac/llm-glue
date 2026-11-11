@@ -151,7 +151,9 @@ authorization or claim either live gate passed beforehand.
   implemented with fixed tools and preservation defaults; install has a verified
   non-mutating dry-run on both platforms.
 - [x] Explicit update check/apply/rollback accepts pinned stable releases and
-  verifies checksums; failed checks do not affect sync.
+  verifies checksums; failed checks do not affect sync. Explicit service mode
+  coordinates restart/health verification and automatically restores the fallback
+  after failed or interrupted activation; fault-injection tests pass on both OSes.
 - [x] Console plus bounded rolling-file logs use standard logging abstractions and
   avoid prompt/request bodies and credentials.
 - [x] CI, installation, quick-start, troubleshooting, security, release, ADR and
@@ -166,8 +168,8 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Debug build and 56 tests; native
-Ubuntu/WSL Release restore/build and 56 tests; PowerShell AST and Bash syntax
+Latest available verification: clean Windows Debug build and 60 tests; native
+Ubuntu/WSL Release restore/build and 60 tests; PowerShell AST and Bash syntax
 checks; r1 win-x64/linux-x64 self-contained single-file execution; Windows and
 Linux service-install dry runs. These are implementation/packaging evidence, not
 substitutes for the unchecked live gates above.

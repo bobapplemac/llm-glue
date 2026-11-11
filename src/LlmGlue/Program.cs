@@ -60,10 +60,17 @@ if (args.Take(2).SequenceEqual(["update", "check"]))
 if (args.Take(2).SequenceEqual(["update", "apply"]))
 {
     using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-    await UpdateManager.ApplyAsync(http, executablePath, args.Contains("--allow-downgrade", StringComparer.Ordinal), CancellationToken.None);
+    await UpdateManager.ApplyAsync(http, executablePath, new UpdateApplyOptions(
+        args.Contains("--allow-downgrade", StringComparer.Ordinal),
+        args.Contains("--service", StringComparer.Ordinal),
+        ServiceHealthUrl(options)), CancellationToken.None);
     return;
 }
-if (args.Take(2).SequenceEqual(["update", "rollback"])) { UpdateManager.Rollback(executablePath); return; }
+if (args.Take(2).SequenceEqual(["update", "rollback"]))
+{
+    await UpdateManager.RollbackAsync(executablePath, args.Contains("--service", StringComparer.Ordinal), ServiceHealthUrl(options), CancellationToken.None);
+    return;
+}
 
 if (options.Roles.Server)
 {
@@ -173,6 +180,13 @@ static void AddClient(IServiceCollection services, GlueOptions options)
 
 static Uri EnsureTrailingSlash(Uri value) => value.AbsoluteUri.EndsWith("/", StringComparison.Ordinal) ? value : new Uri(value.AbsoluteUri + "/", UriKind.Absolute);
 static string ResolveConfigPath(GlueOptions options, string path) => Path.IsPathRooted(path) ? Path.GetFullPath(path) : Path.GetFullPath(path, options.BaseDirectory);
+static Uri? ServiceHealthUrl(GlueOptions options)
+{
+    if (!options.Roles.Server) return null;
+    var builder = new UriBuilder(options.Server.Listen) { Path = "/api/v1/health" };
+    if (builder.Host is "0.0.0.0" or "::" or "[::]") builder.Host = "127.0.0.1";
+    return builder.Uri;
+}
 
 static void ConfigureLogging(ILoggingBuilder logging, GlueOptions options)
 {

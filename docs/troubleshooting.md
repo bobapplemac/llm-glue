@@ -35,5 +35,9 @@ the executable or sidecar, run elevated `service repair`.
 ## Update failed
 
 A failed check never interrupts synchronization. Verification failures leave the
-current executable untouched. Linux retains `<executable>.rollback`; Windows
-retains the same file but requires stopping the service before manual restore.
+current executable untouched. Service-mode update and rollback automatically
+restore the fallback executable when restart or health verification fails. On
+Linux the command reports the combined activation/rollback result directly. On
+Windows inspect the printed `update-result.log` or `rollback-result.log`; the
+post-exit helper records `success`, `failed and rolled back`, or `failed; rollback
+unhealthy`. Do not delete `.rollback` or `.pre-rollback` until healthy.

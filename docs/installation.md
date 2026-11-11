@@ -76,3 +76,18 @@ unknown until separately qualified.
 Service registration requires elevation and preserves the sidecar and data on
 uninstall. Copying the executable and sidecar is supported; use `service repair`
 after relocation because OS service metadata does not follow moved files.
+
+Updates are opt-in. Use `update check`, then `update apply` for a foreground
+installation. For a registered LLM Glue service, run elevated:
+
+```text
+llm-glue update apply --service --config /path/to/llm-glue.conf
+llm-glue update rollback --service --config /path/to/llm-glue.conf
+```
+
+Service mode preserves the sidecar, state, logs, and registration; restarts the
+fixed `LLMGlue`/`llm-glue.service` identity; and checks `/api/v1/health` when the
+Server role is enabled or SCM/systemd running state otherwise. Failed or
+interrupted activation restores and reverifies the previous executable. Windows
+uses a hidden post-exit helper because a running executable cannot be replaced;
+its result log is printed before the CLI exits.

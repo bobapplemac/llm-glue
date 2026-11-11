@@ -18,6 +18,9 @@ Bootstrap and update clients accept stable `rN` releases only, select the exact
 RID asset, and verify `SHA256SUMS` before replacement. They retain one executable
 rollback. Windows stages replacement through a hidden post-exit helper because a
 running executable cannot be overwritten; Linux atomically replaces the path.
+With explicit `--service`, both platforms restart the fixed LLM Glue service and
+verify HTTP health or service running state. Activation failure or interruption
+restores and reverifies the fallback; Windows records the asynchronous result.
 
 Service installation invokes fixed SCM/systemd operations without a shell and
 records absolute executable and sidecar paths. Relocation requires `service
@@ -27,6 +30,7 @@ configuration, logs, state, and target files.
 ## Consequences
 
 `r0` can never be published by the release tooling. A partial remote publication
-is reported for manual recovery and is never automatically deleted. Windows
-rollback requires a stopped process/service. Live service-update/rollback
-qualification remains mandatory before r1 authorization.
+is reported for manual recovery and is never automatically deleted. Automated
+fault-injection covers successful activation, failed health, interruption, and
+fallback verification. Live SCM/systemd update/rollback qualification remains
+mandatory before r1 authorization.

@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 namespace LlmGlue.Operations;
 
 public sealed record UpdateInfo(int Revision, string Tag, string AssetName, Uri AssetUrl, Uri ChecksumsUrl);
+public sealed record UpdateApplyOptions(bool AllowDowngrade = false, bool ServiceMode = false, Uri? HealthUrl = null);
 
 public static partial class UpdateManager
 {
@@ -31,10 +32,10 @@ public static partial class UpdateManager
         return new(revision, release.TagName, name, asset.BrowserDownloadUrl, sums.BrowserDownloadUrl);
     }
 
-    public static async Task ApplyAsync(HttpClient httpClient, string executablePath, bool allowDowngrade, CancellationToken cancellationToken)
+    public static async Task ApplyAsync(HttpClient httpClient, string executablePath, UpdateApplyOptions options, CancellationToken cancellationToken)
     {
         var update = await CheckAsync(httpClient, cancellationToken) ?? throw new InvalidOperationException("No newer stable release is available.");
-        if (!allowDowngrade && update.Revision < CurrentRevision) throw new InvalidOperationException("Downgrades require explicit authorization.");
+        if (!options.AllowDowngrade && update.Revision < CurrentRevision) throw new InvalidOperationException("Downgrades require explicit authorization.");
         var executable = Path.GetFullPath(executablePath);
         if (Path.GetExtension(executable).Equals(".dll", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Self-update requires a published self-contained executable.");
         var directory = Path.GetDirectoryName(executable)!;
@@ -63,27 +64,67 @@ public static partial class UpdateManager
         if (OperatingSystem.IsWindows())
         {
             var helper = Path.Combine(stage, "apply-update.ps1");
-            var script = "param([int]$ProcessId,[string]$Source,[string]$Destination)\n$ErrorActionPreference='Stop'\nWait-Process -Id $ProcessId -ErrorAction SilentlyContinue\nCopy-Item -LiteralPath $Source -Destination $Destination -Force\n";
+            var script = options.ServiceMode ? WindowsServiceHelperScript : WindowsStandaloneHelperScript;
             await File.WriteAllTextAsync(helper, script, cancellationToken);
-            Process.Start(new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden, ArgumentList = { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-File", helper, "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture), "-Source", replacement, "-Destination", executable } });
-            Console.WriteLine($"Verified {update.Tag}; replacement is staged and will apply after this process exits. Rollback: {rollback}");
+            var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
+            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-File", helper, "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture), "-Source", replacement, "-Destination", executable, "-Rollback", rollback, "-ServiceMode", options.ServiceMode.ToString(), "-HealthUrl", options.HealthUrl?.AbsoluteUri ?? string.Empty, "-ResultPath", Path.Combine(stage, "update-result.log") }) start.ArgumentList.Add(argument);
+            Process.Start(start);
+            Console.WriteLine($"Verified {update.Tag}; replacement is staged and will apply after this process exits. ServiceMode={options.ServiceMode}. Result: {Path.Combine(stage, "update-result.log")}. Rollback: {rollback}");
         }
         else
         {
-            File.Move(replacement, executable, true);
-            File.SetUnixFileMode(executable, File.GetUnixFileMode(rollback));
+            if (options.ServiceMode)
+            {
+                await ServiceUpdateCoordinator.ReplaceAndVerifyAsync(
+                    executable, replacement, rollback,
+                    token => RunProcessAsync("systemctl", ["restart", "llm-glue.service"], token),
+                    token => VerifyLinuxServiceAsync(options.HealthUrl, token),
+                    preserveUnixMode: true,
+                    cancellationToken);
+            }
+            else
+            {
+                File.Move(replacement, executable, true);
+                File.SetUnixFileMode(executable, File.GetUnixFileMode(rollback));
+            }
             Console.WriteLine($"Updated to {update.Tag}. Rollback: {rollback}");
         }
     }
 
-    public static void Rollback(string executablePath)
+    public static async Task RollbackAsync(string executablePath, bool serviceMode, Uri? healthUrl, CancellationToken cancellationToken)
     {
         var executable = Path.GetFullPath(executablePath);
         var rollback = executable + ".rollback";
         if (!File.Exists(rollback)) throw new FileNotFoundException("No rollback executable exists.", rollback);
-        if (OperatingSystem.IsWindows()) throw new InvalidOperationException("Windows rollback cannot overwrite the running executable; stop the service and copy the .rollback file, or run the bootstrap installer for the prior release.");
-        File.Copy(rollback, executable, true);
-        Console.WriteLine("Rollback executable restored. Restart and run doctor.");
+        var fallback = executable + ".pre-rollback";
+        File.Copy(executable, fallback, true);
+        if (OperatingSystem.IsWindows())
+        {
+            var stage = Path.Combine(Path.GetDirectoryName(executable)!, ".llm-glue-update", "rollback");
+            Directory.CreateDirectory(stage);
+            var helper = Path.Combine(stage, "apply-rollback.ps1");
+            await File.WriteAllTextAsync(helper, serviceMode ? WindowsServiceHelperScript : WindowsStandaloneHelperScript, cancellationToken);
+            var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden };
+            foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-File", helper, "-ProcessId", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture), "-Source", rollback, "-Destination", executable, "-Rollback", fallback, "-ServiceMode", serviceMode.ToString(), "-HealthUrl", healthUrl?.AbsoluteUri ?? string.Empty, "-ResultPath", Path.Combine(stage, "rollback-result.log") }) start.ArgumentList.Add(argument);
+            Process.Start(start);
+            Console.WriteLine($"Rollback is staged and will apply after this process exits. Result: {Path.Combine(stage, "rollback-result.log")}");
+            return;
+        }
+        if (serviceMode)
+        {
+            await ServiceUpdateCoordinator.ReplaceAndVerifyAsync(
+                executable, rollback, fallback,
+                token => RunProcessAsync("systemctl", ["restart", "llm-glue.service"], token),
+                token => VerifyLinuxServiceAsync(healthUrl, token),
+                preserveUnixMode: true,
+                cancellationToken);
+        }
+        else
+        {
+            File.Copy(rollback, executable, true);
+            File.SetUnixFileMode(executable, File.GetUnixFileMode(rollback));
+        }
+        Console.WriteLine("Rollback executable restored and verified.");
     }
 
     private static async Task DownloadAsync(HttpClient client, Uri url, string path, CancellationToken cancellationToken)
@@ -104,6 +145,106 @@ public static partial class UpdateManager
         await using var gzip = new GZipStream(file, CompressionMode.Decompress);
         await System.Formats.Tar.TarFile.ExtractToDirectoryAsync(gzip, destination, overwriteFiles: false, cancellationToken);
     }
+
+    private static async Task RunProcessAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    {
+        var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true, CreateNoWindow = true };
+        foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        using var process = Process.Start(start) ?? throw new InvalidOperationException($"Could not start {executable}.");
+        var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderr = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        if (process.ExitCode != 0) throw new InvalidOperationException($"{executable} exited {process.ExitCode}: {(await stderr).Trim()} {(await stdout).Trim()}".Trim());
+    }
+
+    private static async Task<bool> VerifyLinuxServiceAsync(Uri? healthUrl, CancellationToken cancellationToken)
+    {
+        using var healthClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        for (var attempt = 0; attempt < 30; attempt++)
+        {
+            try
+            {
+                if (healthUrl is not null)
+                {
+                    using var response = await healthClient.GetAsync(healthUrl, cancellationToken);
+                    if (response.IsSuccessStatusCode) return true;
+                }
+                else
+                {
+                    await RunProcessAsync("systemctl", ["is-active", "--quiet", "llm-glue.service"], cancellationToken);
+                    return true;
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException) { }
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+        }
+        return false;
+    }
+
+    internal const string WindowsStandaloneHelperScript = """
+param([int]$ProcessId,[string]$Source,[string]$Destination,[string]$Rollback,[bool]$ServiceMode,[string]$HealthUrl,[string]$ResultPath)
+$ErrorActionPreference='Stop'
+try {
+  Wait-Process -Id $ProcessId -ErrorAction SilentlyContinue
+  Copy-Item -LiteralPath $Source -Destination $Destination -Force
+  Set-Content -LiteralPath $ResultPath -Value 'success' -Encoding utf8NoBOM
+} catch {
+  Set-Content -LiteralPath $ResultPath -Value "failed: $($_.Exception.Message)" -Encoding utf8NoBOM
+  exit 1
+}
+""";
+
+    internal const string WindowsServiceHelperScript = """
+param([int]$ProcessId,[string]$Source,[string]$Destination,[string]$Rollback,[bool]$ServiceMode,[string]$HealthUrl,[string]$ResultPath)
+$ErrorActionPreference='Stop'
+$service='LLMGlue'
+function Invoke-Sc([string[]]$Arguments,[int[]]$Allowed=@(0)) {
+  & sc.exe @Arguments *> $null
+  if ($LASTEXITCODE -notin $Allowed) { throw "sc.exe $($Arguments -join ' ') failed with $LASTEXITCODE" }
+}
+function Wait-State([string]$State) {
+  for ($i=0; $i -lt 30; $i++) {
+    $text = (& sc.exe query $service 2>&1 | Out-String)
+    if ($LASTEXITCODE -eq 0 -and $text -match "STATE\s*:\s*\d+\s+$State") { return }
+    Start-Sleep -Seconds 1
+  }
+  throw "Service did not reach $State"
+}
+function Wait-Healthy {
+  for ($i=0; $i -lt 30; $i++) {
+    if ($HealthUrl) {
+      try { $response=Invoke-WebRequest -Uri $HealthUrl -UseBasicParsing -TimeoutSec 2; if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) { return } } catch {}
+    } else {
+      $text = (& sc.exe query $service 2>&1 | Out-String)
+      if ($LASTEXITCODE -eq 0 -and $text -match 'STATE\s*:\s*\d+\s+RUNNING') { return }
+    }
+    Start-Sleep -Seconds 1
+  }
+  throw 'Updated service did not become healthy'
+}
+Wait-Process -Id $ProcessId -ErrorAction SilentlyContinue
+try {
+  Invoke-Sc @('stop',$service) @(0,1062)
+  Wait-State 'STOPPED'
+  Copy-Item -LiteralPath $Source -Destination $Destination -Force
+  Invoke-Sc @('start',$service)
+  Wait-Healthy
+  Set-Content -LiteralPath $ResultPath -Value 'success' -Encoding utf8NoBOM
+} catch {
+  $activation=$_.Exception.Message
+  try {
+    Invoke-Sc @('stop',$service) @(0,1062)
+    Wait-State 'STOPPED'
+    Copy-Item -LiteralPath $Rollback -Destination $Destination -Force
+    Invoke-Sc @('start',$service)
+    Wait-Healthy
+    Set-Content -LiteralPath $ResultPath -Value "failed and rolled back: $activation" -Encoding utf8NoBOM
+  } catch {
+    Set-Content -LiteralPath $ResultPath -Value "failed; rollback unhealthy: $activation; $($_.Exception.Message)" -Encoding utf8NoBOM
+  }
+  exit 1
+}
+""";
 
     [GeneratedRegex("^r[1-9][0-9]*$", RegexOptions.CultureInvariant)]
     private static partial Regex RevisionPattern();
