@@ -25,6 +25,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   that the Windows bootstrap registered but did not start the automatic service;
   it now matches Linux by starting after successful registration, with a matrix
   guard for the install/start sequence.
+  Remote-client bootstrap now also offers an optional non-echoed LiteLLM key
+  prompt and persists a supplied `LLM_GLUE_INFERENCE_API_KEY` only in the current
+  Windows user's environment, leaving existing values untouched on blank input.
 
 - **M0 — evidence/interface validation:** implementation design complete;
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,

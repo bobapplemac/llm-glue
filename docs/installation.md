@@ -39,7 +39,13 @@ OpenCode `{env:...}` reference and never the key. LiteLLM's master key or a
 properly scoped virtual key may be used according to the operator's policy.
 
 Headless PowerShell installs use `-NonInteractive` with the corresponding named
-parameters. Headless Linux installs set `LLM_GLUE_NONINTERACTIVE=1`,
+parameters, including optional `-InferenceApiKey` for a remote OpenCode client.
+Interactive remote-client installation requests that inference key with a
+non-echoed optional prompt. When supplied, the installer persists
+`LLM_GLUE_INFERENCE_API_KEY` in the current Windows user's environment and never
+writes it into generated configuration; blank input preserves any existing user
+value. Restart OpenCode/Paseo afterward so it inherits the updated environment.
+Headless Linux installs set `LLM_GLUE_NONINTERACTIVE=1`,
 `LLM_GLUE_MODE`, and applicable variables: `LLM_GLUE_SERVER_URL`,
 `LLM_GLUE_SERVER_TOKEN`, `LLM_GLUE_OLLAMA_URL`, `LLM_GLUE_LLAMA_URL`,
 `LLM_GLUE_LISTEN_URL`, `LLM_GLUE_READ_TOKEN`, `LLM_GLUE_WRITE_TOKEN`,

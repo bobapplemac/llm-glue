@@ -4,6 +4,7 @@ param(
     [ValidateSet('remote-client','standalone-ollama','central-llama')][string]$Mode = 'remote-client',
     [string]$ServerUrl = 'https://replace-with-your-server',
     [string]$ServerToken,
+    [string]$InferenceApiKey,
     [string]$OllamaUrl = 'http://127.0.0.1:11434',
     [string]$LlamaUrl = 'http://127.0.0.1:8081',
     [string]$ModelDirectory = 'D:\Models\GGUF',
@@ -27,6 +28,8 @@ if (-not $NonInteractive) {
         $answer = Read-Host "LLM Glue server URL ($ServerUrl)"; if ($answer) { $ServerUrl = $answer }
         $secret = Read-Host 'Server read token (leave blank to use LLM_GLUE_READ_TOKEN at runtime)' -AsSecureString
         if ($secret.Length) { $ServerToken = [Net.NetworkCredential]::new('', $secret).Password }
+        $secret = Read-Host 'LiteLLM inference API key for OpenCode/Paseo (optional; leave blank to preserve the current user setting)' -AsSecureString
+        if ($secret.Length) { $InferenceApiKey = [Net.NetworkCredential]::new('', $secret).Password }
         $answer = Read-Host "OpenCode system config path ($OpenCodePath)"; if ($answer) { $OpenCodePath = $answer }
     } elseif ($Mode -eq 'standalone-ollama') {
         $answer = Read-Host "Ollama URL ($OllamaUrl)"; if ($answer) { $OllamaUrl = $answer }
@@ -122,6 +125,11 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Service installation failed.' }
         & $executable service start --config $config
         if ($LASTEXITCODE -ne 0) { throw 'Service start failed.' }
+    }
+    if ($Mode -eq 'remote-client' -and $InferenceApiKey) {
+        [Environment]::SetEnvironmentVariable('LLM_GLUE_INFERENCE_API_KEY', $InferenceApiKey, 'User')
+        $env:LLM_GLUE_INFERENCE_API_KEY = $InferenceApiKey
+        Write-Host 'Stored LLM_GLUE_INFERENCE_API_KEY for the current Windows user. Restart OpenCode/Paseo to inherit it.'
     }
     Write-Host "Installed $($release.tag_name) to $InstallDirectory with config $config"
 } finally {
