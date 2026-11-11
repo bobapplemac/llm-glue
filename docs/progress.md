@@ -15,7 +15,10 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   all four help spellings passed against the built executable, and an adjacent
   `llm-glue.toml` was selected and validated without `--config`. Self-contained
   win-x64 and linux-x64 publishes also pass. No post-r4 release has been
-  authorized.
+  authorized. The PowerShell bootstrap now defaults fresh service installs to
+  `%ProgramData%\LLMGlue` while retaining `%LOCALAPPDATA%\LLMGlue` for
+  non-service installs. It preserves detected legacy per-user services and
+  existing `.toml` sidecars; the mocked bootstrap matrix passes.
 
 - **Official release:** r4 is published from commit
   `342f40052f5b85609f310c89b8fe10ee5c77534c`. The guarded publisher passed

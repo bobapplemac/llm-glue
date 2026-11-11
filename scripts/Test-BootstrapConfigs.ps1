@@ -30,6 +30,10 @@ try {
     $installerSource = Get-Content -LiteralPath $installer -Raw
     if ($installerSource -notmatch '(?s)service install --config \$config.*service start --config \$config') { throw 'Windows service bootstrap does not install and start in sequence.' }
     if ($installerSource -notmatch "SetEnvironmentVariable\('LLM_GLUE_INFERENCE_API_KEY', \`$InferenceApiKey, 'User'\)") { throw 'Windows remote-client bootstrap does not persist the optional inference key for the current user.' }
+    if ($installerSource -match "\[string\]\`$InstallDirectory\s*=\s*\(Join-Path\s+\`$env:LOCALAPPDATA") { throw 'Windows bootstrap still hard-codes the per-user install directory as its parameter default.' }
+    if ($installerSource -notmatch "(?s)if \(\`$InstallService\).*?Join-Path \`$env:ProgramData 'LLMGlue'") { throw 'Windows service bootstrap does not default new installations to ProgramData.' }
+    if ($installerSource -notmatch "(?s)legacyInstallationExists.*?Preserving existing per-user service installation") { throw 'Windows bootstrap does not preserve an existing legacy per-user service installation.' }
+    if ($installerSource -notmatch "(?s)machineInstallationExists.*?llm-glue\.toml.*?if \(-not \`$machineInstallationExists -and \`$legacyInstallationExists\)") { throw 'Windows bootstrap mistakes an existing ProgramData state/log directory for a machine installation.' }
     $remote = Join-Path $temporary 'remote'
     & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://catalog.example -ServerToken test-read
     & (Join-Path $remote 'llm-glue.exe') config validate --config (Join-Path $remote 'llm-glue.conf')
@@ -41,6 +45,14 @@ try {
     & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://changed.example -ServerToken changed -OpenCodePath (Join-Path $temporary 'changed.json')
     if ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $remote 'llm-glue.conf')).Hash -ne $remoteHash) { throw 'Rerun replaced the existing sidecar.' }
     if (-not (Test-Path -LiteralPath (Join-Path $remote 'llm-glue.exe.rollback'))) { throw 'Rerun did not retain the previous executable.' }
+
+    $tomlInstall = Join-Path $temporary 'existing-toml'
+    New-Item -ItemType Directory -Path $tomlInstall | Out-Null
+    Copy-Item -LiteralPath (Join-Path $remote 'llm-glue.conf') -Destination (Join-Path $tomlInstall 'llm-glue.toml')
+    $tomlHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $tomlInstall 'llm-glue.toml')).Hash
+    & $installer -NonInteractive -Mode remote-client -InstallDirectory $tomlInstall -ServerUrl https://changed.example -ServerToken changed
+    if ((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $tomlInstall 'llm-glue.toml')).Hash -ne $tomlHash) { throw 'Rerun replaced the existing TOML sidecar.' }
+    if (Test-Path -LiteralPath (Join-Path $tomlInstall 'llm-glue.conf')) { throw 'Rerun shadowed the existing TOML sidecar with a new CONF file.' }
 
     $standalone = Join-Path $temporary 'standalone'
     & $installer -NonInteractive -Mode standalone-ollama -InstallDirectory $standalone -OpenCodePath (Join-Path $temporary 'opencode.json')

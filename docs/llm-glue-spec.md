@@ -239,6 +239,7 @@ Ship self-contained, single-file publishes for `linux-x64` and `win-x64` where .
 ### 8.1 Path and sidecar requirements
 
 - Default config resolution: explicitly supplied `--config` path; otherwise `llm-glue.conf` then `llm-glue.toml` beside the executable, then the same names in the platform canonical configuration folder. On Linux retain `/etc/llm-glue.conf` and `/etc/llm-glue.toml` as legacy fallbacks. Define precedence and report the selected path in `doctor`.
+- Windows bootstrap defaults new service installations to `%ProgramData%\LLMGlue` and non-service installations to `%LOCALAPPDATA%\LLMGlue`; explicit install paths and detected legacy installations are preserved rather than silently migrated.
 - No mandatory working-directory assumption. Resolve relative data/log paths against the configuration directory (or explicitly documented configurable base), not an arbitrary current working directory.
 - Keep all persistent state (cache, downloaded revision history, logs) in configurable locations. Do not silently write into the executable directory when it is read-only.
 - Copying the executable and configuration to another location or machine is a supported workflow. Machine-specific secrets/paths may require reconfiguration, but binaries have no install-location dependency.

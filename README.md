@@ -25,6 +25,10 @@ Windows PowerShell:
 irm https://raw.githubusercontent.com/bobapplemac/llm-glue/main/install.ps1 | iex
 ```
 
+New Windows service installations default to `%ProgramData%\LLMGlue`; installs
+without service registration remain under `%LOCALAPPDATA%\LLMGlue`. Use an
+explicit `-InstallDirectory` with the inspected local script to override either.
+
 Linux Bash:
 
 ```bash

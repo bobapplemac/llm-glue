@@ -22,6 +22,9 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
   `opencode` deny policy follows the same rule: preserve identical operator-owned
   statements and every unrelated policy, and remove only an owned statement.
 - Generated artifacts must be deterministic and must not contain credentials.
+- New Windows service bootstraps default to `%ProgramData%\LLMGlue`; non-service
+  installs may remain per-user. Never silently migrate an existing installation
+  or shadow an existing `.toml` sidecar with a newly generated `.conf` file.
 - Agent model exclusions are a pre-export boundary; excluded inventory must not
   be submitted upstream. Server exclusions retain diagnostic visibility while
   filtering generated artifacts. Exact and wildcard semantics must not be

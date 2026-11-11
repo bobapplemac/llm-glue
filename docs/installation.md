@@ -38,6 +38,16 @@ one-time client credential setup; generated configuration contains only the
 OpenCode `{env:...}` reference and never the key. LiteLLM's master key or a
 properly scoped virtual key may be used according to the operator's policy.
 
+On Windows, a new service installation defaults to
+`%ProgramData%\LLMGlue`, keeping the executable, sidecar, state, and logs in a
+machine-scoped location suitable for LocalService. A non-service installation
+defaults to `%LOCALAPPDATA%\LLMGlue` so it remains non-elevated. An explicit
+`-InstallDirectory` always wins. If a service rerun detects an existing legacy
+per-user installation and no ProgramData installation, it preserves the legacy
+path and prints an explicit migration warning; pass the ProgramData path only
+when intentionally migrating. Existing `.conf` or `.toml` sidecars are validated
+and preserved without creating a competing filename.
+
 Headless PowerShell installs use `-NonInteractive` with the corresponding named
 parameters, including optional `-InferenceApiKey` for a remote OpenCode client.
 Interactive remote-client installation requests that inference key with a

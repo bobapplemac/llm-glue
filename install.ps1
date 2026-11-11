@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$InstallDirectory = (Join-Path $env:LOCALAPPDATA 'LLMGlue'),
+    [string]$InstallDirectory,
     [ValidateSet('remote-client','standalone-ollama','central-llama')][string]$Mode = 'remote-client',
     [string]$ServerUrl = 'https://replace-with-your-server',
     [string]$ServerToken,
@@ -21,6 +21,7 @@ param(
     [switch]$NonInteractive
 )
 $ErrorActionPreference = 'Stop'
+$installDirectoryWasSpecified = $PSBoundParameters.ContainsKey('InstallDirectory')
 if (-not $NonInteractive) {
     $answer = Read-Host "Installation mode [remote-client/standalone-ollama/central-llama] ($Mode)"
     if ($answer) { if ($answer -notin 'remote-client','standalone-ollama','central-llama') { throw 'Invalid installation mode.' }; $Mode = $answer }
@@ -47,6 +48,27 @@ if (-not $NonInteractive) {
         $answer = Read-Host "LiteLLM health URL ($LiteLlmHealthUrl)"; if ($answer) { $LiteLlmHealthUrl = $answer }
     }
     if (-not $InstallService) { $InstallService = (Read-Host 'Register the Windows service? [y/N]') -match '^[Yy]$' }
+}
+if ($installDirectoryWasSpecified -and [string]::IsNullOrWhiteSpace($InstallDirectory)) { throw '-InstallDirectory cannot be empty.' }
+if (-not $installDirectoryWasSpecified) {
+    $perUserInstallDirectory = Join-Path $env:LOCALAPPDATA 'LLMGlue'
+    if ($InstallService) {
+        $machineInstallDirectory = Join-Path $env:ProgramData 'LLMGlue'
+        $legacyInstallationExists = (Test-Path -LiteralPath (Join-Path $perUserInstallDirectory 'llm-glue.exe')) -or
+            (Test-Path -LiteralPath (Join-Path $perUserInstallDirectory 'llm-glue.conf')) -or
+            (Test-Path -LiteralPath (Join-Path $perUserInstallDirectory 'llm-glue.toml'))
+        $machineInstallationExists = (Test-Path -LiteralPath (Join-Path $machineInstallDirectory 'llm-glue.exe')) -or
+            (Test-Path -LiteralPath (Join-Path $machineInstallDirectory 'llm-glue.conf')) -or
+            (Test-Path -LiteralPath (Join-Path $machineInstallDirectory 'llm-glue.toml'))
+        if (-not $machineInstallationExists -and $legacyInstallationExists) {
+            $InstallDirectory = $perUserInstallDirectory
+            Write-Warning "Preserving existing per-user service installation at $InstallDirectory. Use -InstallDirectory '$machineInstallDirectory' for an explicit migration."
+        } else {
+            $InstallDirectory = $machineInstallDirectory
+        }
+    } else {
+        $InstallDirectory = $perUserInstallDirectory
+    }
 }
 if ($InstallService -and $Mode -eq 'remote-client' -and -not $ServerToken) { throw 'Service-mode remote-client requires -ServerToken; Windows services do not inherit the installer environment.' }
 if ($NonInteractive -and $Mode -eq 'remote-client' -and $ServerUrl -eq 'https://replace-with-your-server') { throw 'Noninteractive remote-client installation requires -ServerUrl.' }
@@ -85,7 +107,9 @@ try {
     $stagedExecutable = Join-Path $stage 'llm-glue.exe'
     & $stagedExecutable --version
     if ($LASTEXITCODE -ne 0) { throw 'Checksum-verified executable failed its version check.' }
-    $config = Join-Path $InstallDirectory 'llm-glue.conf'
+    $confConfig = Join-Path $InstallDirectory 'llm-glue.conf'
+    $tomlConfig = Join-Path $InstallDirectory 'llm-glue.toml'
+    $config = if (Test-Path -LiteralPath $confConfig) { $confConfig } elseif (Test-Path -LiteralPath $tomlConfig) { $tomlConfig } else { $confConfig }
     $candidate = Join-Path $temporary 'llm-glue.conf'
     if ($Mode -eq 'remote-client') {
         $tokenLine = if ($ServerToken) { 'token = ' + (ConvertTo-TomlString $ServerToken) } else { 'token_environment = "LLM_GLUE_READ_TOKEN"' }
