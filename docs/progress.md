@@ -166,7 +166,8 @@ authorization or claim either live gate passed beforehand.
   coordinates restart/health verification and automatically restores the fallback
   after failed or interrupted activation; fault-injection tests pass on both OSes.
 - [x] Console plus bounded rolling-file logs use standard logging abstractions and
-  avoid prompt/request bodies and credentials.
+  avoid prompt/request bodies and credentials. Sanitized request correlation IDs
+  are returned and scoped into logs; each discovery/sync cycle gets its own ID.
 - [x] CI, installation, quick-start, troubleshooting, security, release, ADR and
   v2 roadmap documentation are present.
 - [x] Isolated Bash and PowerShell preflight matrices cover clean, dirty, ahead,
@@ -174,13 +175,15 @@ authorization or claim either live gate passed beforehand.
   states without GitHub mutation; Bash also verifies partial-failure guidance.
 - [ ] Live Windows SCM and Linux systemd install/move/repair/uninstall qualification.
 - [ ] Live service-mode update, health rollback, and Windows rollback helper qualification.
-- [ ] Clean, already-pushed branch success preflight and dirty/ahead/behind/detached/
-  tag-collision test matrix with GitHub CLI available. No publication authorized.
+- [ ] Authenticated preflight against the actual clean, already-pushed upstream
+  with GitHub CLI available. No publication authorized; isolated Git-state
+  success/failure matrices already pass.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Debug build and 63 tests; native
-Ubuntu/WSL Release restore/build and 63 tests; PowerShell AST and Bash syntax
-checks; r1 win-x64/linux-x64 self-contained single-file execution; Windows and
-Linux service-install dry runs. These are implementation/packaging evidence, not
-substitutes for the unchecked live gates above.
+Latest available verification: clean Windows Release build and 64 tests; native
+Ubuntu/WSL Release restore/build and 64 tests; PowerShell and Bash bootstrap
+matrices validate all three modes with real
+single-file binaries; r1 win-x64/linux-x64 execution and Windows/Linux service
+install dry runs pass. These are implementation/packaging evidence, not substitutes
+for the unchecked live gates above.

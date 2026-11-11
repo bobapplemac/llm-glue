@@ -123,3 +123,11 @@ systemd identity, verifies the LLM Glue health endpoint/running state, and resto
 and reverifies the fallback on activation failure or interruption. Windows uses a
 post-exit helper with a durable result log. Release tooling implements the same
 fail-closed contract on GNU Make/bash and PowerShell. See ADR 0003.
+
+Console and bounded rolling-file output flow through
+`Microsoft.Extensions.Logging` into NLog. Every HTTP response carries a bounded,
+sanitized `X-Correlation-ID`; a valid caller value is preserved and an unsafe or
+missing value is replaced. Request handling and each background discovery or sync
+cycle place that ID in a logging scope, alongside structured provider, target,
+model revision, and result fields where applicable. Bodies, prompts, and tokens
+are never logged.

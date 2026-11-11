@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using LlmGlue.Api;
 using LlmGlue.Core.Abstractions;
 using LlmGlue.Core.Generation;
+using LlmGlue.Observability;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -52,6 +53,35 @@ public sealed class ApiIntegrationTests
     public void BearerComparisonIsStrictAndNonLeaking(string? header, string expected, bool valid)
     {
         Assert.Equal(valid, ApiAuthenticationMiddleware.TryBearer(header, expected));
+    }
+
+    [Fact]
+    public async Task CorrelationMiddlewarePreservesValidIdsAndReplacesUnsafeValues()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        var app = builder.Build();
+        app.UseMiddleware<CorrelationIdMiddleware>();
+        app.MapGet("/trace", (HttpContext context) => context.TraceIdentifier);
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+            using var client = new HttpClient { BaseAddress = new Uri(address) };
+            using var validRequest = new HttpRequestMessage(HttpMethod.Get, "trace");
+            validRequest.Headers.Add(CorrelationIds.HeaderName, "client-123");
+            using var valid = await client.SendAsync(validRequest, TestContext.Current.CancellationToken);
+            Assert.Equal("client-123", valid.Headers.GetValues(CorrelationIds.HeaderName).Single());
+            Assert.Equal("client-123", await valid.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+
+            using var unsafeRequest = new HttpRequestMessage(HttpMethod.Get, "trace");
+            unsafeRequest.Headers.TryAddWithoutValidation(CorrelationIds.HeaderName, "secret value with spaces");
+            using var replaced = await client.SendAsync(unsafeRequest, TestContext.Current.CancellationToken);
+            var replacement = replaced.Headers.GetValues(CorrelationIds.HeaderName).Single();
+            Assert.True(CorrelationIds.IsValid(replacement));
+            Assert.NotEqual("secret value with spaces", replacement);
+        }
+        finally { await app.StopAsync(TestContext.Current.CancellationToken); }
     }
 
     [Fact]

@@ -6,6 +6,7 @@ using LlmGlue.Core.Client;
 using LlmGlue.Services;
 using LlmGlue.Core.Providers;
 using LlmGlue.Operations;
+using LlmGlue.Observability;
 using Microsoft.Extensions.Hosting.Systemd;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using NLog.Config;
@@ -84,8 +85,10 @@ if (options.Roles.Server)
     if (options.Roles.Agent) AddAgent(builder.Services, options);
     if (options.Roles.Client) AddClient(builder.Services, options);
     var app = builder.Build();
+    app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseMiddleware<ApiAuthenticationMiddleware>();
     app.MapGlueApi();
+    app.Logger.LogInformation("Starting LLM Glue {Revision}", ProductInfo.Revision);
     await app.RunAsync();
 }
 else
@@ -96,7 +99,9 @@ else
     builder.Services.AddSystemd();
     if (options.Roles.Agent) AddRemoteAgent(builder.Services, options);
     if (options.Roles.Client) AddClient(builder.Services, options);
-    await builder.Build().RunAsync();
+    var host = builder.Build();
+    host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("LlmGlue").LogInformation("Starting LLM Glue {Revision}", ProductInfo.Revision);
+    await host.RunAsync();
 }
 
 static void AddServer(IServiceCollection services, GlueOptions options)
@@ -196,7 +201,7 @@ static void ConfigureLogging(ILoggingBuilder logging, GlueOptions options)
 {
     logging.ClearProviders();
     var configuration = new LoggingConfiguration();
-    var layout = "${longdate}|${level:uppercase=true}|${logger}|${message:withexception=true}";
+    var layout = "${longdate}|${level:uppercase=true}|correlation=${scopeproperty:item=CorrelationId}|${logger}|${message:withexception=true}";
     var console = new ConsoleTarget("console") { Layout = layout };
     var filePath = Path.IsPathRooted(options.Logging.File) ? options.Logging.File : Path.GetFullPath(options.Logging.File, options.BaseDirectory);
     Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);

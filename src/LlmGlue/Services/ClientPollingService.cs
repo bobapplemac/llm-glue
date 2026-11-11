@@ -1,4 +1,5 @@
 using LlmGlue.Core.Client;
+using LlmGlue.Observability;
 
 namespace LlmGlue.Services;
 
@@ -9,6 +10,7 @@ public sealed class ClientPollingService(ArtifactSyncClient client, TimeSpan int
         var failures = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
+            using var scope = CorrelationIds.BeginScope(logger);
             try
             {
                 var results = await client.SyncOnceAsync(stoppingToken);

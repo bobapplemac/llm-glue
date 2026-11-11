@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using LlmGlue.Core.Abstractions;
 using LlmGlue.Core.Domain;
 using LlmGlue.Core.Reconciliation;
+using LlmGlue.Observability;
 
 namespace LlmGlue.Services;
 
@@ -34,6 +35,7 @@ public sealed class RemoteAgentDiscoveryService(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            using var scope = CorrelationIds.BeginScope(logger);
             var discovered = new List<ModelDeployment>();
             foreach (var adapter in adapters)
             {
