@@ -34,7 +34,7 @@ public sealed class InferenceRouteProbe(
             if (!HasExpectedResponse(document.RootElement)) throw new InvalidDataException("Probe response did not match the expected provider schema.");
 
             var observedAt = _time.GetUtcNow();
-            return deployment with
+            var result = deployment with
             {
                 Capabilities = deployment.Capabilities with
                 {
@@ -49,6 +49,9 @@ public sealed class InferenceRouteProbe(
                     }
                 }
             };
+            return providerType == "llama.cpp" && result.Capabilities.Reasoning.Kind == ReasoningModeKind.Unknown
+                ? await ProbeLlamaCppReasoningAsync(result, observedAt, timeoutSource.Token)
+                : result;
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -59,6 +62,91 @@ public sealed class InferenceRouteProbe(
             return Failed(deployment, $"Bounded text-route probe failed ({ex.GetType().Name}); response details were not published and no additional capabilities were inferred.");
         }
     }
+
+    private async Task<ModelDeployment> ProbeLlamaCppReasoningAsync(ModelDeployment deployment, DateTimeOffset observedAt, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var off = await SendLlamaCppReasoningProbe(deployment.Identity.Route, "none", cancellationToken);
+            using var on = await SendLlamaCppReasoningProbe(deployment.Identity.Route, "medium", cancellationToken);
+            if (HasReasoning(off) || !HasAssistantContent(off) || !HasReasoning(on))
+                return AddWarning(deployment, "Bounded reasoning probe did not demonstrate distinct off/on behavior; reasoning remains unknown.");
+
+            const string provenance = "llama.cpp:openai-compat:reasoning_effort:bounded-probe";
+            return deployment with
+            {
+                Capabilities = deployment.Capabilities with
+                {
+                    Reasoning = new(ReasoningModeKind.Boolean, ["off", "on"],
+                        new Evidence<string>("off,on", provenance, observedAt, VerificationState.Verified))
+                },
+                SamplingProfiles =
+                [
+                    new("thinking-off", [new("reasoning_effort", "none", provenance)], provenance, true),
+                    new("thinking-on", [new("reasoning_effort", "medium", provenance)], provenance, true)
+                ],
+                Runtime = deployment.Runtime with
+                {
+                    Properties = new SortedDictionary<string, string>(deployment.Runtime.Properties.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal), StringComparer.Ordinal)
+                    {
+                        ["probe.reasoning"] = "verified-binary"
+                    }
+                }
+            };
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidDataException or JsonException)
+        {
+            return AddWarning(deployment, $"Bounded reasoning probe failed ({ex.GetType().Name}); reasoning remains unknown.");
+        }
+    }
+
+    private async Task<JsonDocument> SendLlamaCppReasoningProbe(string route, string effort, CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
+        {
+            Content = JsonContent.Create(new
+            {
+                model = route,
+                messages = new[] { new { role = "user", content = "Reply with exactly OK and nothing else." } },
+                stream = false,
+                temperature = 0,
+                max_tokens = 128,
+                reasoning_effort = effort
+            })
+        };
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        if (response.Content.Headers.ContentLength is > MaximumResponseBytes) throw new InvalidDataException("Probe response exceeded the size limit.");
+        await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var buffer = new MemoryStream();
+        await CopyBoundedAsync(input, buffer, cancellationToken);
+        return JsonDocument.Parse(buffer.ToArray());
+    }
+
+    private static bool HasAssistantContent(JsonDocument response) => TryMessage(response.RootElement, out var message)
+        && message.TryGetProperty("content", out var content)
+        && content.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(content.GetString());
+
+    private static bool HasReasoning(JsonDocument response) => TryMessage(response.RootElement, out var message)
+        && message.TryGetProperty("reasoning_content", out var reasoning)
+        && reasoning.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(reasoning.GetString());
+
+    private static bool TryMessage(JsonElement root, out JsonElement message)
+    {
+        message = default;
+        return root.TryGetProperty("choices", out var choices)
+            && choices.ValueKind == JsonValueKind.Array
+            && choices.GetArrayLength() != 0
+            && choices[0].TryGetProperty("message", out message)
+            && message.ValueKind == JsonValueKind.Object;
+    }
+
+    private static ModelDeployment AddWarning(ModelDeployment deployment, string warning) => deployment with
+    {
+        Warnings = deployment.Warnings.Concat([warning]).Distinct(StringComparer.Ordinal).ToArray()
+    };
 
     private HttpRequestMessage CreateRequest(string route)
     {

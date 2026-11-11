@@ -21,7 +21,9 @@ bootstrap and monitoring scripts.
 
 Run `opencode api GET /api/model --standalone` in the relevant profile. Do not use
 `/api/config` as effective state; it lists sources. Confirm OpenCode 2.x and the
-system document path. LLM Glue reserves only `llm-glue-*` provider keys.
+system document path. LLM Glue changes only provider keys recorded for that
+artifact source in the adjacent ownership state; an unowned `llm-glue-*`
+collision fails closed.
 For a direct Ollama target, confirm `disabled_providers` contains `ollama` and the
 adjacent `.llm-glue-ownership.json` is readable by the service identity. This
 suppresses OpenCode's lower-fidelity native duplicate; deleting or corrupting the

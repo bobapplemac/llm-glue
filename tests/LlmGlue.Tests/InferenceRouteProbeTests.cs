@@ -29,6 +29,39 @@ public sealed class InferenceRouteProbeTests
         Assert.Contains(probed.Capabilities.TextOutput.Evidence, x => x.Verification == VerificationState.Verified);
         Assert.Equal(ReasoningModeKind.Unknown, probed.Capabilities.Reasoning.Kind);
         Assert.Equal("verified", probed.Runtime.Properties["probe.text_route"]);
+        Assert.Contains(probed.Warnings, warning => warning.Contains("reasoning remains unknown", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task VerifiesLlamaCppBinaryReasoningModesWithBoundedBehaviorProbe()
+    {
+        var requests = new List<string>();
+        var handler = new TestHttpHandler(async (request, cancellationToken) =>
+        {
+            var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            requests.Add(body);
+            if (body.Contains("\"reasoning_effort\":\"none\"", StringComparison.Ordinal))
+                return TestHttpHandler.Json("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"OK\"}}]}");
+            if (body.Contains("\"reasoning_effort\":\"medium\"", StringComparison.Ordinal))
+                return TestHttpHandler.Json("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"OK\",\"reasoning_content\":\"verified reasoning\"}}]}");
+            return TestHttpHandler.Json("{\"choices\":[{\"message\":{\"content\":\"OK\"}}]}");
+        });
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+        var deployment = GenerationTests.Qualified() with
+        {
+            Capabilities = GenerationTests.Qualified().Capabilities with { Reasoning = new(ReasoningModeKind.Unknown, []) }
+        };
+
+        var result = await new InferenceRouteProbe(http, "llama.cpp", CapabilityProbeMode.LoadedOnly, TimeSpan.FromSeconds(2))
+            .ProbeAsync(deployment, TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, requests.Count);
+        Assert.Equal(ReasoningModeKind.Boolean, result.Capabilities.Reasoning.Kind);
+        Assert.Equal(["off", "on"], result.Capabilities.Reasoning.Modes);
+        Assert.Equal(VerificationState.Verified, result.Capabilities.Reasoning.Evidence!.Verification);
+        Assert.Equal(["thinking-off", "thinking-on"], result.SamplingProfiles.Select(profile => profile.Name));
+        Assert.All(result.SamplingProfiles, profile => Assert.True(profile.TransportVerified));
+        Assert.Equal("verified-binary", result.Runtime.Properties["probe.reasoning"]);
     }
 
     [Fact]

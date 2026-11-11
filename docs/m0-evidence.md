@@ -102,7 +102,7 @@ test fixtures and validated by the M1 configuration test suite.
 
 ## Remaining qualification
 
-Actual llama.cpp/Gemma/GPT-OSS/MTP inference, LiteLLM forwarding to that route,
-Debian service behavior, Windows multi-account behavior, and Paseo UI behavior
-are mandatory M4 work. Linux two-account precedence and native Windows OpenCode
-inference are now live-qualified.
+The later M4 run qualified actual llama.cpp Qwen/Gemma/GPT-OSS/MTP inference,
+LiteLLM forwarding, lifecycle, outage recovery, and rollback on Debian 13.7 plus
+MarkIV OpenCode. Windows multi-account/system-target behavior, Paseo UI behavior,
+and least-privilege delegation of the lab Compose restart unit remain mandatory.

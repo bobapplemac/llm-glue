@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using LlmGlue.Core.Domain;
+using LlmGlue.Core.Configuration;
 using LlmGlue.Core.Providers;
 
 namespace LlmGlue.Tests;
@@ -174,6 +175,102 @@ public sealed class LlamaCppDiscoveryAdapterTests
         var model = Assert.Single(await new LlamaCppDiscoveryAdapter(client, "router").DiscoverAsync(TestContext.Current.CancellationToken));
         Assert.False(model.Runtime.Loaded);
         Assert.Equal("router", model.Runtime.Properties["mode"]);
+    }
+
+    [Fact]
+    public async Task CurrentRouterDataShapePreservesStatusContextsRuntimeAndConfirmedPath()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"llm-glue-current-router-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var modelPath = Path.Combine(directory, "Qwen3.6-35B-A3B-Q8_0.gguf");
+        try
+        {
+            WriteGguf(modelPath, "qwen35", 262144, splitCount: 1, mtpLayers: 1);
+            var payload = JsonSerializer.Serialize(new
+            {
+                data = new object[]
+                {
+                    new
+                    {
+                        id = "bench-01-01",
+                        status = new
+                        {
+                            value = "loaded",
+                            args = new[] { "llama-server", "--model", modelPath, "--ctx-size", "131072", "--cache-type-k", "q8_0", "--spec-type", "draft-mtp", "--spec-draft-n-max", "2", "--n-gpu-layers", "all" },
+                            memory = new { effective = new { n_ctx = 65536 } }
+                        },
+                        context_length = 262144,
+                        meta = new { n_ctx = 65536, n_ctx_train = 262144 },
+                        source = "preset"
+                    },
+                    new
+                    {
+                        id = "dormant",
+                        status = new { value = "unloaded", args = new[] { "llama-server", "--ctx-size", "0" } },
+                        context_length = 131072,
+                        source = "preset"
+                    }
+                }
+            });
+            var handler = new TestHttpHandler(request => request.RequestUri!.AbsolutePath switch
+            {
+                "/models" => TestHttpHandler.Json(payload),
+                "/props" => throw new InvalidOperationException("A router catalog must not be parsed as a direct server."),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            });
+            using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+
+            var models = await new LlamaCppDiscoveryAdapter(client, "router", [directory])
+                .DiscoverAsync(TestContext.Current.CancellationToken);
+
+            var loaded = Assert.Single(models, model => model.Identity.ModelId == "bench-01-01");
+            Assert.True(loaded.Runtime.Loaded);
+            Assert.Equal(262144, loaded.NativeContext!.Value);
+            Assert.Equal(65536, loaded.EffectiveContext!.Value);
+            Assert.Equal("131072", loaded.Runtime.Properties["context.configured"]);
+            Assert.Equal("q8_0", loaded.Runtime.Properties["cache.type.k"]);
+            Assert.Equal("draft-mtp", loaded.Runtime.Properties["speculative.type"]);
+            Assert.Equal("2", loaded.Runtime.Properties["speculative.draft_n_max"]);
+            Assert.Equal("all", loaded.Runtime.Properties["gpu.layers"]);
+            Assert.Equal("qwen35", loaded.Identity.Family);
+            Assert.Equal("present", loaded.Runtime.Properties["gguf.mtp"]);
+            Assert.DoesNotContain(modelPath, JsonSerializer.Serialize(loaded), StringComparison.OrdinalIgnoreCase);
+
+            var dormant = Assert.Single(models, model => model.Identity.ModelId == "dormant");
+            Assert.False(dormant.Runtime.Loaded);
+            Assert.Equal(131072, dormant.NativeContext!.Value);
+            Assert.Null(dormant.EffectiveContext);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task RouterMapsContainerModelPathIntoExplicitHostAllowlist()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"llm-glue-router-map-{Guid.NewGuid():N}");
+        var nested = Path.Combine(directory, "qwen");
+        Directory.CreateDirectory(nested);
+        var modelPath = Path.Combine(nested, "model.gguf");
+        try
+        {
+            WriteGguf(modelPath, "qwen3", 262144, splitCount: 1);
+            var handler = new TestHttpHandler(request => request.RequestUri!.AbsolutePath switch
+            {
+                "/models" => TestHttpHandler.Json("{\"data\":[{\"id\":\"mapped\",\"source\":\"preset\",\"status\":{\"value\":\"loaded\",\"args\":[\"llama-server\",\"--model\",\"/models/qwen/model.gguf\"]}}]}"),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            });
+            using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+
+            var model = Assert.Single(await new LlamaCppDiscoveryAdapter(
+                client, "router", [directory], [new ModelPathMapping("/models", directory)])
+                .DiscoverAsync(TestContext.Current.CancellationToken));
+
+            Assert.Equal("qwen3", model.Identity.Family);
+            Assert.Equal(262144, model.NativeContext!.Value);
+            Assert.DoesNotContain(modelPath, JsonSerializer.Serialize(model), StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("/models/", JsonSerializer.Serialize(model), StringComparison.OrdinalIgnoreCase);
+        }
+        finally { Directory.Delete(directory, true); }
     }
 
     [Fact]

@@ -17,6 +17,8 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
 - Direct Ollama/OpenCode output must suppress the duplicate built-in `ollama`
   provider. Preserve unrelated and pre-existing `disabled_providers` values and
   keep the adjacent generated ownership state transactional with target apply.
+  OpenCode provider ownership is scoped by artifact source; one controller must
+  never remove another controller's provider keys.
 - Generated artifacts must be deterministic and must not contain credentials.
 - Network schemas are versioned independently from the product revision.
 - Product version remains `r0` until the user authorizes the first release.

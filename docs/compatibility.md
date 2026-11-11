@@ -7,9 +7,9 @@ release source. Live production qualification is tracked separately.
 | Integration | Version | Evidence | Result |
 |---|---:|---|---|
 | OpenCode | 2.2.7 | Live Windows executable, two native Linux accounts, official schema/docs | System config wins conflicts for both accounts; nonconflicting user/project values survive; effective models available at `/api/model`; source arrays are not effective config; watched files apply without explicit reload in this test. |
-| LiteLLM Proxy | 1.109.0 | Live isolated Windows install and installed source | Relative YAML includes work; lists concatenate; non-list include values replace rather than deep-merge. Development `--reload` did not watch the included file and did not reliably restart after a root edit on Windows. |
+| LiteLLM Proxy | 1.106.3 and 1.109.0 | Live Debian Docker Compose service plus isolated Windows install/source | Both versions accept the dedicated YAML include and concatenate `model_list`. Debian controlled Compose recreation, health, real llama.cpp forwarding, and atomic rollback passed. Development `--reload` remains unsuitable. |
 | Ollama | 0.40.16 | Live local HTTP API, OpenAI-compatible inference, and OpenCode 2.2.7 | `/api/tags`, `/api/show`, `/api/ps`, and `/api/version` match documented shapes. Native and `reasoning_effort` Off/On thinking, effective/native context separation, full VRAM residency, loaded-only route probing, named variant selection, and real OpenCode inference passed for Qwen 3.5 4B. |
-| llama.cpp | 8681 (`b8681-Debian`) | Live Ubuntu/WSL executable with SmolLM2 135M Q2_K plus official server docs/source | Current direct servers expose the OpenAI `data` array from both `/v1/models` and the `/models` compatibility alias; `/props` reported build, effective context, and `reasoning_format`. LLM Glue separated native/effective context and completed a bounded inference probe. Representative Debian models remain pending. |
+| llama.cpp | 8681 (`b8681-Debian`) and router `0.9.0-dev` (`0a94a3f`) | Live Ubuntu direct server and Debian 13.7/CUDA router | Direct and current `data[]` router shapes are distinguished. The router qualified Qwen MTP, Gemma 4, GPT-OSS, multipart GGUF, configured/effective context, KV/GPU/speculative traits, reasoning probes, lifecycle, and outage recovery. |
 | .NET SDK | 10.0.401 | Live | Build toolchain available on Windows. |
 | .NET SDK (Ubuntu/WSL) | 10.0.115 | Live native Linux build/test/systemd | GNU Make restore/build/test, linux-x64 execution, and isolated fixed-account all-role systemd install/repair/rollback/uninstall passed, including OpenCode ownership-sidecar permissions. |
 | Debian | 13.5 (trixie) x64 | Live minimal WSL installation with systemd, initially without ICU | The first self-contained build exposed an undeclared ICU dependency. Invariant globalization removed it; the rebuilt single file then ran, validated the central config, and passed fixed-account all-role systemd install/start/sync/move/repair/restart/rollback/uninstall with cleanup verified. |
@@ -44,6 +44,13 @@ enriched `llm-glue-ollama-*` entries remained. Direct Ollama artifacts therefore
 disable the built-in provider to avoid duplicates. Client ownership state tracks
 only a disablement LLM Glue added; pre-existing and unrelated user values survive
 reconciliation and rollback.
+
+The central MarkIV sync initially exposed that prefix-wide cleanup let a remote
+artifact erase the locally managed Ollama provider. Ownership schema v2 now
+records provider keys and disablements per artifact source URL. A byte-for-byte
+restore preceded the corrected rerun; the live migrated target retained all three
+local Ollama models, `disabled_providers: [ollama]`, and the central Qwen provider.
+Unowned and cross-source provider-key collisions fail closed.
 
 Sources: <https://opencode.ai/docs/config>,
 <https://opencode.ai/config.json>, <https://opencode.ai/docs/api>, and
@@ -90,6 +97,15 @@ only ephemeral loopback ports and uses test credentials.
 Sources: <https://github.com/BerriAI/litellm/releases/tag/v1.109.0> and
 <https://docs.litellm.ai/docs/proxy/ui_credentials>.
 
+The Debian lab additionally qualified the installed `v1.106.3` image. A
+disposable same-image container exposed both a manual root route and a generated
+included route, proving `include: [/app/llm-glue-models.yaml]` for that exact
+version. The operator root YAML and manual aliases stayed intact; the host
+generated file was mounted read-only into the container. A narrowly scoped
+systemd unit performed Compose recreation and `/health/liveliness` verification.
+A fail-once live unit then proved exact include rollback, prior-state
+reactivation, HTTP 200 recovery, and canonical reapply.
+
 ## Ollama 0.40.16
 
 The live model reported native context `262144`, completion/vision/tools, and
@@ -134,9 +150,10 @@ Sources: <https://github.com/ollama/ollama/blob/main/docs/api.md>,
 
 `/v1/models` on a direct server represents one loaded model. In live build 8681,
 `/models` is also a compatibility alias containing both a `models` array and the
-OpenAI-compatible `data` array. LLM Glue treats a response with `data` as direct
-instead of misclassifying that alias as a router. Router `/models` responses
-without `data` can report dormant and loaded models plus effective arguments;
+OpenAI-compatible `data` array. The live router also returns `data`, but its
+entries carry `source` and nested status evidence. LLM Glue therefore uses entry
+shape rather than `data` alone. Router responses report dormant/loaded models,
+argument arrays, memory measurements, and provider-confirmed paths;
 `/props` provides effective context, generation defaults, and `build_info`.
 `/models?reload=1` refreshes router inventory. Local files still require route
 validation. Reasoning, effort, budget, and nonstandard sampling fields require
@@ -166,31 +183,38 @@ present. The latter becomes `gguf.mtp=present` plus an observed layer count, and
 is deliberately not converted into a reasoning or sampling variant. Full-file SHA-256 is disabled by default and
 explicitly opt-in. Native Ubuntu/WSL qualification inspected the aliased SmolLM2
 GGUF through its reported path and published no local path. Synthetic GGUF
-coverage qualifies MTP metadata classification; a real MTP artifact and behavior
-remain unqualified.
+coverage is now complemented by the live Qwen 3.6 35B-A3B Q8 route: GGUF
+architecture `qwen35moe`, one NextN/MTP layer, configured/native/effective
+context 262144, Q8 KV cache, all GPU layers, `draft-mtp`, and draft maximum 2
+were observed. An explicit
+`/models=/mnt/local-nvme-01/AI/models/gguf` mapping resolved the container path
+without publishing it. A four-part Qwen GGUF reported split count 4. Dormant
+Gemma 4 and GPT-OSS metadata were inspected without loading them.
 
 The implemented opt-in functional probe uses `/v1/chat/completions` for llama.cpp
 and native `/api/chat` for Ollama, with bounded time and response size. Fixture
 tests verify route/text evidence, loaded-only no-load behavior, timeout, failure
 redaction, and both request contracts. It deliberately does not claim reasoning,
 tool, sampling, or LiteLLM forwarding support; those require the M4 representative
-live probes. A live SmolLM2 run verified this probe and a real LiteLLM 1.109.0
-forwarding response, but it is not evidence for the required representative
-reasoning/sampling profiles.
+live probes. Qwen and Gemma demonstrated `none` with no reasoning and `medium`
+with explicit reasoning. Qwen returned the same behavior through generated
+LiteLLM and installed OpenCode variants. GPT-OSS completed both requests but
+emitted reasoning even for `none`, so its Off mode remains unknown and
+unpublished. Low/high request acceptance was not treated as proof of distinct
+effort semantics.
 
 Sources: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>,
 <https://github.com/ggml-org/llama.cpp/blob/master/src/llama-arch.cpp>.
 
 ## Unqualified environments
 
-- Debian `labhost03`, actual representative llama.cpp models, MTP/draft
-  artifacts, and LiteLLM service ownership are unavailable in this workspace.
-  A noninteractive SSH preflight on 2026-11-11 could not resolve `labhost03` from
-  this Windows environment.
+- The lab central process was intentionally run as an isolated root transient
+  unit because the Docker Compose host has no polkit service for delegating the
+  exact restart unit to the fixed `llm-glue` account. Least-privilege systemd
+  mechanics are separately qualified on Debian; this Compose activation
+  permission remains an operator deployment step.
 - Two-account system precedence is qualified on Linux/WSL, but not Windows or
   Windows Server 2025.
-- Gemma and GPT-OSS runtime behavior is represented only by sanitized recorded
-  fixtures until live qualification.
 - OpenCode functional inference and CLI variant selection are qualified on native
   Windows; Paseo UI behavior remains unqualified.
 

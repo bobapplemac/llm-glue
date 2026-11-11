@@ -126,7 +126,11 @@ public static class CliCommands
         foreach (var target in options.Client.Targets)
         {
             var path = ResolvePath(options, target.Path);
-            if (target.Type == "opencode") targets.Add(new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator()));
+            if (target.Type == "opencode")
+            {
+                var source = options.Client.Source ?? options.Server.Listen;
+                targets.Add(new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), $"source:{source.AbsoluteUri.TrimEnd('/')}"));
+            }
             else targets.Add(new LiteLlmTarget(path, ResolvePath(options, target.PrimaryConfigPath!), new AtomicFileInstaller(), new ServiceRestartActivator(target.ServiceName!, new HttpClient { Timeout = TimeSpan.FromSeconds(5) }, target.HealthUrl)));
         }
         return targets;
@@ -145,6 +149,7 @@ public static class CliCommands
                     client,
                     provider.Name,
                     provider.ModelDirectories.Select(path => ResolvePath(options, path)).ToArray(),
+                    (provider.ModelPathMappings ?? []).Select(mapping => mapping with { LocalDirectory = ResolvePath(options, mapping.LocalDirectory) }).ToArray(),
                     provider.InspectGguf,
                     provider.HashModelFiles);
             if (provider.ProbeMode != CapabilityProbeMode.Off)

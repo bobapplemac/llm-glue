@@ -21,9 +21,10 @@ runtime-reported effective state, and empirically observed behavior are distinct
 
 Ollama discovery uses `/api/tags`, `/api/show`, `/api/ps`, and `/api/version`.
 llama.cpp discovery distinguishes direct single-model servers from model routers
-using `/v1/models`, `/models`, and `/props`. Because current direct servers also
-serve `/models`, an OpenAI-compatible top-level `data` array identifies direct
-mode; router-only shapes are parsed separately. Local GGUF inspection is constrained
+using `/v1/models`, `/models`, and `/props`. Because current direct servers and
+routers can both serve a top-level `data` array, entry-level nested status/source
+evidence identifies router inventory; plain OpenAI model entries use direct mode.
+Local GGUF inspection is constrained
 to configured directory allowlists; a file is never considered routable merely
 because it exists.
 
@@ -39,20 +40,30 @@ is recorded separately as effective runtime configuration. Local paths are never
 placed in the network model. Whole-file SHA-256 is separately opt-in because model
 files can be very large.
 
+Containerized routers can report a path such as `/models/x.gguf` that is not the
+host agent's mount path. `model_path_mappings` explicitly maps a provider prefix
+to a host directory before the same canonical allowlist check; no basename or
+model-name guess is permitted.
+
 Functional text-route probes are also off by default. `loaded-only` probes only a
 deployment the runtime already reports loaded; `allow-load` is the explicit opt-in
-that may wake a dormant model. Each probe has its own timeout and one-token response
-limit plus a one-MiB response cap. Success adds verified text-route evidence only.
-It never infers tools, reasoning modes, sampling transport, or absence of a feature;
-failure makes that deployment unavailable for publication without exposing the
-provider response body.
+that may wake a dormant model. Each probe has its own timeout, bounded generation,
+and a one-MiB response cap. Success adds verified text-route evidence. For
+llama.cpp only, an already-loaded route with unknown reasoning receives two more
+bounded requests: `reasoning_effort=none` and `medium`. Binary Off/On profiles are
+published only when the first returns assistant content without reasoning and the
+second returns explicit nonempty `reasoning_content`. Every other result remains
+unknown; tools and named effort semantics are never inferred.
 
 ## Configuration ownership
 
 OpenCode synchronization performs scoped reconciliation inside the documented
-system-managed document. It owns only its deterministic provider namespace and
-model keys and preserves every unrelated property. User and project documents
-are read only.
+system-managed document. Adjacent ownership schema v2 scopes provider keys and
+native-provider disablements by artifact source URL, so local Ollama and remote
+central controllers can share one target. V1 state migrates through a legacy
+scope and transfers keys when their current source next claims them. Unowned and
+cross-source collisions fail closed. Every unrelated property is preserved;
+user and project documents are read only.
 For a direct Ollama deployment, the generated document also disables OpenCode's
 built-in `ollama` provider so enriched models do not appear twice. The target
 merges `disabled_providers`, preserves unrelated and pre-existing values, and
@@ -75,8 +86,9 @@ settings reference `LLM_GLUE_INFERENCE_API_KEY` through OpenCode's `{env:...}`
 substitution and declare that environment source at provider level so OpenCode
 activates the custom provider; the secret itself never enters an artifact.
 
-See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md) and
-[ADR 0005](decisions/0005-central-litellm-routing.md).
+See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md),
+[ADR 0005](decisions/0005-central-litellm-routing.md), and
+[ADR 0009](decisions/0009-live-router-paths-probes-and-source-ownership.md).
 
 ## Network and persistence
 

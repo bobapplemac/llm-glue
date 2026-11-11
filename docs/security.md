@@ -16,9 +16,10 @@ is inventory submission and read-only catalog/artifact retrieval.
   publication only and never issue provider or filesystem operations.
 - Provider metadata and model cards are untrusted data. LLM Glue does not execute
   repository code or model-card instructions.
-- GGUF reads are allowlisted and allocation-bounded. HTTP artifacts have size and
-  schema limits. Target paths are explicit; no recursive user-directory deletion
-  exists.
+- GGUF reads are allowlisted and allocation-bounded. Explicit container-to-host
+  prefix mappings still pass through canonical allowlist validation. HTTP
+  artifacts have size/schema limits. Target paths are explicit; no recursive
+  user-directory deletion exists.
 - Provider, Agent, Client, and health endpoints accept only HTTP(S) URLs and
   reject URI user-information fields so credentials cannot leak through URL
   diagnostics. Authentication uses the dedicated protected secret settings.

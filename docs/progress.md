@@ -7,10 +7,11 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 ## Current status
 
 - **M0 — evidence/interface validation:** implementation design complete;
-  executable tests completed for OpenCode 2.2.7, LiteLLM 1.109.0, and Ollama
-  0.40.16. Two-account Linux precedence is live-qualified; Windows multi-account
-  and live llama.cpp/model qualification remain deferred to M4 and fail closed.
-- **M1 — core domain/discovery:** implemented; the full 84-test suite
+  executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,
+  Ollama 0.40.16, and llama.cpp direct/router builds. Two-account Linux
+  precedence and representative central discovery are live-qualified; Windows
+  multi-account remains deferred to M4.
+- **M1 — core domain/discovery:** implemented; the full 98-test suite
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
   inventory hashes. Configured llama.cpp directories now enrich only
@@ -22,7 +23,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   shapes report effective speculative state. Live build 8681 reported
   speculation disabled. Live Ollama API shape was additionally confirmed in M0. Opt-in functional text-route probes are
   timeout/size bounded, preserve unknown non-text capabilities, and never load a
-  dormant model under `loaded-only` policy.
+  dormant model under `loaded-only` policy. Current router `data[]` status shapes,
+  explicit container-to-host model path mappings, and behaviorally verified
+  binary llama.cpp reasoning profiles are covered by live evidence and tests.
 - **M2 — server/generation:** implemented; reconciliation grace/conflict handling,
   deterministic OpenCode 2.x and LiteLLM generation, validation, bounded artifact
   history, authenticated `/api/v1` publication, diagnostics and ETags. Golden and
@@ -39,6 +42,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   and LiteLLM include/collision/service-health activation all have automated tests.
   Agent-only role composition now submits canonical snapshots through the remote
   write-auth boundary; delayed snapshots cannot replace newer Server state.
+  OpenCode ownership schema v2 scopes provider keys and native-provider
+  disablements by artifact source, migrates v1 state, and fails closed on
+  unowned/cross-source collisions.
 - **M4 — live end-to-end:** partial. Live Windows Ollama discovery → Server →
   Client → isolated OpenCode 2.2.7 catalog visibility passed for two models.
   An elevated all-role Windows service run also passed LocalService identity,
@@ -63,10 +69,15 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   also passed LiteLLM 1.109.0 forwarding and OpenCode-to-backend transport. The
   production generator correctly excluded the model because reasoning remained
   unknown, and the deliberately small model did not produce a terminal OpenCode
-  task response, so the Debian
-  representative-model llama.cpp/LiteLLM,
-  Windows multi-account/system-target service, and Paseo paths remain blocked on
-  unavailable environments. Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
+  task response. The later Debian 13.7 `labhost03` run qualified the actual
+  llama.cpp `0.9.0-dev` router, LiteLLM 1.106.3 include/restart/rollback, Qwen MTP,
+  Gemma 4, GPT-OSS, multipart GGUF, context/KV/GPU/speculative observation,
+  authenticated Windows OpenCode Off/On inference, add/change/remove propagation,
+  transient outage/grace/recovery, and live fail-once activation rollback. GPT-OSS
+  reasoning-off remains unknown because `reasoning_effort=none` still emitted
+  reasoning. Windows multi-account/system-target service, Paseo UI, and
+  least-privilege delegation for that host's Docker Compose restart remain open.
+  Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
   captured mock upstream verified stable alias routing, streamed response flow,
   environment-backed client/backend authentication, `temperature`, and the binary
   `enable_thinking` field.
@@ -117,8 +128,8 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 - [x] Define mandatory-remote/optional-loopback authentication threat model.
 - [x] Select TOML parser and strict validation approach.
 - [x] Add sanitized fixtures/reference transcripts.
-- [ ] Qualify actual representative llama.cpp/Gemma/GPT-OSS/MTP request paths
-  (M4 environment); a small live SmolLM2 route now qualifies mechanics only.
+- [x] Qualify actual representative llama.cpp/Qwen/Gemma/GPT-OSS/MTP paths;
+  unsupported GPT-OSS Off behavior remains unknown rather than weakened.
 - [x] Repeat OpenCode system precedence with two actual Linux OS accounts (M4);
   Windows multi-account qualification remains open.
 
@@ -143,19 +154,20 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   models, and makes expensive full-file hashing explicit opt-in.
 - [x] Ollama tags/show/ps/version adapter with explicit thinking categories.
 - [x] llama.cpp direct/router/property adapter without treating files as routes.
-- [x] Opt-in loaded-only/allow-load inference probes verify only observed text
-  routing with bounded timeout/output; failures exclude the route without leaking
-  response bodies or fabricating reasoning/tool/sampling support.
+- [x] Opt-in loaded-only/allow-load inference probes verify observed text routing
+  with bounded timeout/output. Loaded llama.cpp routes additionally publish
+  binary reasoning only after distinct `none`/`medium` behavior; failures and
+  ambiguous results remain unknown without leaking response bodies.
 - [x] Deterministic, content-hashed discovery snapshots.
 - [x] Validated Linux, Windows all-in-one, and remote-client TOML examples.
-- [x] Automated tests pass; live model inference remains an M4 gate.
+- [x] Automated tests pass; representative live model inference is M4-qualified.
 
 ## Next steps
 
-Run M4 live qualification on Debian `labhost03` and representative Windows hosts:
-real llama.cpp/LiteLLM inference and lifecycle behavior, Windows multi-account
-and production system-target behavior, and Paseo catalog/variant visibility.
-Then exercise the implemented M5
+Complete the remaining Windows multi-account/system-target and Paseo
+catalog/variant visibility checks, and decide how the lab operator will delegate
+the exact Docker Compose activation unit to the fixed service identity. Then
+exercise the implemented M5
 service install/move/update/rollback/uninstall flows on both OSes and the guarded
 release preflight from a clean pushed branch. Do not publish without explicit
 authorization or claim either live gate passed beforehand.
@@ -170,14 +182,15 @@ authorization or claim either live gate passed beforehand.
 - [x] Validation failure leaves the destination untouched.
 - [x] Activation failure restores and reactivates last-known-good state.
 - [x] OpenCode scoped reconciliation preserves unrelated user/system settings and
-  removes only reserved stale provider keys. Direct Ollama synchronization also
-  ownership-tracks and reversibly suppresses OpenCode's duplicate native provider.
+  removes only stale keys owned by the same artifact source. Direct Ollama
+  synchronization ownership-tracks and reversibly suppresses the duplicate native
+  provider; local and central controllers coexist through ownership schema v2.
 - [x] LiteLLM requires the operator include, preserves the primary config, rejects
   alias collisions, parses YAML, and uses constrained service restart/health check.
 - [x] Client-only role does not bind a web listener; remote sources require a token
   environment reference.
-- [x] 31 automated tests pass on Windows/.NET 10. Cross-platform and real-service
-  interruption qualification remains M4.
+- [x] Targeted client tests plus the full 98-test suite pass on Windows/.NET 10;
+  real LiteLLM interruption and rollback are live-qualified.
 
 ## M2 acceptance checklist
 
@@ -189,8 +202,8 @@ authorization or claim either live gate passed beforehand.
   secret references.
 - [x] LiteLLM 1.109.0 executable forwarding test verifies `openai/` route mapping,
   stable alias resolution, response flow, standard parameters, binary
-  `enable_thinking`, and backend auth;
-  the representative llama.cpp/thinking path remains M4.
+  `enable_thinking`, and backend auth; the representative llama.cpp reasoning
+  path is now separately live-qualified with `reasoning_effort`.
 - [x] OpenCode 2.2.7 noninteractive forwarding through LiteLLM verifies custom
   provider activation, the generated credential reference and alias, streamed
   response flow, and `thinking-on` body transport against a captured upstream.
@@ -246,11 +259,12 @@ authorization or claim either live gate passed beforehand.
 - [ ] Authenticated preflight against the actual clean, already-pushed upstream
   with GitHub CLI available. No publication authorized; isolated Git-state
   success/failure matrices already pass.
-- [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
-  until the release's required live suite passes.
+- [ ] Remaining M4 Windows multi-account/system-target, Paseo UI, and lab Compose
+  least-privilege delegation gates; M5 cannot be declared passed until the
+  release's required live suite passes.
 
-Latest available verification: Windows Release build and 90 tests; native
-Ubuntu/WSL Release restore/build and 90 tests;
+Latest available verification: Windows and native Ubuntu/WSL Release builds with
+all 98 tests passing;
 OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
 native OpenCode 2.2.7 → Ollama 0.40.16 real-model inference with verified
 `thinking-off`/`thinking-on` variants and no duplicate native Ollama catalog row;
@@ -258,6 +272,8 @@ the installed default OpenCode profile was rechecked after the latest discovery
 fix and returned `LLM_GLUE_CURRENT_OK` through its generated `thinking-off` route;
 isolated native Ollama add/change/remove, application restart, outage/grace/recovery,
 and native-provider restoration;
+Debian 13.7 llama.cpp Qwen/Gemma/GPT-OSS central inference, generated LiteLLM
+include activation/rollback, catalog lifecycle, and MarkIV OpenCode Off/On runs;
 two-account Linux system precedence;
 PowerShell and Bash bootstrap
 matrices validate all three modes with real

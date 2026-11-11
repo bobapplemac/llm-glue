@@ -100,8 +100,20 @@ probe_timeout_seconds = 30
 ```
 
 `allow-load` may cause the runtime to load a dormant model and must be selected
-explicitly. These probes verify only the text route; reasoning and sampling remain
-unknown until separately qualified.
+explicitly. A loaded llama.cpp route also receives bounded `reasoning_effort=none`
+and `medium` probes when reasoning is unknown; Off/On profiles appear only after
+distinct response behavior is verified. Tools and named effort semantics remain
+unknown.
+
+When a container reports model paths under a different prefix than the host,
+configure the mapping explicitly rather than relying on filenames:
+
+```toml
+model_directories = ["/srv/models/gguf"]
+model_path_mappings = ["/models=/srv/models/gguf"]
+```
+
+The mapped canonical path must still remain inside `model_directories`.
 
 Service registration requires elevation and preserves the sidecar and data on
 uninstall. Windows installs the service as `NT AUTHORITY\\LocalService`, granting
@@ -117,13 +129,14 @@ and data ownership remain stable. Copying the executable and sidecar is supporte
 use `service repair` after relocation because OS service metadata does not follow
 moved files.
 
-Direct Ollama synchronization may create
+OpenCode synchronization may create
 `<opencode-target>.llm-glue-ownership.json` beside the managed OpenCode document.
-This machine-generated operational state records only native-provider disablements
-LLM Glue added, allowing safe reversal without removing an operator-owned value.
-Keep it with the target and do not edit it. Service installation grants access
-through the configured target directory; corrupt state fails closed before the
-OpenCode document is changed.
+Schema v2 records provider keys and native-provider disablements per artifact
+source, allowing local Ollama and remote central catalogs to coexist and reverse
+only their own changes. V1 state migrates automatically. Keep this
+machine-generated state with the target and do not edit it. Service installation
+grants access through the configured target directory; corrupt state and
+unowned/cross-source collisions fail closed before the document is changed.
 
 Updates are opt-in. Use `update check`, then `update apply` for a foreground
 installation. For a registered LLM Glue service, run elevated:

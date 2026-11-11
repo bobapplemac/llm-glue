@@ -158,6 +158,7 @@ static void AddDiscoveryAdapters(IServiceCollection services, GlueOptions option
                 client,
                 provider.Name,
                 provider.ModelDirectories.Select(path => ResolveConfigPath(options, path)).ToArray(),
+                (provider.ModelPathMappings ?? []).Select(mapping => mapping with { LocalDirectory = ResolveConfigPath(options, mapping.LocalDirectory) }).ToArray(),
                 provider.InspectGguf,
                 provider.HashModelFiles);
         if (provider.ProbeMode != CapabilityProbeMode.Off)

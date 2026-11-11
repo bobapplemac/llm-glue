@@ -235,6 +235,51 @@ public sealed class ConfigurationTests
     }
 
     [Fact]
+    public void LoadsExplicitContainerToHostModelPathMapping()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = true
+            server = true
+            client = false
+            [[agent.providers]]
+            type = "llama.cpp"
+            name = "router"
+            url = "http://127.0.0.1:8081"
+            model_directories = ["/srv/models"]
+            model_path_mappings = ["/models=/srv/models"]
+            """);
+        try
+        {
+            var mapping = Assert.Single(Assert.Single(TomlConfigLoader.Load(path).Providers).ModelPathMappings!);
+            Assert.Equal("/models", mapping.ProviderPrefix);
+            Assert.Equal("/srv/models", mapping.LocalDirectory);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Theory]
+    [InlineData("bad-mapping")]
+    [InlineData("/models=")]
+    public void RejectsInvalidModelPathMapping(string mapping)
+    {
+        var path = WriteTemp($$"""
+            [roles]
+            agent = true
+            server = true
+            client = false
+            [[agent.providers]]
+            type = "llama.cpp"
+            name = "router"
+            url = "http://127.0.0.1:8081"
+            model_directories = ["/srv/models"]
+            model_path_mappings = ["{{mapping}}"]
+            """);
+        try { Assert.Contains("model_path_mappings", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public void AllowsProtectedSidecarTokensForHeadlessServices()
     {
         var serverPath = WriteTemp("""

@@ -104,10 +104,13 @@ public static class TomlConfigLoader
 
     private static ProviderOptions ReadProvider(TomlTable table)
     {
-        CheckKeys(table, "agent.providers", "type", "name", "url", "model_directories", "inspect_gguf", "hash_model_files", "probe_mode", "probe_timeout_seconds");
+        CheckKeys(table, "agent.providers", "type", "name", "url", "model_directories", "model_path_mappings", "inspect_gguf", "hash_model_files", "probe_mode", "probe_timeout_seconds");
         var type = RequiredString(table, "type");
         if (type is not ("ollama" or "llama.cpp")) throw new ConfigurationException($"Unsupported provider type '{type}'.");
         var directories = StringArray(table, "model_directories");
+        var mappings = StringArray(table, "model_path_mappings").Select(ParseModelPathMapping).ToArray();
+        if (mappings.Select(x => x.ProviderPrefix).Distinct(StringComparer.Ordinal).Count() != mappings.Length)
+            throw new ConfigurationException("model_path_mappings provider prefixes must be unique.");
         var inspect = Bool(table, "inspect_gguf", true);
         var hash = Bool(table, "hash_model_files", false);
         var probeMode = String(table, "probe_mode", "off") switch
@@ -117,10 +120,23 @@ public static class TomlConfigLoader
             "allow-load" => CapabilityProbeMode.AllowLoad,
             _ => throw new ConfigurationException("probe_mode must be 'off', 'loaded-only', or 'allow-load'.")
         };
-        if (type != "llama.cpp" && (directories.Count != 0 || !inspect || hash))
-            throw new ConfigurationException("model_directories, inspect_gguf, and hash_model_files apply only to llama.cpp providers.");
+        if (type != "llama.cpp" && (directories.Count != 0 || mappings.Length != 0 || !inspect || hash))
+            throw new ConfigurationException("model_directories, model_path_mappings, inspect_gguf, and hash_model_files apply only to llama.cpp providers.");
         if (hash && !inspect) throw new ConfigurationException("hash_model_files requires inspect_gguf = true.");
-        return new ProviderOptions(type, RequiredString(table, "name"), HttpUri(RequiredString(table, "url"), "provider.url"), directories, inspect, hash, probeMode, PositiveInt(table, "probe_timeout_seconds", 15));
+        if (mappings.Length != 0 && directories.Count == 0) throw new ConfigurationException("model_path_mappings requires at least one model_directories allowlist entry.");
+        return new ProviderOptions(type, RequiredString(table, "name"), HttpUri(RequiredString(table, "url"), "provider.url"), directories, inspect, hash, probeMode, PositiveInt(table, "probe_timeout_seconds", 15), mappings);
+    }
+
+    private static ModelPathMapping ParseModelPathMapping(string value)
+    {
+        var separator = value.IndexOf('=');
+        if (separator <= 0 || separator == value.Length - 1)
+            throw new ConfigurationException("Each model_path_mappings entry must use 'provider-prefix=local-directory'.");
+        var provider = value[..separator].Trim().TrimEnd('/', '\\');
+        var local = value[(separator + 1)..].Trim().TrimEnd('/', '\\');
+        if (provider.Length == 0 || local.Length == 0)
+            throw new ConfigurationException("Each model_path_mappings entry must use non-empty provider and local paths.");
+        return new ModelPathMapping(provider, local);
     }
 
     private static TargetOptions ReadTarget(TomlTable table)

@@ -32,7 +32,10 @@ public sealed record ProviderOptions(
     bool InspectGguf,
     bool HashModelFiles,
     CapabilityProbeMode ProbeMode,
-    int ProbeTimeoutSeconds);
+    int ProbeTimeoutSeconds,
+    IReadOnlyList<ModelPathMapping>? ModelPathMappings = null);
+
+public sealed record ModelPathMapping(string ProviderPrefix, string LocalDirectory);
 
 public sealed record ServerOptions(
     Uri Listen,

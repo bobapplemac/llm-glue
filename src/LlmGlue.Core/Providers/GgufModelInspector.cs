@@ -1,10 +1,14 @@
 using System.Security.Cryptography;
+using LlmGlue.Core.Configuration;
 using LlmGlue.Core.Domain;
 using LlmGlue.Core.Gguf;
 
 namespace LlmGlue.Core.Providers;
 
-internal sealed class GgufModelInspector(IReadOnlyList<string> allowedDirectories, bool hashModelFiles)
+internal sealed class GgufModelInspector(
+    IReadOnlyList<string> allowedDirectories,
+    IReadOnlyList<ModelPathMapping> modelPathMappings,
+    bool hashModelFiles)
 {
     public async Task<ModelDeployment> EnrichAsync(ModelDeployment deployment, CancellationToken cancellationToken, string? providerConfirmedPath = null)
     {
@@ -72,9 +76,23 @@ internal sealed class GgufModelInspector(IReadOnlyList<string> allowedDirectorie
     private string? ProviderPathOrExactRoute(string? providerConfirmedPath, string modelId)
     {
         if (!string.IsNullOrWhiteSpace(providerConfirmedPath))
-            return providerConfirmedPath.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase) ? providerConfirmedPath : null;
+        {
+            if (!providerConfirmedPath.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)) return null;
+            var mapping = modelPathMappings
+                .Where(candidate => HasPathPrefix(providerConfirmedPath, candidate.ProviderPrefix))
+                .OrderByDescending(candidate => candidate.ProviderPrefix.Length)
+                .FirstOrDefault();
+            if (mapping is null) return providerConfirmedPath;
+            var suffix = providerConfirmedPath[mapping.ProviderPrefix.Length..].TrimStart('/', '\\');
+            return Path.Combine(mapping.LocalDirectory, suffix.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar));
+        }
         return FindExactRouteFile(modelId);
     }
+
+    private static bool HasPathPrefix(string path, string prefix) => string.Equals(path, prefix, StringComparison.Ordinal)
+        || path.Length > prefix.Length
+        && path.StartsWith(prefix, StringComparison.Ordinal)
+        && path[prefix.Length] is '/' or '\\';
 
     private string? FindExactRouteFile(string modelId)
     {

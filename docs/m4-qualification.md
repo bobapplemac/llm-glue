@@ -219,17 +219,58 @@ sidecar across install, relocation/repair, and rollback, but the current Codex
 process does not have an elevated Windows token and the rerun refused before
 creating a service. LocalService sidecar access therefore remains unqualified.
 
-## Debian llama.cpp/LiteLLM — not run
+## Debian llama.cpp/LiteLLM — representative central path pass
 
-`labhost03`, its model directories, llama.cpp router, LiteLLM service identity,
-and representative Qwen/Gemma/GPT-OSS/MTP models are unavailable in this
-environment. The following remain mandatory:
+`labhost03` ran Debian 13.7, llama.cpp router `0.9.0-dev` commit `0a94a3f`,
+LiteLLM `1.106.3`, and ten configured routes. Its current `/models` response uses
+OpenAI-style `data[]` plus nested router status/source evidence, exposing and
+correcting the prior `data means direct` assumption. The live adapter now reports
+dormant state, native/configured/effective context, KV cache, GPU layers, and
+speculative settings from that shape.
 
-- Real direct/router discovery and GGUF multipart/draft classification.
-- LiteLLM include deployment followed by controlled service restart and health.
-- Captured Off/On and effort-level request bodies at llama.cpp.
-- Functional inference and context/KV/runtime observation.
-- Model add, change, removal, outage, stale-grace, restart, and rollback scenarios.
+The router reports container paths under `/models`; the host sees the read-only
+tree under `/mnt/local-nvme-01/AI/models/gguf`. An explicit prefix mapping kept
+the canonical allowlist intact. Real metadata inspection identified Qwen 3.6
+35B-A3B Q8 as `qwen35moe` with one MTP layer, context 262144, Q8 KV, all GPU
+layers, `draft-mtp`, and draft maximum 2. Dormant Gemma 4/GPT-OSS metadata and a
+four-part Qwen split were also observed without publishing paths.
+
+A disposable same-version LiteLLM container proved the one-time include syntax
+and manual/generated list merge. The operator root YAML and its ten manual routes
+were backed up and preserved; only a generated include and read-only Compose bind
+were added. A scoped systemd activation unit recreated only LiteLLM and verified
+`/health/liveliness`. The generated alias became the eleventh route while the
+manual `bench-01-01` remained present.
+
+Behavioral probes showed:
+
+- Qwen: `none` produced no reasoning; `medium` produced reasoning. Generated
+  LiteLLM requests returned the exact marker with 0 versus 798 reasoning chars.
+- Gemma 4 12B: exact markers with 0 versus 358 reasoning chars.
+- GPT-OSS 120B: inference passed, but `none` still produced 384 reasoning chars;
+  its Off mode therefore remains unknown and unpublished.
+- Accepted low/high requests were not treated as proof of distinct effort levels.
+
+Installed Windows OpenCode 2.2.7 synchronized the authenticated artifact into
+the normal profile, selected both generated variants, and returned exact Off/On
+markers through OpenCode → LiteLLM → llama.cpp. The On JSON stream contained an
+explicit reasoning event. A live ownership defect found during this step was
+fixed: schema v2 scopes providers by artifact source, so the three pre-existing
+local Ollama models and `disabled_providers: [ollama]` survived the central sync.
+
+Lifecycle qualification added a temporary Qwen alias, propagated it into the
+LiteLLM include, replaced the same ID with Gemma and observed `family=gemma4` in
+the OpenCode artifact, then restored the original preset and observed removal
+after grace. A 40-second router outage produced an agent failure while the
+last-known-good include hash and Server health survived; restart plus exact
+inference recovered. Finally, a dedicated fail-once activation unit caused a
+real sync failure, exact include restoration, successful prior-state
+reactivation, LiteLLM HTTP 200, and canonical reapply.
+
+The central qualification process used an isolated root transient unit because
+this Docker host lacks polkit delegation for the exact Compose restart unit.
+Least-privilege systemd lifecycle is separately qualified below; production
+authorization for this particular activation unit remains an operator step.
 
 ## Linux systemd lifecycle — pass in Ubuntu and Debian 13/WSL
 
@@ -239,8 +280,8 @@ install/enable, start/HTTP health, stop, executable relocation plus `service
 repair`, restart/health, synchronous service rollback, uninstall preservation,
 and final cleanup verification. The test first refused any pre-existing unit,
 account, or owned service directories; afterward none of its system resources
-remained. This qualifies service mechanics, not the unavailable Debian
-llama.cpp/LiteLLM inference path.
+remained. This qualifies service mechanics independently of the representative
+Debian llama.cpp/LiteLLM inference path qualified above.
 
 The current r0 binary was rerun after ADR 0007 using a loopback Ollama discovery
 fixture and all three roles. Under the fixed `llm-glue` identity it generated the
@@ -259,8 +300,8 @@ lifecycle with fixture discovery, managed target plus ownership sidecar,
 relocation/repair, restart, synchronous rollback, uninstall preservation, and
 final service/account/directory cleanup. Python and curl were installed only for
 the qualification harness; neither is an LLM Glue runtime dependency. This
-qualifies Debian 13 service and binary mechanics, not the unavailable
-representative-model inference path on `labhost03`.
+qualifies Debian 13 service and binary mechanics; the representative-model path
+on `labhost03` is qualified separately above.
 
 ## Multi-user precedence — Linux pass; Windows/UI pending
 
@@ -279,7 +320,9 @@ still unqualified.
 
 ## Gate status
 
-M4 is **not passed**. Native Windows OpenCode/Ollama inference and catalog
-lifecycle plus Linux multi-account precedence are verified; the remaining Debian,
-Windows multi-account, production-target service, and Paseo UI requirements
-cannot be simulated or waived.
+The representative Debian central inference, generated include/restart/rollback,
+catalog lifecycle, native Windows OpenCode/Ollama inference, and Linux
+multi-account precedence paths are verified. M4 remains **partial** only for
+Windows multi-account/system-target behavior, Paseo UI presentation, and
+least-privilege delegation of the lab's Docker Compose restart unit; these are
+not simulated or waived.
