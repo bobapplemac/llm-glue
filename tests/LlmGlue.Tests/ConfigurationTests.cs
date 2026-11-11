@@ -40,6 +40,8 @@ public sealed class ConfigurationTests
             Assert.True(options.Providers[0].InspectGguf);
             Assert.False(options.Providers[0].HashModelFiles);
             Assert.Equal("litellm", Assert.Single(options.Client.Targets).Type);
+            Assert.Equal("state", options.Server.StateDirectory);
+            Assert.Equal(5, options.Server.ArtifactRetention);
         }
         finally { File.Delete(path); }
     }

@@ -51,11 +51,13 @@ public static class ServiceManager
         if (OperatingSystem.IsLinux())
         {
             var unitPath = "/etc/systemd/system/llm-glue.service";
-            var writable = options.Client.Targets.Select(x => Path.GetDirectoryName(Resolve(options, x.Path))).Where(x => x is not null).Distinct(StringComparer.Ordinal).ToArray();
+            var writable = options.Client.Targets.Select(x => Path.GetDirectoryName(Resolve(options, x.Path)))
+                .Where(x => x is not null).Cast<string>().ToList();
+            if (options.Roles.Server) writable.Add(Resolve(options, options.Server.StateDirectory));
             var unit = new StringBuilder("[Unit]\nDescription=LLM Glue model discovery and configuration synchronization\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=notify\n")
                 .Append("ExecStart=\"").Append(EscapeSystemd(executable)).Append("\" run --config \"").Append(EscapeSystemd(options.ConfigPath)).Append("\"\n")
                 .Append("Restart=on-failure\nRestartSec=5s\nDynamicUser=yes\nNoNewPrivileges=yes\nPrivateTmp=yes\nProtectSystem=strict\nProtectHome=read-only\nStateDirectory=llm-glue\nLogsDirectory=llm-glue\n");
-            foreach (var path in writable) unit.Append("ReadWritePaths=").Append(EscapeSystemd(path!)).Append('\n');
+            foreach (var path in writable.Distinct(StringComparer.Ordinal)) unit.Append("ReadWritePaths=").Append(EscapeSystemd(path)).Append('\n');
             unit.Append("\n[Install]\nWantedBy=multi-user.target\n");
             if (dryRun)
             {

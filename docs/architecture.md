@@ -68,6 +68,13 @@ publication boundary. Hidden deployments remain in inventory/model diagnostics
 with their exclusion reason but are omitted from both target artifacts; provider
 state is never changed. See [ADR 0004](decisions/0004-inventory-publication-and-exclusions.md).
 
+The Server commits each validated inventory plus its generated artifacts into a
+configured state directory before changing in-memory visibility. A durable current
+marker selects a state ID derived from both inventory and artifact hashes, so a
+generator change is retained even when provider inventory is unchanged. Startup
+restores only schema- and hash-valid state; corrupt or partial state fails closed.
+Retention deletes only owned hash-named revision directories.
+
 Client installation is staged on the destination filesystem, validated, backed
 up, atomically renamed, activated, verified, and rolled back on failure. A local
 lock prevents concurrent reconciliation. Offline clients keep the last-known-good

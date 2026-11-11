@@ -52,6 +52,12 @@ model_id = "private-model"
 All supplied fields in a rule must match. Exclusions hide catalog publication
 only: diagnostics retain the deployment and identify the matching rule.
 
+`server.state_directory` controls durable catalog/artifact storage and resolves
+relative to the sidecar directory. The service identity must be able to create
+and replace files there. `server.artifact_retention` defaults to five validated
+states. Linux service installations conventionally use `/var/lib/llm-glue`, while
+a portable foreground installation may use a relative `state` directory.
+
 Service registration requires elevation and preserves the sidecar and data on
 uninstall. Copying the executable and sidecar is supported; use `service repair`
 after relocation because OS service metadata does not follow moved files.

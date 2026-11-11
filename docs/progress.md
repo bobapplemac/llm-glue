@@ -19,7 +19,8 @@ Last updated: 2026-11-11
   history, authenticated `/api/v1` publication, diagnostics and ETags. Golden and
   real Kestrel tests pass; OpenCode 2.2.7 loaded the generated artifact and retained
   the exact verified variant body without inventing modes. Exact scoped exclusions
-  retain diagnostic visibility while filtering both generated artifacts.
+  retain diagnostic visibility while filtering both generated artifacts. Catalog
+  state and artifacts are transactionally persisted and hash-validated on restart.
 - **M3 — client/targets:** implemented; conditional polling with bearer auth,
   bounded downloads/backoff, destination locks, validation/staging, atomic replace,
   no-op detection, bounded backups, reactivation rollback, scoped OpenCode merge,
@@ -155,8 +156,8 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Debug build and 46 tests; native
-Ubuntu/WSL Release restore/build and 46 tests; PowerShell AST and Bash syntax
+Latest available verification: clean Windows Debug build and 50 tests; native
+Ubuntu/WSL Release restore/build and 50 tests; PowerShell AST and Bash syntax
 checks; r1 win-x64/linux-x64 self-contained single-file execution; Windows and
 Linux service-install dry runs. These are implementation/packaging evidence, not
 substitutes for the unchecked live gates above.

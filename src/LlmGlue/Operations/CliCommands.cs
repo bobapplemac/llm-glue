@@ -17,6 +17,7 @@ public static class CliCommands
         Console.WriteLine($"Config: {options.ConfigPath}");
         Console.WriteLine($"Roles: agent={options.Roles.Agent}, server={options.Roles.Server}, client={options.Roles.Client}");
         Console.WriteLine($"Server: {options.Server.Listen}");
+        Console.WriteLine($"Server state: {ResolvePath(options, options.Server.StateDirectory)} (retention {options.Server.ArtifactRetention})");
         if (options.Agent.SubmitTo is not null) Console.WriteLine($"Agent submission: {options.Agent.SubmitTo}");
         if (options.Agent.WriteTokenEnvironment is not null) Console.WriteLine($"Agent write token: {options.Agent.WriteTokenEnvironment} ({(string.IsNullOrEmpty(Environment.GetEnvironmentVariable(options.Agent.WriteTokenEnvironment)) ? "missing" : "set")})");
         Console.WriteLine($"Server exclusions: {options.Server.Exclusions.Count}");

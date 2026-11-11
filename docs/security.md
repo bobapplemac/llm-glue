@@ -19,6 +19,9 @@ is inventory submission and read-only catalog/artifact retrieval.
   exists.
 - Local LiteLLM activation accepts a constrained service identity, invokes fixed
   `systemctl`/`sc.exe` operations without a shell, and health-checks before commit.
+- Persisted Server catalogs are written under the configured owned state directory
+  and restored only after canonical inventory and artifact SHA-256 validation.
+  Retention ignores non-hash/operator directories.
 - Updates and installers are pinned to `bobapplemac/llm-glue`, accept stable `rN`
   releases only, and verify SHA-256 manifests. Release publication rechecks the
   upstream immediately before mutation.

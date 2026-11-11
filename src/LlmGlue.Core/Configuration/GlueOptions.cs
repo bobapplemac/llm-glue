@@ -34,7 +34,9 @@ public sealed record ServerOptions(
     string? ReadTokenEnvironment,
     string? WriteTokenEnvironment,
     bool AcknowledgeInsecureRemoteHttp,
-    IReadOnlyList<ExclusionRuleOptions> Exclusions);
+    IReadOnlyList<ExclusionRuleOptions> Exclusions,
+    string StateDirectory,
+    int ArtifactRetention);
 
 public sealed record ExclusionRuleOptions(
     string? ProviderId,

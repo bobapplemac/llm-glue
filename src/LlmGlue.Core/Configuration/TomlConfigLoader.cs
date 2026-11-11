@@ -34,12 +34,14 @@ public static class TomlConfigLoader
             PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");
-        CheckKeys(server, "server", "listen", "read_token_environment", "write_token_environment", "acknowledge_insecure_remote_http", "exclusions");
+        CheckKeys(server, "server", "listen", "read_token_environment", "write_token_environment", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
         var serverOptions = new ServerOptions(
             AbsoluteUri(String(server, "listen", "http://127.0.0.1:8765"), "server.listen"),
             OptionalString(server, "read_token_environment"), OptionalString(server, "write_token_environment"),
             Bool(server, "acknowledge_insecure_remote_http", false),
-            TableArray(server, "exclusions").Select(ReadExclusion).ToArray());
+            TableArray(server, "exclusions").Select(ReadExclusion).ToArray(),
+            String(server, "state_directory", "state"),
+            PositiveInt(server, "artifact_retention", 5));
         ValidateListen(serverOptions);
 
         var client = OptionalTable(root, "client");

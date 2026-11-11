@@ -96,11 +96,13 @@ static void AddServer(IServiceCollection services, GlueOptions options)
 {
     services.AddSingleton<IConfigurationGenerator, OpenCodeGenerator>();
     services.AddSingleton<IConfigurationGenerator>(_ => new LiteLlmGenerator());
-    services.AddSingleton(new ArtifactStore());
+    services.AddSingleton(new ArtifactStore(options.Server.ArtifactRetention));
+    services.AddSingleton(new CatalogStateRepository(ResolveConfigPath(options, options.Server.StateDirectory), options.Server.ArtifactRetention));
     services.AddSingleton(provider => new ApiState(
         provider.GetServices<IConfigurationGenerator>(),
         provider.GetRequiredService<ArtifactStore>(),
-        options.Server.Exclusions));
+        options.Server.Exclusions,
+        provider.GetRequiredService<CatalogStateRepository>()));
     services.AddSingleton(new ApiAuthenticationOptions(
         options.Server.ReadTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Server.ReadTokenEnvironment),
         options.Server.WriteTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Server.WriteTokenEnvironment)));
