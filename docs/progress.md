@@ -51,7 +51,14 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   OpenCode exposed all three local models without native duplicates and returned
   the expected marker through a generated `thinking-off` route. Two actual Linux
   accounts also passed system precedence and unrelated user-setting preservation.
-  The Debian llama.cpp/LiteLLM,
+  A real Ubuntu/WSL llama.cpp 8681 + SmolLM2 route exposed and corrected current
+  direct `/models` alias handling, then passed native/effective context discovery,
+  version capture, and bounded inference. A manually isolated downstream route
+  also passed LiteLLM 1.109.0 forwarding and OpenCode-to-backend transport. The
+  production generator correctly excluded the model because reasoning remained
+  unknown, and the deliberately small model did not produce a terminal OpenCode
+  task response, so the Debian
+  representative-model llama.cpp/LiteLLM,
   Windows multi-account/system-target service, and Paseo paths remain blocked on
   unavailable environments. Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
   captured mock upstream verified stable alias routing, streamed response flow,
@@ -97,7 +104,8 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 - [x] Define mandatory-remote/optional-loopback authentication threat model.
 - [x] Select TOML parser and strict validation approach.
 - [x] Add sanitized fixtures/reference transcripts.
-- [ ] Qualify actual llama.cpp/Gemma/GPT-OSS/MTP request paths (M4 environment).
+- [ ] Qualify actual representative llama.cpp/Gemma/GPT-OSS/MTP request paths
+  (M4 environment); a small live SmolLM2 route now qualifies mechanics only.
 - [x] Repeat OpenCode system precedence with two actual Linux OS accounts (M4);
   Windows multi-account qualification remains open.
 

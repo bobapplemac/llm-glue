@@ -12,11 +12,11 @@ represented as production-ready.
 | Required capability | Discovery source | Verification | Unknown/fallback behavior |
 |---|---|---|---|
 | Provider/runtime version | Ollama `/api/version`; llama.cpp response/build metadata | Version range adapter | Mark unsupported version; diagnostics only |
-| Routable model | Ollama tags/show; llama direct `/v1/models`; router `/models` | Provider route and bounded request probe | Never publish a file-only discovery |
+| Routable model | Ollama tags/show; llama direct `/v1/models` or `/models` with OpenAI `data`; router-only `/models` shape | Provider route and bounded request probe | Never publish a file-only discovery |
 | Native context | Ollama show `*.context_length`; GGUF metadata; llama model metadata | Typed numeric validation | Null/unknown |
 | Effective context | Ollama `/api/ps` when loaded; llama `/props` or router effective args | Compare live response to configured state | Null; never substitute native max |
 | Modalities/tools | Provider capability fields, GGUF architecture, bounded probe | Per-field evidence | Tri-state unknown |
-| Reasoning modes | Ollama show `thinking`; llama versioned flags/model evidence | End-to-end request/response probe | Omit modes; never infer from name |
+| Reasoning modes | Ollama show `thinking`; llama versioned flags/model evidence (`reasoning_format` controls output parsing, not capability) | End-to-end request/response probe for controllable modes | Omit modes; never infer from name or a response parsing format |
 | Sampling transport | Versioned provider/LiteLLM path | Mock capture plus live representative probes | Drop unsupported fields with warning |
 | Runtime residency/KV/MTP | Runtime live APIs/args | Reported versus observed labels | Diagnostics only; not client variants |
 | LiteLLM route | Generated include and proxy model endpoint | Restart, `/v1/models`, functional completion | Roll back and retain LKG |

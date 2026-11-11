@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using LlmGlue.Core.Domain;
 using LlmGlue.Core.Providers;
 
 namespace LlmGlue.Tests;
@@ -22,6 +23,52 @@ public sealed class LlamaCppDiscoveryAdapterTests
         Assert.Equal(262144, model.NativeContext!.Value);
         Assert.Equal(65536, model.EffectiveContext!.Value);
         Assert.Equal("direct", model.Runtime.Properties["mode"]);
+    }
+
+    [Fact]
+    public async Task DirectServerModelsCompatibilityAliasUsesPropsAndBuildInfo()
+    {
+        var handler = new TestHttpHandler(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/models" => TestHttpHandler.Json("""
+                {"models":[{"name":"smollm-live","model":"smollm-live"}],"object":"list","data":[{"id":"smollm-live","meta":{"n_ctx_train":8192}}]}
+                """),
+            "/props" => TestHttpHandler.Json("""
+                {"default_generation_settings":{"n_ctx":2048,"params":{"reasoning_format":"none"}},"build_info":"b8681-Debian"}
+                """),
+            "/v1/models" => throw new InvalidOperationException("The compatibility alias should not trigger a second model request."),
+            _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+        });
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+
+        var model = Assert.Single(await new LlamaCppDiscoveryAdapter(client, "local").DiscoverAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(8192, model.NativeContext!.Value);
+        Assert.Equal(2048, model.EffectiveContext!.Value);
+        Assert.True(model.Runtime.Loaded);
+        Assert.Equal("b8681-Debian", model.Runtime.Version);
+        Assert.Equal("direct", model.Runtime.Properties["mode"]);
+        Assert.Equal(ReasoningModeKind.Unknown, model.Capabilities.Reasoning.Kind);
+        Assert.Empty(model.Capabilities.Reasoning.Modes);
+        Assert.Null(model.Capabilities.Reasoning.Evidence);
+    }
+
+    [Fact]
+    public async Task DirectServerDoesNotInferReasoningFromResponseParsingFormat()
+    {
+        var handler = new TestHttpHandler(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/models" => new HttpResponseMessage(HttpStatusCode.NotFound),
+            "/v1/models" => TestHttpHandler.Json("{\"data\":[{\"id\":\"qwen.gguf\"}]}"),
+            "/props" => TestHttpHandler.Json("{\"default_generation_settings\":{\"params\":{\"reasoning_format\":\"deepseek\"}}}"),
+            _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+        });
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+
+        var model = Assert.Single(await new LlamaCppDiscoveryAdapter(client, "local").DiscoverAsync(TestContext.Current.CancellationToken));
+
+        Assert.Equal(ReasoningModeKind.Unknown, model.Capabilities.Reasoning.Kind);
+        Assert.Null(model.Capabilities.Reasoning.Evidence);
     }
 
     [Fact]

@@ -127,6 +127,41 @@ that custom providers need provider-level `env` metadata to become routable; the
 generator now emits it. This qualifies client/proxy transport with a captured
 upstream, not llama.cpp's interpretation or Paseo UI behavior.
 
+## Live small-model llama.cpp/LiteLLM route — transport pass, representative gate partial
+
+Ubuntu 26.04/WSL ran the official packaged llama.cpp build 8681
+(`build_info: b8681-Debian`) on loopback with the Apache-2.0 SmolLM2 135M
+Instruct Q2_K GGUF. This exposed two current API details absent from the earlier
+fixtures: direct `/models` returns both a `models` compatibility array and the
+OpenAI `data` array, and `/props` places `reasoning_format` under
+`default_generation_settings.params`. The adapter initially misclassified this
+as a router, losing loaded state, context, version, and the functional probe.
+The corrected adapter recognizes `data` as direct mode. Official documentation
+shows `reasoning_format` controls response parsing rather than model capability,
+so the adapter deliberately leaves reasoning unknown for every such value.
+
+With the server deliberately configured at 2048 tokens, LLM Glue reported native
+context 8192, effective context 2048, version `b8681-Debian`, loaded state, and a
+verified bounded text route. The production generator correctly excluded this
+model because its reasoning capability remained unknown. To test downstream
+mechanics without weakening that policy, a temporary LiteLLM configuration
+mirrored the standard generated alias/API-base shape and carried
+`max_input_tokens: 2048`; an actual LiteLLM 1.109.0 request reached llama.cpp and
+returned model text with the same build fingerprint. Installed OpenCode 2.2.7
+loaded an equivalent isolated central model, then correctly failed before
+inference when its 3856-token agent request exceeded the configured 2048-token
+limit.
+
+The server was restarted at its native 8192-token context and the isolated
+downstream configurations were updated to 8192. OpenCode then forwarded
+a 3248-token request through LiteLLM and llama.cpp returned HTTP 200. The tiny
+Q2 model generated to the 1024-token limit without a terminal answer, causing
+OpenCode to request continuation; the isolated client loop was interrupted.
+This proves real discovery, context evidence, bounded inference, LiteLLM routing,
+and OpenCode-to-backend transport. It does **not** qualify automatic publication,
+a successful OpenCode task, representative Qwen/Gemma/GPT-OSS reasoning and
+sampling behavior, Debian service ownership, or lifecycle scenarios.
+
 ## Windows service lifecycle — pass
 
 An elevated, isolated all-role development qualification ran as

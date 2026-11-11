@@ -21,7 +21,9 @@ runtime-reported effective state, and empirically observed behavior are distinct
 
 Ollama discovery uses `/api/tags`, `/api/show`, `/api/ps`, and `/api/version`.
 llama.cpp discovery distinguishes direct single-model servers from model routers
-using `/v1/models`, `/models`, and `/props`. Local GGUF inspection is constrained
+using `/v1/models`, `/models`, and `/props`. Because current direct servers also
+serve `/models`, an OpenAI-compatible top-level `data` array identifies direct
+mode; router-only shapes are parsed separately. Local GGUF inspection is constrained
 to configured directory allowlists; a file is never considered routable merely
 because it exists.
 

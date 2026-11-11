@@ -9,7 +9,7 @@ release source. Live production qualification is tracked separately.
 | OpenCode | 2.2.7 | Live Windows executable, two native Linux accounts, official schema/docs | System config wins conflicts for both accounts; nonconflicting user/project values survive; effective models available at `/api/model`; source arrays are not effective config; watched files apply without explicit reload in this test. |
 | LiteLLM Proxy | 1.109.0 | Live isolated Windows install and installed source | Relative YAML includes work; lists concatenate; non-list include values replace rather than deep-merge. Development `--reload` did not watch the included file and did not reliably restart after a root edit on Windows. |
 | Ollama | 0.40.16 | Live local HTTP API, OpenAI-compatible inference, and OpenCode 2.2.7 | `/api/tags`, `/api/show`, `/api/ps`, and `/api/version` match documented shapes. Native and `reasoning_effort` Off/On thinking, effective/native context separation, full VRAM residency, loaded-only route probing, named variant selection, and real OpenCode inference passed for Qwen 3.5 4B. |
-| llama.cpp | v0.9.0 stable target | Official server documentation/source | Direct `/v1/models`, router `/models`, and `/props` have distinct discovery roles. Runtime executable/model qualification remains pending. |
+| llama.cpp | 8681 (`b8681-Debian`) | Live Ubuntu/WSL executable with SmolLM2 135M Q2_K plus official server docs/source | Current direct servers expose the OpenAI `data` array from both `/v1/models` and the `/models` compatibility alias; `/props` reported build, effective context, and `reasoning_format`. LLM Glue separated native/effective context and completed a bounded inference probe. Representative Debian models remain pending. |
 | .NET SDK | 10.0.401 | Live | Build toolchain available on Windows. |
 | .NET SDK (Ubuntu/WSL) | 10.0.115 | Live native Linux build/test/systemd | GNU Make restore/build/test, linux-x64 execution, and isolated fixed-account all-role systemd install/repair/rollback/uninstall passed, including OpenCode ownership-sidecar permissions. |
 | Tomlyn | 2.10.2 | Live NuGet restore/build on net10.0 | Compatible parser selected; strict binding tests are an M1 gate. |
@@ -131,11 +131,21 @@ Sources: <https://github.com/ollama/ollama/blob/main/docs/api.md>,
 
 ## llama.cpp target
 
-`/v1/models` on a direct server represents one loaded model. Router `/models`
-can report dormant and loaded models plus effective arguments; `/props` provides
-effective context and generation defaults. `/models?reload=1` refreshes router
-inventory. Local files still require route validation. Reasoning, effort, budget,
-and nonstandard sampling fields require an end-to-end request transport probe.
+`/v1/models` on a direct server represents one loaded model. In live build 8681,
+`/models` is also a compatibility alias containing both a `models` array and the
+OpenAI-compatible `data` array. LLM Glue treats a response with `data` as direct
+instead of misclassifying that alias as a router. Router `/models` responses
+without `data` can report dormant and loaded models plus effective arguments;
+`/props` provides effective context, generation defaults, and `build_info`.
+`/models?reload=1` refreshes router inventory. Local files still require route
+validation. Reasoning, effort, budget, and nonstandard sampling fields require
+an end-to-end request transport probe.
+
+Live `/props` from build 8681 reported `reasoning_format: none`. Official llama.cpp
+documentation defines this as response parsing behavior: thoughts remain in
+`message.content`. It is not evidence that reasoning is unsupported, so LLM Glue
+keeps reasoning capability unknown for `none` and every other parsing format
+unless separate model and request evidence exists.
 
 The implemented GGUF path enriches only provider-confirmed routes with an exact
 allowlisted filename. It records `general.architecture`, architecture context,
@@ -148,7 +158,9 @@ and native `/api/chat` for Ollama, with bounded time and response size. Fixture
 tests verify route/text evidence, loaded-only no-load behavior, timeout, failure
 redaction, and both request contracts. It deliberately does not claim reasoning,
 tool, sampling, or LiteLLM forwarding support; those require the M4 representative
-live probes.
+live probes. A live SmolLM2 run verified this probe and a real LiteLLM 1.109.0
+forwarding response, but it is not evidence for the required representative
+reasoning/sampling profiles.
 
 Source: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>.
 

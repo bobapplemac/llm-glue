@@ -25,6 +25,11 @@ public sealed class LlamaCppDiscoveryAdapter(
         if (routerResponse.IsSuccessStatusCode)
         {
             using var json = await JsonDocument.ParseAsync(await routerResponse.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            if (HasDirectData(json.RootElement))
+            {
+                var props = await TryGetProps(cancellationToken);
+                return await EnrichAsync(ParseDirect(json.RootElement, props, now), cancellationToken);
+            }
             return await EnrichAsync(ParseRouter(json.RootElement, now), cancellationToken);
         }
         if (routerResponse.StatusCode is not (HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed)) routerResponse.EnsureSuccessStatusCode();
@@ -57,12 +62,13 @@ public sealed class LlamaCppDiscoveryAdapter(
     private IReadOnlyList<ModelDeployment> ParseDirect(JsonElement root, JsonElement? props, DateTimeOffset now)
     {
         if (!root.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array) return [];
+        var version = props is { } p ? GetString(p, "build_info") : null;
         return data.EnumerateArray().Select(item =>
         {
             var id = item.GetProperty("id").GetString() ?? throw new JsonException("llama.cpp model id is missing.");
             var native = TryPathLong(item, "meta", "n_ctx_train");
             var effective = props is { } p ? TryPathLong(p, "default_generation_settings", "n_ctx") : null;
-            return Create(id, id, native, effective, true, now, "direct");
+            return Create(id, id, native, effective, true, now, "direct", version);
         }).OrderBy(x => x.Identity.ModelId, StringComparer.Ordinal).ToArray();
     }
 
@@ -81,13 +87,25 @@ public sealed class LlamaCppDiscoveryAdapter(
         }).OrderBy(x => x.Identity.ModelId, StringComparer.Ordinal).ToArray();
     }
 
-    private ModelDeployment Create(string id, string display, long? native, long? effective, bool loaded, DateTimeOffset now, string mode) => new(
+    private ModelDeployment Create(
+        string id,
+        string display,
+        long? native,
+        long? effective,
+        bool loaded,
+        DateTimeOffset now,
+        string mode,
+        string? version = null) => new(
         new ModelIdentity("llama.cpp", instanceId, id, display, id, SourceEndpoint: httpClient.BaseAddress?.ToString()), DeploymentStatus.Available, now, now,
         native is > 0 ? new Evidence<long>(native.Value, $"llama.cpp:{mode}:native", now, VerificationState.Reported) : null,
         effective is > 0 ? new Evidence<long>(effective.Value, $"llama.cpp:{mode}:effective", now, VerificationState.Observed) : null,
         ProviderHelpers.Capabilities(null, null, new(ReasoningModeKind.Unknown, []), $"llama.cpp:{mode}", now), [],
-        new RuntimeDetails("llama.cpp", null, loaded, new SortedDictionary<string, string>(StringComparer.Ordinal) { ["mode"] = mode }),
+        new RuntimeDetails("llama.cpp", version, loaded, new SortedDictionary<string, string>(StringComparer.Ordinal) { ["mode"] = mode }),
         ["Modalities, tools, and reasoning require metadata or bounded probe evidence."]);
+
+    private static bool HasDirectData(JsonElement root) => root.ValueKind == JsonValueKind.Object
+        && root.TryGetProperty("data", out var data)
+        && data.ValueKind == JsonValueKind.Array;
 
     private static string? GetString(JsonElement element, string name) => element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
     private static long? TryPathLong(JsonElement element, params string[] path)
