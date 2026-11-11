@@ -11,7 +11,9 @@ Last updated: 2026-11-11
 - **M1 — core domain/discovery:** implemented; build and 12 fixture/unit tests
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
-  inventory hashes. Live Ollama API shape was additionally confirmed in M0.
+  inventory hashes. Configured llama.cpp directories now enrich only exact,
+  provider-confirmed GGUF routes; full-file hashing is opt-in. Live Ollama API
+  shape was additionally confirmed in M0.
 - **M2 — server/generation:** implemented; reconciliation grace/conflict handling,
   deterministic OpenCode 2.x and LiteLLM generation, validation, bounded artifact
   history, authenticated `/api/v1` publication, diagnostics and ETags. Golden and
@@ -73,6 +75,9 @@ Last updated: 2026-11-11
 - [x] Domain types preserve tri-state capabilities and provenance.
 - [x] Native and effective context are distinct.
 - [x] Safe GGUF v2/v3 metadata reader enforces directory and allocation bounds.
+- [x] Exact-route GGUF enrichment canonicalizes allowlisted/symlinked paths,
+  records architecture/context/type/multipart metadata, never promotes file-only
+  models, and makes expensive full-file hashing explicit opt-in.
 - [x] Ollama tags/show/ps/version adapter with explicit thinking categories.
 - [x] llama.cpp direct/router/property adapter without treating files as routes.
 - [x] Deterministic, content-hashed discovery snapshots.
@@ -150,8 +155,8 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: clean Windows Debug build and 43 tests; native
-Ubuntu/WSL Release restore/build and 43 tests; PowerShell AST and Bash syntax
+Latest available verification: clean Windows Debug build and 46 tests; native
+Ubuntu/WSL Release restore/build and 46 tests; PowerShell AST and Bash syntax
 checks; r1 win-x64/linux-x64 self-contained single-file execution; Windows and
 Linux service-install dry runs. These are implementation/packaging evidence, not
 substitutes for the unchecked live gates above.

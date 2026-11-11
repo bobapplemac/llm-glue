@@ -37,6 +37,8 @@ public sealed class ConfigurationTests
             Assert.True(options.Roles.Agent);
             Assert.Single(options.Providers);
             Assert.Equal("local-llama", options.Providers[0].Name);
+            Assert.True(options.Providers[0].InspectGguf);
+            Assert.False(options.Providers[0].HashModelFiles);
             Assert.Equal("litellm", Assert.Single(options.Client.Targets).Type);
         }
         finally { File.Delete(path); }
@@ -138,6 +140,26 @@ public sealed class ConfigurationTests
             url = "http://127.0.0.1:11434"
             """);
         try { Assert.Contains("agent.submit_to", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void RejectsHashingWhenGgufInspectionIsDisabled()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = true
+            server = true
+            client = false
+            [[agent.providers]]
+            type = "llama.cpp"
+            name = "router"
+            url = "http://127.0.0.1:8081"
+            model_directories = ["models"]
+            inspect_gguf = false
+            hash_model_files = true
+            """);
+        try { Assert.Contains("requires inspect_gguf", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
         finally { File.Delete(path); }
     }
 

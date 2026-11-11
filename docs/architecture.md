@@ -25,6 +25,14 @@ using `/v1/models`, `/models`, and `/props`. Local GGUF inspection is constraine
 to configured directory allowlists; a file is never considered routable merely
 because it exists.
 
+For a provider-confirmed llama.cpp route, optional GGUF enrichment requires an
+exact route-basename match inside an allowlisted directory. Canonicalized paths,
+including symlink targets, are checked before bounded metadata reads. Metadata may
+fill otherwise-unknown native context, architecture, GGUF type, and multipart
+count; it cannot establish routing or reasoning support. Local paths are never
+placed in the network model. Whole-file SHA-256 is separately opt-in because model
+files can be very large.
+
 ## Configuration ownership
 
 OpenCode synchronization performs scoped reconciliation inside the documented

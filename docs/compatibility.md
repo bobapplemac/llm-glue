@@ -72,6 +72,12 @@ effective context and generation defaults. `/models?reload=1` refreshes router
 inventory. Local files still require route validation. Reasoning, effort, budget,
 and nonstandard sampling fields require an end-to-end request transport probe.
 
+The implemented GGUF path enriches only provider-confirmed routes with an exact
+allowlisted filename. It records `general.architecture`, architecture context,
+`general.type`, file type, and `split.count` when present. Full-file SHA-256 is
+disabled by default and explicitly opt-in. This fixture-qualified metadata path
+does not qualify live multipart/MTP classification or reasoning behavior.
+
 Source: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md>.
 
 ## Unqualified environments

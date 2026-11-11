@@ -15,8 +15,8 @@ public static class GgufMetadataReader
 
     public static GgufMetadata Read(string path, IEnumerable<string> allowedDirectories)
     {
-        var fullPath = Path.GetFullPath(path);
-        var allowed = allowedDirectories.Select(x => Path.GetFullPath(x).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar).ToArray();
+        var fullPath = CanonicalExistingPath(path);
+        var allowed = allowedDirectories.Select(x => CanonicalExistingPath(x).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar).ToArray();
         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         if (!allowed.Any(x => fullPath.StartsWith(x, comparison))) throw new UnauthorizedAccessException("GGUF path is outside configured model directories.");
         using var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, FileOptions.SequentialScan);
@@ -35,6 +35,21 @@ public static class GgufMetadataReader
             if (!values.TryAdd(key, ReadValue(reader, type))) throw new GgufFormatException($"Duplicate GGUF metadata key '{key}'.");
         }
         return new GgufMetadata(version, tensorCount, values);
+    }
+
+    private static string CanonicalExistingPath(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var root = Path.GetPathRoot(fullPath) ?? throw new IOException("Path has no filesystem root.");
+        var current = root;
+        foreach (var component in fullPath[root.Length..].Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var candidate = Path.Combine(current, component);
+            FileSystemInfo entry = Directory.Exists(candidate) ? new DirectoryInfo(candidate) : new FileInfo(candidate);
+            var target = entry.LinkTarget is null ? null : entry.ResolveLinkTarget(returnFinalTarget: true);
+            current = target?.FullName ?? candidate;
+        }
+        return Path.GetFullPath(current);
     }
 
     private static object? ReadValue(BinaryReader reader, uint type) => type switch

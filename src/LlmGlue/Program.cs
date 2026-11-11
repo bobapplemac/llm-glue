@@ -141,7 +141,12 @@ static void AddDiscoveryAdapters(IServiceCollection services, GlueOptions option
         var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(15) };
         IModelDiscoveryAdapter adapter = provider.Type == "ollama"
             ? new OllamaDiscoveryAdapter(client, provider.Name)
-            : new LlamaCppDiscoveryAdapter(client, provider.Name);
+            : new LlamaCppDiscoveryAdapter(
+                client,
+                provider.Name,
+                provider.ModelDirectories.Select(path => ResolveConfigPath(options, path)).ToArray(),
+                provider.InspectGguf,
+                provider.HashModelFiles);
         services.AddSingleton<IModelDiscoveryAdapter>(adapter);
     }
 }
@@ -159,6 +164,7 @@ static void AddClient(IServiceCollection services, GlueOptions options)
 }
 
 static Uri EnsureTrailingSlash(Uri value) => value.AbsoluteUri.EndsWith("/", StringComparison.Ordinal) ? value : new Uri(value.AbsoluteUri + "/", UriKind.Absolute);
+static string ResolveConfigPath(GlueOptions options, string path) => Path.IsPathRooted(path) ? Path.GetFullPath(path) : Path.GetFullPath(path, options.BaseDirectory);
 
 static void ConfigureLogging(ILoggingBuilder logging, GlueOptions options)
 {

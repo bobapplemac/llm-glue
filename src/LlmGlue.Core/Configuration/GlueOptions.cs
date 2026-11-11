@@ -25,7 +25,9 @@ public sealed record ProviderOptions(
     string Type,
     string Name,
     Uri Url,
-    IReadOnlyList<string> ModelDirectories);
+    IReadOnlyList<string> ModelDirectories,
+    bool InspectGguf,
+    bool HashModelFiles);
 
 public sealed record ServerOptions(
     Uri Listen,

@@ -6,9 +6,16 @@ using LlmGlue.Core.Domain;
 
 namespace LlmGlue.Core.Providers;
 
-public sealed class LlamaCppDiscoveryAdapter(HttpClient httpClient, string instanceId, TimeProvider? timeProvider = null) : IModelDiscoveryAdapter
+public sealed class LlamaCppDiscoveryAdapter(
+    HttpClient httpClient,
+    string instanceId,
+    IReadOnlyList<string>? modelDirectories = null,
+    bool inspectGguf = true,
+    bool hashModelFiles = false,
+    TimeProvider? timeProvider = null) : IModelDiscoveryAdapter
 {
     private readonly TimeProvider _time = timeProvider ?? TimeProvider.System;
+    private readonly IReadOnlyList<string> _modelDirectories = modelDirectories ?? [];
     public string ProviderType => "llama.cpp";
 
     public async Task<IReadOnlyList<ModelDeployment>> DiscoverAsync(CancellationToken cancellationToken)
@@ -18,7 +25,7 @@ public sealed class LlamaCppDiscoveryAdapter(HttpClient httpClient, string insta
         if (routerResponse.IsSuccessStatusCode)
         {
             using var json = await JsonDocument.ParseAsync(await routerResponse.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-            return ParseRouter(json.RootElement, now);
+            return await EnrichAsync(ParseRouter(json.RootElement, now), cancellationToken);
         }
         if (routerResponse.StatusCode is not (HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed)) routerResponse.EnsureSuccessStatusCode();
 
@@ -26,8 +33,17 @@ public sealed class LlamaCppDiscoveryAdapter(HttpClient httpClient, string insta
         using (models)
         {
             var props = await TryGetProps(cancellationToken);
-            return ParseDirect(models.RootElement, props, now);
+            return await EnrichAsync(ParseDirect(models.RootElement, props, now), cancellationToken);
         }
+    }
+
+    private async Task<IReadOnlyList<ModelDeployment>> EnrichAsync(IReadOnlyList<ModelDeployment> deployments, CancellationToken cancellationToken)
+    {
+        if (!inspectGguf || _modelDirectories.Count == 0) return deployments;
+        var inspector = new GgufModelInspector(_modelDirectories, hashModelFiles);
+        var result = new List<ModelDeployment>(deployments.Count);
+        foreach (var deployment in deployments) result.Add(await inspector.EnrichAsync(deployment, cancellationToken));
+        return result;
     }
 
     private async Task<JsonElement?> TryGetProps(CancellationToken cancellationToken)

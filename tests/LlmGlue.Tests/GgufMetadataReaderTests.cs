@@ -37,6 +37,26 @@ public sealed class GgufMetadataReaderTests
         Assert.Throws<UnauthorizedAccessException>(() => GgufMetadataReader.Read(Path.GetTempFileName(), [Path.Combine(Path.GetTempPath(), "not-this-directory")]));
     }
 
+    [Fact]
+    public void RejectsSymlinkThatEscapesAllowlistWhenPlatformPermitsLinks()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"llm-glue-gguf-link-{Guid.NewGuid():N}");
+        var allowed = Path.Combine(root, "allowed");
+        var outside = Path.Combine(root, "outside");
+        Directory.CreateDirectory(allowed);
+        Directory.CreateDirectory(outside);
+        var target = Path.Combine(outside, "model.gguf");
+        var link = Path.Combine(allowed, "model.gguf");
+        try
+        {
+            File.WriteAllBytes(target, "GGUF"u8.ToArray());
+            try { File.CreateSymbolicLink(link, target); }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or PlatformNotSupportedException or IOException) { return; }
+            Assert.Throws<UnauthorizedAccessException>(() => GgufMetadataReader.Read(link, [allowed]));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     private static void WriteString(BinaryWriter writer, string value)
     {
         var bytes = Encoding.UTF8.GetBytes(value);

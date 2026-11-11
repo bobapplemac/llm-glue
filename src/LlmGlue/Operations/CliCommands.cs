@@ -101,7 +101,14 @@ public static class CliCommands
         foreach (var provider in options.Providers)
         {
             var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(15) };
-            IModelDiscoveryAdapter adapter = provider.Type == "ollama" ? new OllamaDiscoveryAdapter(client, provider.Name) : new LlamaCppDiscoveryAdapter(client, provider.Name);
+            IModelDiscoveryAdapter adapter = provider.Type == "ollama"
+                ? new OllamaDiscoveryAdapter(client, provider.Name)
+                : new LlamaCppDiscoveryAdapter(
+                    client,
+                    provider.Name,
+                    provider.ModelDirectories.Select(path => ResolvePath(options, path)).ToArray(),
+                    provider.InspectGguf,
+                    provider.HashModelFiles);
             models.AddRange(await adapter.DiscoverAsync(cancellationToken));
         }
         return DiscoverySnapshot.Create(DateTimeOffset.UtcNow, models);

@@ -90,10 +90,16 @@ public static class TomlConfigLoader
 
     private static ProviderOptions ReadProvider(TomlTable table)
     {
-        CheckKeys(table, "agent.providers", "type", "name", "url", "model_directories");
+        CheckKeys(table, "agent.providers", "type", "name", "url", "model_directories", "inspect_gguf", "hash_model_files");
         var type = RequiredString(table, "type");
         if (type is not ("ollama" or "llama.cpp")) throw new ConfigurationException($"Unsupported provider type '{type}'.");
-        return new ProviderOptions(type, RequiredString(table, "name"), AbsoluteUri(RequiredString(table, "url"), "provider.url"), StringArray(table, "model_directories"));
+        var directories = StringArray(table, "model_directories");
+        var inspect = Bool(table, "inspect_gguf", true);
+        var hash = Bool(table, "hash_model_files", false);
+        if (type != "llama.cpp" && (directories.Count != 0 || !inspect || hash))
+            throw new ConfigurationException("model_directories, inspect_gguf, and hash_model_files apply only to llama.cpp providers.");
+        if (hash && !inspect) throw new ConfigurationException("hash_model_files requires inspect_gguf = true.");
+        return new ProviderOptions(type, RequiredString(table, "name"), AbsoluteUri(RequiredString(table, "url"), "provider.url"), directories, inspect, hash);
     }
 
     private static TargetOptions ReadTarget(TomlTable table)
