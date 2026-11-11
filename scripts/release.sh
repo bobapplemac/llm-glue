@@ -22,6 +22,11 @@ cd "$root"
 [[ "$(git symbolic-ref --short -q HEAD)" == "$branch" ]] || { echo "release requires branch $branch and rejects detached HEAD" >&2; exit 1; }
 [[ -z "$(git status --porcelain=v1 --untracked-files=all)" ]] || { echo "worktree must be completely clean" >&2; exit 1; }
 upstream="$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)" || { echo "branch has no upstream" >&2; exit 1; }
+mapfile -t remotes < <(git remote)
+[[ "${#remotes[@]}" -eq 1 && "${remotes[0]}" == "origin" ]] || { echo "release requires exactly one remote named origin" >&2; exit 1; }
+[[ "$upstream" == "origin/$branch" ]] || { echo "upstream must be origin/$branch" >&2; exit 1; }
+origin_url="$(git config --get remote.origin.url)"
+[[ "$origin_url" =~ ^(https://github\.com/|git@github\.com:)bobapplemac/llm-glue(\.git)?$ ]] || { echo "origin is not the pinned bobapplemac/llm-glue repository" >&2; exit 1; }
 git fetch --prune
 local_head="$(git rev-parse HEAD)"
 remote_head="$(git rev-parse '@{upstream}')"
@@ -43,5 +48,11 @@ if ((dry_run)); then echo "dry run: would create tag and GitHub release $tag"; e
 read -r -p "Publish immutable GitHub release $tag? Type $tag: " confirmation
 [[ "$confirmation" == "$tag" ]] || { echo "confirmation did not match" >&2; exit 1; }
 git tag -a "$tag" -m "LLM Glue $tag"
-git push origin "$tag"
-gh release create "$tag" artifacts/packages/llm-glue-r${revision}-* artifacts/packages/SHA256SUMS artifacts/packages/manifest.json --verify-tag --title "LLM Glue $tag" --generate-notes
+if ! git push origin "$tag"; then
+  echo "publication stopped after creating local tag $tag; the remote tag was not confirmed. Inspect local and origin state manually." >&2
+  exit 1
+fi
+if ! gh release create "$tag" artifacts/packages/llm-glue-r${revision}-* artifacts/packages/SHA256SUMS artifacts/packages/manifest.json --verify-tag --title "LLM Glue $tag" --generate-notes; then
+  echo "partial publication: tag $tag was pushed but the GitHub release failed. Inspect the remote tag and create the matching release manually; nothing was deleted." >&2
+  exit 1
+fi

@@ -10,6 +10,9 @@ Public releases use only immutable `rN` tags from the pinned
 attached, pushed, nondivergent branch; exact next revision; absent tag/release;
 successful tests and dual-RID publishes; SHA-256 manifest; a second remote-head
 check; and explicit confirmation. They never repair Git state automatically.
+They also require exactly one `origin` remote, the expected upstream branch, and
+the pinned raw GitHub repository URL. Transport rewriting is used only inside
+isolated local-Git tests.
 
 Bootstrap and update clients accept stable `rN` releases only, select the exact
 RID asset, and verify `SHA256SUMS` before replacement. They retain one executable

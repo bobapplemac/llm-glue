@@ -9,6 +9,11 @@ be clean, attached, tracking an upstream, already pushed, and exactly equal to t
 freshly fetched upstream. The next revision must increment by one and must not
 already exist as a tag or release.
 
+Both publishers require exactly one remote named `origin`, an `origin/<branch>`
+upstream, and the pinned raw remote URL `github.com/bobapplemac/llm-glue`. This
+prevents an otherwise clean checkout from publishing the project identity from an
+ambiguous or substituted repository.
+
 Dry runs:
 
 ```text
@@ -29,3 +34,11 @@ The development build remains Assembly/File `0.0.0.0` and reports `r0`.
 
 The first official release additionally requires explicit owner authorization and
 all live M4 gates. Do not publish `r0`.
+
+CI runs isolated local-Git matrices for both publishers covering a clean/no-tag
+success path plus dirty, ahead, behind, detached, tag collision, GitHub release
+collision, ambiguous/wrong remote, and unavailable-remote failures. Bash also
+simulates a post-tag GitHub release failure against a temporary bare repository
+and verifies the non-destructive recovery message. These tests use a fake `gh`
+and cannot create a real GitHub release; the clean authenticated remote path remains
+an explicit live release gate.

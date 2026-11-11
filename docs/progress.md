@@ -40,10 +40,12 @@ Last updated: 2026-11-11
   systemd lifecycle commands, portable console/rolling-file logs, doctor and
   operational CLI, checksum-verified stable updates/rollback, guarded equivalent
   release scripts, packaging manifests, CI, and operator/developer docs. Native
-  Windows and WSL builds/tests pass. Live service install/update/rollback and a
-  clean-pushed release-preflight success remain unqualified; publication is not
-  authorized. Unknown reasoning capability now excludes a deployment from client
-  publication rather than being converted to `false`.
+  Windows and WSL builds/tests pass. Isolated Bash/PowerShell release matrices now
+  qualify fail-closed Git states and a local-only partial-publication recovery path.
+  Live service install/update/rollback and an authenticated clean-pushed release
+  preflight remain unqualified; publication is not authorized. Unknown reasoning
+  capability excludes a deployment from client publication rather than being
+  converted to `false`.
 
 ## M0 acceptance checklist
 
@@ -154,6 +156,9 @@ authorization or claim either live gate passed beforehand.
   avoid prompt/request bodies and credentials.
 - [x] CI, installation, quick-start, troubleshooting, security, release, ADR and
   v2 roadmap documentation are present.
+- [x] Isolated Bash and PowerShell preflight matrices cover clean, dirty, ahead,
+  behind, detached, collision, ambiguous/wrong remote, and unavailable-remote
+  states without GitHub mutation; Bash also verifies partial-failure guidance.
 - [ ] Live Windows SCM and Linux systemd install/move/repair/uninstall qualification.
 - [ ] Live service-mode update, health rollback, and Windows rollback helper qualification.
 - [ ] Clean, already-pushed branch success preflight and dirty/ahead/behind/detached/

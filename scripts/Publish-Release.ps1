@@ -22,6 +22,11 @@ function Require-CleanReleaseState {
     if ($current -ne $Branch) { throw "Release requires branch '$Branch'; detached or other branches fail closed." }
     if ((Invoke-Git status --porcelain=v1 --untracked-files=all)) { throw 'Worktree must be completely clean.' }
     $upstream = Invoke-Git rev-parse --abbrev-ref '@{upstream}'
+    $remotes = @((Invoke-Git remote) -split "`r?`n" | Where-Object { $_ })
+    if ($remotes.Count -ne 1 -or $remotes[0] -ne 'origin') { throw 'Release requires exactly one remote named origin.' }
+    if ($upstream -ne "origin/$Branch") { throw "Upstream must be origin/$Branch." }
+    $originUrl = Invoke-Git config --get remote.origin.url
+    if ($originUrl -notmatch '^(https://github\.com/|git@github\.com:)bobapplemac/llm-glue(\.git)?$') { throw 'Origin is not the pinned bobapplemac/llm-glue repository.' }
     Invoke-Git fetch --prune | Out-Null
     $script:ReleaseHead = Invoke-Git rev-parse HEAD
     if ($script:ReleaseHead -ne (Invoke-Git rev-parse '@{upstream}')) { throw "Local HEAD must equal $upstream; ahead, behind, and divergent states fail closed." }
@@ -30,8 +35,8 @@ function Require-CleanReleaseState {
     if ($LASTEXITCODE -eq 0) { throw "Tag $tag already exists." }
     & gh release view $tag *> $null
     if ($LASTEXITCODE -eq 0) { throw "GitHub release $tag already exists." }
-    $latest = @(Invoke-Git tag -l 'r[1-9]*' | Select-String '^r\d+$' | ForEach-Object { [int]$_.Line.Substring(1) } | Sort-Object)[-1]
-    if ($null -eq $latest) { $latest = 0 }
+    $revisions = @(Invoke-Git tag -l 'r[1-9]*' | Select-String '^r\d+$' | ForEach-Object { [int]$_.Line.Substring(1) } | Sort-Object)
+    $latest = if ($revisions.Count -eq 0) { 0 } else { $revisions[-1] }
     if ($Revision -ne ($latest + 1)) { throw "Revision must increment exactly; expected r$($latest + 1)." }
     return $root
 }
