@@ -3,6 +3,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 publisher="$root/scripts/release.sh"
+real_make="$(command -v make)"
 scratch="$(mktemp -d)"
 trap 'rm -rf -- "$scratch"' EXIT
 tools="$scratch/tools"
@@ -31,6 +32,13 @@ exit 0
 EOF
 chmod +x "$tools/make"
 export PATH="$tools:$PATH"
+
+"$real_make" -s -C "$root" version-policy REVISION=0
+if "$real_make" -s -C "$root" version-policy REVISION=1 >/dev/null 2>&1; then
+  echo "unguarded r1 build policy unexpectedly passed" >&2
+  exit 1
+fi
+LLM_GLUE_OFFICIAL_RELEASE_BUILD=1 "$real_make" -s -C "$root" version-policy REVISION=1
 
 new_case() {
   local name="$1"

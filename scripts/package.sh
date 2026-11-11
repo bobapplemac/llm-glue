@@ -8,6 +8,10 @@ stage="$root/$out/packages"
 mkdir -p "$stage"
 
 if [[ ! "$revision" =~ ^[0-9]+$ ]]; then echo "revision must be an integer" >&2; exit 2; fi
+if ((revision > 0)) && [[ "${LLM_GLUE_OFFICIAL_RELEASE_BUILD:-}" != 1 ]]; then
+  echo "nonzero revision packages are restricted to the guarded official release path" >&2
+  exit 2
+fi
 
 for rid in linux-x64 win-x64; do
   source_dir="$root/$out/publish/$rid"

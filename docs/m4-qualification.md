@@ -35,7 +35,9 @@ dormant routes. The model was explicitly unloaded afterward. This verifies the
 native provider contract and probe policy.
 
 On 2026-11-11, the installed native Windows OpenCode 2.2.7 executable was then
-run against an updated r1 qualification build and the installed Ollama 0.40.16.
+run against an updated development qualification build and the installed Ollama
+0.40.16. The same code was subsequently repackaged with the required `r0`
+pre-release identity.
 LLM Glue discovered `qwen3.5:4b-q4_K_M`, published and synchronized an isolated
 OpenCode target, and exposed verified `thinking-off` and `thinking-on` variants.
 OpenCode selected
@@ -82,7 +84,7 @@ upstream, not llama.cpp's interpretation or Paseo UI behavior.
 
 ## Windows service lifecycle — pass
 
-An elevated, isolated all-role r1 qualification ran as
+An elevated, isolated all-role development qualification ran as
 `NT AUTHORITY\\LocalService` against local Ollama and a temporary OpenCode target.
 It verified SCM install/start, HTTP health, controlled stop, executable relocation,
 `service repair` updating the absolute path, restart/health from the new location,

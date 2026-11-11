@@ -40,7 +40,7 @@ latest="${latest:-0}"
 
 echo "preflight passed for $tag at $local_head"
 ((check_only)) && exit 0
-make package REVISION="$revision"
+LLM_GLUE_OFFICIAL_RELEASE_BUILD=1 make package REVISION="$revision"
 [[ -x "artifacts/publish/linux-x64/llm-glue" && -f "artifacts/publish/win-x64/llm-glue.exe" ]] || { echo "required publish outputs are missing" >&2; exit 1; }
 git fetch --prune
 [[ "$(git rev-parse '@{upstream}')" == "$local_head" ]] || { echo "remote changed after build; aborting" >&2; exit 1; }

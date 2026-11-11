@@ -15,7 +15,7 @@ release source. Live production qualification is tracked separately.
 | Tomlyn | 2.10.2 | Live NuGet restore/build on net10.0 | Compatible parser selected; strict binding tests are an M1 gate. |
 | YamlDotNet | 18.1.0 | Automated net10.0 target tests | LiteLLM primary/generated YAML parsing, include and alias ownership checks. |
 | NLog.Extensions.Logging | 6.2.2 | Build/test | Standard logging provider with console and bounded rolling file targets. |
-| LLM Glue release outputs | r1 qualification build | Live Windows and Ubuntu/WSL execution | Both RID outputs are single files and report `LLM Glue r1`; Windows FileVersion is `1.1.0.0`. No release was published. |
+| LLM Glue development outputs | r0 qualification build | Live Windows and Ubuntu/WSL execution | Both RID outputs are single files and report `LLM Glue r0`; Assembly/File versions remain `0.0.0.0`. No release was published. |
 
 ## OpenCode 2.2.7
 

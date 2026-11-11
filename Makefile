@@ -19,7 +19,7 @@ PACKAGE_VERSION := 1.$(REVISION).0
 endif
 VERSION_ARGS := -p:AssemblyVersion=$(ASSEMBLY_VERSION) -p:FileVersion=$(FILE_VERSION) -p:InformationalVersion=r$(REVISION) -p:Version=$(PACKAGE_VERSION)
 
-.PHONY: help restore build test test-litellm clean publish-linux publish-windows package release-check release
+.PHONY: help restore build test test-litellm clean version-policy publish-linux publish-windows package release-check release
 
 help: ## Show this help and configurable variables
 	@awk 'BEGIN {FS = ":.*## "; printf "LLM Glue r0 build\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2} END {printf "\nVariables: CONFIG=%s RID=%s OUT=%s REVISION=%s DRY_RUN=%s PYTHON=%s OPENCODE=%s\n", "$(CONFIG)", "$(RID)", "$(OUT)", "$(REVISION)", "$(DRY_RUN)", "$(PYTHON)", "$(OPENCODE)"}' $(MAKEFILE_LIST)
@@ -39,10 +39,13 @@ test-litellm: ## Run opt-in LiteLLM 1.109.0 forwarding integration test
 clean: ## Clean owned build output only
 	dotnet clean LlmGlue.slnx -c $(CONFIG)
 
-publish-linux: ## Publish self-contained linux-x64 single file
+version-policy: ## Reject nonzero revision builds outside the guarded release path
+	@if [ "$(REVISION)" != "0" ] && [ "$${LLM_GLUE_OFFICIAL_RELEASE_BUILD:-}" != "1" ]; then echo "nonzero revision builds are restricted to the guarded official release path" >&2; exit 1; fi
+
+publish-linux: version-policy ## Publish self-contained linux-x64 single file
 	dotnet publish src/LlmGlue/LlmGlue.csproj -c $(CONFIG) -r linux-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None $(VERSION_ARGS) -o $(OUT)/publish/linux-x64
 
-publish-windows: ## Publish self-contained win-x64 single file
+publish-windows: version-policy ## Publish self-contained win-x64 single file
 	dotnet publish src/LlmGlue/LlmGlue.csproj -c $(CONFIG) -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None $(VERSION_ARGS) -o $(OUT)/publish/win-x64
 
 package: publish-linux publish-windows ## Package both RIDs and write SHA-256 manifest

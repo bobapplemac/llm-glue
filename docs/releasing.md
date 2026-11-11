@@ -31,6 +31,10 @@ manual recovery; existing remote state is never automatically deleted.
 Release properties map rN to stable AssemblyVersion `1.0.0.0`, revision-tracking
 FileVersion `1.N.0.0`, package version `1.N.0`, and runtime product identity `rN`.
 The development build remains Assembly/File `0.0.0.0` and reports `r0`.
+Direct `make package REVISION=N` and `scripts/package.sh ... N` calls reject
+nonzero revisions. Only the guarded official release entry points set the scoped
+authorization needed to build an `rN` package after preflight. This prevents test
+or qualification artifacts from accidentally acquiring a public release identity.
 
 The first official release additionally requires explicit owner authorization and
 all live M4 gates. Do not publish `r0`.

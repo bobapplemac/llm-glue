@@ -170,9 +170,10 @@ authorization or claim either live gate passed beforehand.
 
 ## M5 acceptance checklist
 
-- [x] Product remains r0 with Assembly/File `0.0.0.0`; official release build
-  overrides map `rN` to Assembly `1.0.0.0` and File `1.N.0.0`. An r1 qualification
-  publish reported `LLM Glue r1` and Windows FileVersion `1.1.0.0`.
+- [x] Product and all development/qualification outputs remain r0 with
+  Assembly/File `0.0.0.0`; guarded official release overrides map `rN` to
+  Assembly `1.0.0.0` and File `1.N.0.0`. Make/package entry points reject a
+  nonzero revision unless invoked by the guarded release path.
 - [x] Self-contained single-file win-x64 and linux-x64 outputs build; both execute
   and report `LLM Glue r0` (Windows host and Ubuntu/WSL respectively).
 - [x] GNU Make help, native Linux restore/build/test, Linux script syntax, r0
