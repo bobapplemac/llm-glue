@@ -337,6 +337,15 @@ is therefore the qualification evidence. This passes the real ProgramData path
 for the installed user, but not LocalService reconciliation or a second Windows
 account.
 
+The elevated Windows harness now has a guarded `-SystemOpenCode` mode that covers
+both missing checks in one run. It refuses pre-existing LLM Glue and ProgramData
+OpenCode resources, installs the current all-role service under LocalService,
+validates JSONC plus ownership schema v2, creates a random temporary standard
+account, and executes a supplied OpenCode binary under that account to inspect the
+effective model API. Cleanup is scoped to the random account and exact directories
+created by the run. The script parses successfully and rejects a non-elevated
+invocation; its live elevated result remains outstanding.
+
 Paseo 0.15.4 on MarkIV was inspected through its real model chooser. Searching
 for `llm` displayed the exact generated central route
 `llm-glue-llama-cpp-labhost03-router/bench-01-01` and all three generated local

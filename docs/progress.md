@@ -180,7 +180,8 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Next steps
 
-Complete the remaining Windows LocalService sidecar and second-account checks. Then
+Run the guarded elevated Windows harness with `-AllRoles -SystemOpenCode` to
+complete the LocalService sidecar and second-account checks in one pass. Then
 exercise the implemented M5
 service install/move/update/rollback/uninstall flows on both OSes and the guarded
 release preflight from a clean pushed branch. Do not publish without explicit
@@ -265,17 +266,18 @@ authorization or claim either live gate passed beforehand.
 - [x] Native Ubuntu/WSL systemd install/start/health/move/repair/restart/service
   rollback/uninstall and preservation pass under the fixed `llm-glue` identity;
   the current all-role run also verifies managed OpenCode ownership-sidecar access.
-- [ ] Rerun the current all-role Windows LocalService harness to qualify ADR 0007
-  ownership-sidecar access; this session lacks an elevated Windows token. Earlier
-  service lifecycle and rollback behavior remains live-qualified.
+- [ ] Run the current all-role Windows harness with `-SystemOpenCode` to qualify
+  ADR 0007 ownership-sidecar access and a temporary second Windows account in one
+  guarded pass; this session lacks an elevated Windows token. Earlier service
+  lifecycle and rollback behavior remains live-qualified.
 - [ ] Live update-apply from an official release asset; none exists without release
   authorization. Windows service rollback is live-qualified.
 - [ ] Authenticated preflight against the actual clean, already-pushed upstream
   with GitHub CLI authenticated. A verified portable CLI is available, but it is
   logged out and the branch remains unpushed. No publication is
   authorized; isolated Git-state success/failure matrices already pass.
-- [ ] Remaining M4 Windows LocalService-sidecar and second-account gate; M5 cannot be
-  declared passed until the
+- [ ] Remaining combined M4 Windows LocalService-sidecar/second-account harness;
+  M5 cannot be declared passed until the
   release's required live suite passes.
 
 Latest available verification: Windows and native Ubuntu/WSL Release builds with

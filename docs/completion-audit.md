@@ -45,10 +45,10 @@ ownership-sidecar qualification and a second native Windows account.
 
 ## External actions still required
 
-1. Run the current elevated Windows all-role service harness to qualify
-   LocalService reconciliation and ownership-sidecar access. The real
-   `%ProgramData%\opencode\opencode.jsonc` path now has current-user effective
-   catalog evidence, but a second native Windows account remains unqualified.
+1. Run the current elevated Windows all-role service harness with
+   `-SystemOpenCode` and the installed OpenCode executable. This guarded mode now
+   combines LocalService reconciliation/ownership-sidecar validation with a
+   temporary second native Windows account against the real ProgramData target.
 2. After every live gate passes, explicitly authorize the first official `r1`
    release. The checksum-verified portable GitHub CLI 2.103.3 is present but
    logged out, and the clean branch is ahead of `origin/main`. Push the

@@ -222,3 +222,16 @@ Maintainers can repeat the isolated elevated lifecycle gates with
 systemd host with no existing LLM Glue resources,
 `scripts/Test-LinuxServiceLive.sh`. Both scripts refuse an existing service; the
 Linux script additionally refuses an existing account or owned service directory.
+To combine the current LocalService ownership-sidecar gate with real ProgramData
+and second-user effective-catalog qualification, run elevated:
+
+```powershell
+.\scripts\Test-WindowsServiceLive.ps1 -AllRoles -SystemOpenCode `
+  -OpenCodeExecutable C:\path\to\opencode.exe
+```
+
+This mode also refuses an existing `%ProgramData%\opencode` directory. It creates
+a random temporary standard account, runs the supplied OpenCode binary under that
+account, verifies the generated system provider through `/api/model`, and removes
+the account, profile, copied binary, service, and ProgramData directory it created.
+The random password is held only in process memory and is never logged.
