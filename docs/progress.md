@@ -13,9 +13,11 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 - **M1 — core domain/discovery:** implemented; build and 12 fixture/unit tests
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
-  inventory hashes. Configured llama.cpp directories now enrich only exact,
-  provider-confirmed GGUF routes; full-file hashing is opt-in. Live Ollama API
-  shape was additionally confirmed in M0. Opt-in functional text-route probes are
+  inventory hashes. Configured llama.cpp directories now enrich only
+  provider-confirmed GGUF routes selected by an allowlisted reported path or exact
+  filename; full-file hashing is opt-in. A live native Ubuntu/WSL run enriched an
+  aliased route without publishing its path, while outside-allowlist tests fail
+  closed. Live Ollama API shape was additionally confirmed in M0. Opt-in functional text-route probes are
   timeout/size bounded, preserve unknown non-text capabilities, and never load a
   dormant model under `loaded-only` policy.
 - **M2 — server/generation:** implemented; reconciliation grace/conflict handling,
@@ -53,7 +55,8 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   accounts also passed system precedence and unrelated user-setting preservation.
   A real Ubuntu/WSL llama.cpp 8681 + SmolLM2 route exposed and corrected current
   direct `/models` alias handling, then passed native/effective context discovery,
-  version capture, and bounded inference. A manually isolated downstream route
+  version capture, allowlisted single-file GGUF enrichment, and bounded inference.
+  A manually isolated downstream route
   also passed LiteLLM 1.109.0 forwarding and OpenCode-to-backend transport. The
   production generator correctly excluded the model because reasoning remained
   unknown, and the deliberately small model did not produce a terminal OpenCode

@@ -147,11 +147,15 @@ documentation defines this as response parsing behavior: thoughts remain in
 keeps reasoning capability unknown for `none` and every other parsing format
 unless separate model and request evidence exists.
 
-The implemented GGUF path enriches only provider-confirmed routes with an exact
-allowlisted filename. It records `general.architecture`, architecture context,
-`general.type`, file type, and `split.count` when present. Full-file SHA-256 is
-disabled by default and explicitly opt-in. This fixture-qualified metadata path
-does not qualify live multipart/MTP classification or reasoning behavior.
+The implemented GGUF path enriches only provider-confirmed routes. A direct
+server's `/props.model_path` may identify an aliased route; otherwise the route
+must exactly match an allowlisted filename. In either case the canonical file,
+including any symlink target, must remain inside a configured directory. It
+records `general.architecture`, architecture context, `general.type`, file type,
+and `split.count` when present. Full-file SHA-256 is disabled by default and
+explicitly opt-in. Native Ubuntu/WSL qualification inspected the aliased SmolLM2
+GGUF through its reported path and published no local path. Live multipart/MTP
+classification and reasoning behavior remain unqualified.
 
 The implemented opt-in functional probe uses `/v1/chat/completions` for llama.cpp
 and native `/api/chat` for Ollama, with bounded time and response size. Fixture

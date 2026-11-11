@@ -140,6 +140,16 @@ The corrected adapter recognizes `data` as direct mode. Official documentation
 shows `reasoning_format` controls response parsing rather than model capability,
 so the adapter deliberately leaves reasoning unknown for every such value.
 
+A follow-up run executed the current LLM Glue source natively in Ubuntu/WSL with
+the model directory allowlisted. Although the route was the alias
+`smollm2-live`, `/props.model_path` identified the actual GGUF. Its canonical path
+remained inside the allowlist, so LLM Glue inspected GGUF v3 metadata and recorded
+architecture `llama`, type `model`, and file type `10` while retaining native
+context 8192 from live model metadata. The serialized deployment contained no
+local path. Automated companion tests reject provider-reported files outside the
+allowlist without leaking the path. This qualifies live single-file GGUF
+enrichment, not multipart or MTP classification.
+
 With the server deliberately configured at 2048 tokens, LLM Glue reported native
 context 8192, effective context 2048, version `b8681-Debian`, loaded state, and a
 verified bounded text route. The production generator correctly excluded this

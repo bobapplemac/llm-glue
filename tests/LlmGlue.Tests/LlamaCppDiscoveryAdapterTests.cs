@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using LlmGlue.Core.Domain;
 using LlmGlue.Core.Providers;
 
@@ -69,6 +70,76 @@ public sealed class LlamaCppDiscoveryAdapterTests
 
         Assert.Equal(ReasoningModeKind.Unknown, model.Capabilities.Reasoning.Kind);
         Assert.Null(model.Capabilities.Reasoning.Evidence);
+    }
+
+    [Fact]
+    public async Task DirectServerEnrichesAliasedRouteFromProviderConfirmedPath()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"llm-glue-llama-path-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var modelPath = Path.Combine(directory, "actual-model.gguf");
+        try
+        {
+            WriteGguf(modelPath, "qwen3", 262144, splitCount: 2);
+            var expectedHash = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(modelPath)));
+            var props = JsonSerializer.Serialize(new
+            {
+                model_path = modelPath,
+                default_generation_settings = new { n_ctx = 65536 }
+            });
+            var handler = new TestHttpHandler(request => request.RequestUri!.AbsolutePath switch
+            {
+                "/models" => TestHttpHandler.Json("{\"object\":\"list\",\"data\":[{\"id\":\"friendly-alias\"}]}"),
+                "/props" => TestHttpHandler.Json(props),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            });
+            using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+
+            var model = Assert.Single(await new LlamaCppDiscoveryAdapter(client, "local", [directory], hashModelFiles: true)
+                .DiscoverAsync(TestContext.Current.CancellationToken));
+
+            Assert.Equal("friendly-alias", model.Identity.ModelId);
+            Assert.Equal("qwen3", model.Identity.Family);
+            Assert.Equal(expectedHash, model.Identity.FileHash);
+            Assert.Equal(262144, model.NativeContext!.Value);
+            Assert.Equal(65536, model.EffectiveContext!.Value);
+            Assert.Equal("2", model.Runtime.Properties["gguf.split_count"]);
+            Assert.Contains(model.Warnings, warning => warning.Contains("provider-reported path", StringComparison.Ordinal));
+            Assert.DoesNotContain(modelPath, JsonSerializer.Serialize(model), StringComparison.OrdinalIgnoreCase);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task DirectServerRejectsProviderPathOutsideAllowlistWithoutLeakingIt()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"llm-glue-llama-path-{Guid.NewGuid():N}");
+        var allowed = Path.Combine(root, "allowed");
+        var outside = Path.Combine(root, "outside");
+        Directory.CreateDirectory(allowed);
+        Directory.CreateDirectory(outside);
+        var outsidePath = Path.Combine(outside, "actual-model.gguf");
+        try
+        {
+            WriteGguf(outsidePath, "qwen3", 262144, splitCount: 1);
+            var props = JsonSerializer.Serialize(new { model_path = outsidePath });
+            var handler = new TestHttpHandler(request => request.RequestUri!.AbsolutePath switch
+            {
+                "/models" => TestHttpHandler.Json("{\"object\":\"list\",\"data\":[{\"id\":\"friendly-alias\"}]}"),
+                "/props" => TestHttpHandler.Json(props),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+            });
+            using var client = new HttpClient(handler) { BaseAddress = new Uri("http://localhost/") };
+
+            var model = Assert.Single(await new LlamaCppDiscoveryAdapter(client, "local", [allowed])
+                .DiscoverAsync(TestContext.Current.CancellationToken));
+
+            Assert.Null(model.Identity.Family);
+            Assert.Null(model.NativeContext);
+            Assert.Contains(model.Warnings, warning => warning.Contains(nameof(UnauthorizedAccessException), StringComparison.Ordinal));
+            Assert.DoesNotContain(outsidePath, JsonSerializer.Serialize(model), StringComparison.OrdinalIgnoreCase);
+        }
+        finally { Directory.Delete(root, true); }
     }
 
     [Fact]

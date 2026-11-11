@@ -28,7 +28,7 @@ public sealed class LlamaCppDiscoveryAdapter(
             if (HasDirectData(json.RootElement))
             {
                 var props = await TryGetProps(cancellationToken);
-                return await EnrichAsync(ParseDirect(json.RootElement, props, now), cancellationToken);
+                return await EnrichDirectAsync(ParseDirect(json.RootElement, props, now), props, cancellationToken);
             }
             return await EnrichAsync(ParseRouter(json.RootElement, now), cancellationToken);
         }
@@ -38,16 +38,22 @@ public sealed class LlamaCppDiscoveryAdapter(
         using (models)
         {
             var props = await TryGetProps(cancellationToken);
-            return await EnrichAsync(ParseDirect(models.RootElement, props, now), cancellationToken);
+            return await EnrichDirectAsync(ParseDirect(models.RootElement, props, now), props, cancellationToken);
         }
     }
 
-    private async Task<IReadOnlyList<ModelDeployment>> EnrichAsync(IReadOnlyList<ModelDeployment> deployments, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<ModelDeployment>> EnrichDirectAsync(IReadOnlyList<ModelDeployment> deployments, JsonElement? props, CancellationToken cancellationToken)
+    {
+        var confirmedPath = deployments.Count == 1 && props is { } value ? TryPathString(value, "model_path") : null;
+        return await EnrichAsync(deployments, cancellationToken, confirmedPath);
+    }
+
+    private async Task<IReadOnlyList<ModelDeployment>> EnrichAsync(IReadOnlyList<ModelDeployment> deployments, CancellationToken cancellationToken, string? providerConfirmedPath = null)
     {
         if (!inspectGguf || _modelDirectories.Count == 0) return deployments;
         var inspector = new GgufModelInspector(_modelDirectories, hashModelFiles);
         var result = new List<ModelDeployment>(deployments.Count);
-        foreach (var deployment in deployments) result.Add(await inspector.EnrichAsync(deployment, cancellationToken));
+        foreach (var deployment in deployments) result.Add(await inspector.EnrichAsync(deployment, cancellationToken, providerConfirmedPath));
         return result;
     }
 
@@ -108,6 +114,12 @@ public sealed class LlamaCppDiscoveryAdapter(
         && data.ValueKind == JsonValueKind.Array;
 
     private static string? GetString(JsonElement element, string name) => element.ValueKind == JsonValueKind.Object && element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    private static string? TryPathString(JsonElement element, params string[] path)
+    {
+        var current = element;
+        foreach (var part in path) if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(part, out current)) return null;
+        return current.ValueKind == JsonValueKind.String ? current.GetString() : null;
+    }
     private static long? TryPathLong(JsonElement element, params string[] path)
     {
         var current = element;

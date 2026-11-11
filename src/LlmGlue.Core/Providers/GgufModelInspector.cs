@@ -6,11 +6,11 @@ namespace LlmGlue.Core.Providers;
 
 internal sealed class GgufModelInspector(IReadOnlyList<string> allowedDirectories, bool hashModelFiles)
 {
-    public async Task<ModelDeployment> EnrichAsync(ModelDeployment deployment, CancellationToken cancellationToken)
+    public async Task<ModelDeployment> EnrichAsync(ModelDeployment deployment, CancellationToken cancellationToken, string? providerConfirmedPath = null)
     {
-        var path = FindExactRouteFile(deployment.Identity.ModelId);
+        var path = ProviderPathOrExactRoute(providerConfirmedPath, deployment.Identity.ModelId);
         if (path is null)
-            return deployment with { Warnings = AddWarning(deployment, "No exact allowlisted GGUF filename matched this routable model ID; file metadata remains unknown.") };
+            return deployment with { Warnings = AddWarning(deployment, "No provider-confirmed GGUF path or exact allowlisted filename matched this routable model ID; file metadata remains unknown.") };
 
         try
         {
@@ -46,7 +46,9 @@ internal sealed class GgufModelInspector(IReadOnlyList<string> allowedDirectorie
                     ? new Evidence<long>(nativeContext.Value, "gguf:metadata", deployment.LastSeenAt, VerificationState.Observed)
                     : null),
                 Runtime = deployment.Runtime with { Properties = properties },
-                Warnings = AddWarning(deployment, "GGUF metadata was inspected only after an exact allowlisted filename matched a provider-confirmed route; the local path is not published.")
+                Warnings = AddWarning(deployment, providerConfirmedPath is null
+                    ? "GGUF metadata was inspected only after an exact allowlisted filename matched a provider-confirmed route; the local path is not published."
+                    : "GGUF metadata was inspected only after the provider-reported path resolved inside a configured directory; the local path is not published.")
             };
         }
         catch (OperationCanceledException) { throw; }
@@ -54,6 +56,13 @@ internal sealed class GgufModelInspector(IReadOnlyList<string> allowedDirectorie
         {
             return deployment with { Warnings = AddWarning(deployment, $"GGUF inspection failed safely ({ex.GetType().Name}); local filesystem details are not published.") };
         }
+    }
+
+    private string? ProviderPathOrExactRoute(string? providerConfirmedPath, string modelId)
+    {
+        if (!string.IsNullOrWhiteSpace(providerConfirmedPath))
+            return providerConfirmedPath.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase) ? providerConfirmedPath : null;
+        return FindExactRouteFile(modelId);
     }
 
     private string? FindExactRouteFile(string modelId)

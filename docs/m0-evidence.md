@@ -13,7 +13,7 @@ represented as production-ready.
 |---|---|---|---|
 | Provider/runtime version | Ollama `/api/version`; llama.cpp response/build metadata | Version range adapter | Mark unsupported version; diagnostics only |
 | Routable model | Ollama tags/show; llama direct `/v1/models` or `/models` with OpenAI `data`; router-only `/models` shape | Provider route and bounded request probe | Never publish a file-only discovery |
-| Native context | Ollama show `*.context_length`; GGUF metadata; llama model metadata | Typed numeric validation | Null/unknown |
+| Native context | Ollama show `*.context_length`; allowlisted GGUF metadata selected by an exact route or provider-reported path; llama model metadata | Typed numeric and canonical-path validation | Null/unknown |
 | Effective context | Ollama `/api/ps` when loaded; llama `/props` or router effective args | Compare live response to configured state | Null; never substitute native max |
 | Modalities/tools | Provider capability fields, GGUF architecture, bounded probe | Per-field evidence | Tri-state unknown |
 | Reasoning modes | Ollama show `thinking`; llama versioned flags/model evidence (`reasoning_format` controls output parsing, not capability) | End-to-end request/response probe for controllable modes | Omit modes; never infer from name or a response parsing format |
