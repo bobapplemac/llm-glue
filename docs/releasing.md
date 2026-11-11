@@ -64,6 +64,23 @@ the manifest records FileVersion `1.3.0.0` plus the exact commit. A live r2→r3
 post-exit service update passed on labhost03, including the previously failing
 slow LiteLLM activation, followed by real MarkIV OpenCode inference.
 
+Official `r4` was published from
+`342f40052f5b85609f310c89b8fe10ee5c77534c` on 2026-11-11 after explicit
+authorization. The guarded PowerShell publisher passed 114 tests, built both
+self-contained RIDs, and emitted FileVersion `1.4.0.0` plus the exact commit in
+the manifest. The published SHA-256 values are
+`d20479ce07ddb9bb148594456c60b03b89827ede4de92edcfc40afe109ad448b`
+for linux-x64 and
+`fa01738f2eb69fa66b63d9084dfb4cc482777be8f737f4190fd9080971c5cea7`
+for win-x64. GitHub's asset digests match. Before publication, the candidate
+refreshed the live labhost03 llama.cpp router from ten to eleven presets,
+published every dormant route through LiteLLM/OpenCode, and was accepted by
+OpenCode 2.2.7 without inventing unknown reasoning capabilities. The official
+asset subsequently passed a live r3→r4 staged service update on labhost03. The
+r4 service reported 11 discovered/published models, LiteLLM recovered from its
+expected configuration cold restart, and its authenticated catalog contained
+the new dormant-route alias.
+
 Both publishers require exactly one remote named `origin`, an `origin/<branch>`
 upstream, and the pinned raw remote URL `github.com/bobapplemac/llm-glue`. This
 prevents an otherwise clean checkout from publishing the project identity from an

@@ -6,7 +6,11 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Current status
 
-- **Authorized r4 candidate:** llama.cpp discovery now refreshes router presets,
+- **Official release:** r4 is published from commit
+  `342f40052f5b85609f310c89b8fe10ee5c77534c`. The guarded publisher passed
+  all 114 tests, built both self-contained RIDs with FileVersion `1.4.0.0`, and
+  published exact-commit manifest/checksum metadata. GitHub's asset digests match
+  the local SHA-256 values. llama.cpp discovery now refreshes router presets,
   publishes dormant configured routes independently of loaded-only probes, and
   omits unknown OpenCode capability claims. A configurable 300-second discovery
   timeout covers changed-preset metadata sweeps. Live labhost03 qualification
@@ -15,7 +19,11 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   loaded the generated artifact and listed all eleven models. The candidate also
   bundles the PowerShell 5.1 bootstrap fix, automatic Windows service start,
   optional inference-key persistence, and owned built-in OpenCode catalog policy.
-  Full release gates and r4 publication remain in progress.
+  The official r3→r4 self-update then passed on labhost03 with staged activation,
+  authenticated health, and rollback protection. The restarted service reported
+  11 discovered and 11 published models; the generated LiteLLM include activated
+  after its expected cold restart, `/health/liveliness` recovered, and the
+  authenticated LiteLLM catalog contained the `bench-01-02` alias.
 
 - **Previous official release:** r3 is published from commit
   `9d29eca4cf0e6c4eb177f65e115c2d91672a08d5`. Its guarded local PowerShell
