@@ -1,6 +1,6 @@
 # LLM Glue agent guide
 
-`llm-glue-spec.md` is the product authority. Read it, `docs/progress.md`, the
+`docs/llm-glue-spec.md` is the product authority. Read it, `docs/progress.md`, the
 relevant ADRs, and `docs/compatibility.md` before changing behavior.
 
 ## Engineering rules

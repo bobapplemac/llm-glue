@@ -4,10 +4,11 @@ LLM Glue discovers models served by llama.cpp and Ollama, normalizes evidence
 about their capabilities, publishes versioned configuration artifacts, and
 safely synchronizes those artifacts into OpenCode or LiteLLM.
 
-The project is under active `r0` development. No official `r1` release has been
-authorized. See [progress](docs/progress.md) for implemented and qualified
-functionality and the [completion audit](docs/completion-audit.md) for the exact
-remaining live gates.
+The official `r1` release is available from
+[GitHub Releases](https://github.com/bobapplemac/llm-glue/releases/tag/r1).
+Development builds continue to identify as `r0` until produced by the guarded
+release path. See the authoritative [product specification](docs/llm-glue-spec.md),
+[progress](docs/progress.md), and [completion audit](docs/completion-audit.md).
 
 ## Architecture
 
