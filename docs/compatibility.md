@@ -26,6 +26,10 @@ the same provider/model key while unique system, user, and project models were
 preserved. These are simulated profiles, not two actual OS accounts; the latter
 remains an M4 qualification item.
 
+The M2 generated golden artifact was loaded by the same 2.2.7 executable. Its
+effective `/api/model` entry retained the exact `thinking-on` request body,
+reported context 65536, and did not invent additional reasoning variants.
+
 Sources: <https://opencode.ai/docs/config>,
 <https://opencode.ai/config.json>, <https://opencode.ai/docs/api>, and
 <https://github.com/anomalyco/opencode/releases/tag/v2.2.7>.

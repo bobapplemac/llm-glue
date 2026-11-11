@@ -47,6 +47,11 @@ only. It defaults to loopback; remote access requires bearer authentication and
 an encrypted private network or operator-supplied reverse proxy unless the
 operator explicitly acknowledges insecure transport.
 
+Server publication generates and validates all target artifacts before swapping
+the visible inventory, then stores bounded per-target history. Conditional reads
+return 304 for matching ETags. Agent submissions must carry a canonical content
+hash and schema version; remote reads and writes use separate bearer credentials.
+
 Client installation is staged on the destination filesystem, validated, backed
 up, atomically renamed, activated, verified, and rolled back on failure. A local
 lock prevents concurrent reconciliation. Offline clients keep the last-known-good

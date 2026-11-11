@@ -13,7 +13,8 @@ public sealed record ModelIdentity(
     string? Revision = null,
     string? Family = null,
     string? FileHash = null,
-    string? Quantization = null);
+    string? Quantization = null,
+    string? SourceEndpoint = null);
 
 public sealed record ReasoningCapabilities(
     ReasoningModeKind Kind,

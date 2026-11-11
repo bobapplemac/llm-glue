@@ -66,7 +66,7 @@ public sealed class LlamaCppDiscoveryAdapter(HttpClient httpClient, string insta
     }
 
     private ModelDeployment Create(string id, string display, long? native, long? effective, bool loaded, DateTimeOffset now, string mode) => new(
-        new ModelIdentity("llama.cpp", instanceId, id, display, id), DeploymentStatus.Available, now, now,
+        new ModelIdentity("llama.cpp", instanceId, id, display, id, SourceEndpoint: httpClient.BaseAddress?.ToString()), DeploymentStatus.Available, now, now,
         native is > 0 ? new Evidence<long>(native.Value, $"llama.cpp:{mode}:native", now, VerificationState.Reported) : null,
         effective is > 0 ? new Evidence<long>(effective.Value, $"llama.cpp:{mode}:effective", now, VerificationState.Observed) : null,
         ProviderHelpers.Capabilities(null, null, new(ReasoningModeKind.Unknown, []), $"llama.cpp:{mode}", now), [],

@@ -28,7 +28,7 @@ public sealed class OllamaDiscoveryAdapter(HttpClient httpClient, string instanc
             var reasoning = ParseThinking(show.Thinking, now);
             long? effective = running.TryGetValue(tag.Name, out var active) ? active.ContextLength : null;
             result.Add(new ModelDeployment(
-                new ModelIdentity("ollama", instanceId, tag.Name, tag.Name, tag.Name, Family: show.Details?.Family ?? tag.Details?.Family, Quantization: show.Details?.QuantizationLevel ?? tag.Details?.QuantizationLevel),
+                new ModelIdentity("ollama", instanceId, tag.Name, tag.Name, tag.Name, Family: show.Details?.Family ?? tag.Details?.Family, Quantization: show.Details?.QuantizationLevel ?? tag.Details?.QuantizationLevel, SourceEndpoint: httpClient.BaseAddress?.ToString()),
                 DeploymentStatus.Available, now, now,
                 native > 0 ? new Evidence<long>(native, "ollama:/api/show:model_info", now, VerificationState.Reported) : null,
                 effective is > 0 ? new Evidence<long>(effective.Value, "ollama:/api/ps", now, VerificationState.Observed) : null,
