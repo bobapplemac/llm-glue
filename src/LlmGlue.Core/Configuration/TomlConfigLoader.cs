@@ -37,7 +37,7 @@ public static class TomlConfigLoader
             submitToText is null ? null : HttpUri(submitToText, "agent.submit_to"),
             OptionalString(agent, "write_token_environment"),
             OptionalString(agent, "write_token"),
-            PositiveInt(agent, "discovery_interval_seconds", 30),
+            PositiveInt(agent, "discovery_interval_seconds", 60),
             PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");

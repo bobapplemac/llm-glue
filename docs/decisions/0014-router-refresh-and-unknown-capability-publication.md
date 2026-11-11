@@ -24,6 +24,9 @@ default-exposure requirements, and converted unavailable evidence into omission.
 - Provider discovery timeout is configurable as `discovery_timeout_seconds` and
   defaults to 300 seconds because the first metadata sweep after a preset change
   can inspect large GGUFs serially.
+- Agent discovery runs once at service start and waits 60 seconds after each
+  completed cycle by default. This avoids aggressive router metadata polling for
+  an inventory that changes infrequently; operators can configure the interval.
 - Available/degraded, endpoint-backed deployments are publishable unless text
   input or output is explicitly reported unsupported. Unknown is not unsupported.
 - OpenCode generation omits unknown modality, tool, and reasoning declarations.
