@@ -24,7 +24,7 @@ public static class CatalogReconciler
                 if (now - old.LastSeenAt >= removalGrace) removed.Add(Key(old));
                 else values.Add(old with
                 {
-                    Status = DeploymentStatus.Unavailable,
+                    Status = DeploymentStatus.Degraded,
                     Warnings = old.Warnings.Concat(["Model was absent from the latest discovery and is retained during the removal grace period."]).Distinct(StringComparer.Ordinal).ToArray()
                 });
             }

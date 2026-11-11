@@ -10,7 +10,7 @@ internal static class GenerationHelpers
     public static GeneratedArtifact Artifact(string mediaType, string text) => new(mediaType, Encoding.UTF8.GetBytes(text), Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text))), 1);
 
     public static IEnumerable<ModelDeployment> Publishable(DiscoverySnapshot snapshot) => snapshot.Deployments.Where(x =>
-        x.Status == DeploymentStatus.Available &&
+        x.Status is DeploymentStatus.Available or DeploymentStatus.Degraded &&
         !string.IsNullOrWhiteSpace(x.Identity.SourceEndpoint) &&
         x.Capabilities.TextInput.State == SupportState.Supported &&
         x.Capabilities.TextOutput.State == SupportState.Supported);

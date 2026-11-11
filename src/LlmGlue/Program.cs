@@ -4,6 +4,7 @@ using LlmGlue.Core.Configuration;
 using LlmGlue.Core.Generation;
 using LlmGlue.Core.Client;
 using LlmGlue.Services;
+using LlmGlue.Core.Providers;
 
 if (args is ["--version"])
 {
@@ -34,8 +35,10 @@ if (args.Take(2).SequenceEqual(["config", "validate"]))
 if (options.Roles.Server)
 {
     var builder = WebApplication.CreateBuilder(args);
+    ConfigureLogging(builder.Logging);
     builder.WebHost.UseUrls(options.Server.Listen.ToString());
     AddServer(builder.Services, options);
+    if (options.Roles.Agent) AddAgent(builder.Services, options);
     if (options.Roles.Client) AddClient(builder.Services, options);
     var app = builder.Build();
     app.UseMiddleware<ApiAuthenticationMiddleware>();
@@ -45,6 +48,7 @@ if (options.Roles.Server)
 else
 {
     var builder = Host.CreateApplicationBuilder(args);
+    ConfigureLogging(builder.Logging);
     if (options.Roles.Client) AddClient(builder.Services, options);
     await builder.Build().RunAsync();
 }
@@ -58,6 +62,21 @@ static void AddServer(IServiceCollection services, GlueOptions options)
     services.AddSingleton(new ApiAuthenticationOptions(
         options.Server.ReadTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Server.ReadTokenEnvironment),
         options.Server.WriteTokenEnvironment is null ? null : Environment.GetEnvironmentVariable(options.Server.WriteTokenEnvironment)));
+}
+
+static void AddAgent(IServiceCollection services, GlueOptions options)
+{
+    foreach (var provider in options.Providers)
+    {
+        var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(15) };
+        IModelDiscoveryAdapter adapter = provider.Type == "ollama"
+            ? new OllamaDiscoveryAdapter(client, provider.Name)
+            : new LlamaCppDiscoveryAdapter(client, provider.Name);
+        services.AddSingleton<IModelDiscoveryAdapter>(adapter);
+    }
+    services.AddSingleton<IHostedService>(provider => new AgentDiscoveryService(
+        provider.GetServices<IModelDiscoveryAdapter>(), provider.GetRequiredService<ApiState>(),
+        provider.GetRequiredService<ILogger<AgentDiscoveryService>>(), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(10)));
 }
 
 static void AddClient(IServiceCollection services, GlueOptions options)
@@ -84,5 +103,11 @@ static void AddClient(IServiceCollection services, GlueOptions options)
 }
 
 static string ResolvePath(string baseDirectory, string path) => Path.IsPathRooted(path) ? Path.GetFullPath(path) : Path.GetFullPath(path, baseDirectory);
+
+static void ConfigureLogging(ILoggingBuilder logging)
+{
+    logging.ClearProviders();
+    logging.AddSimpleConsole(options => { options.SingleLine = true; options.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffzzz "; });
+}
 
 public partial class Program;
