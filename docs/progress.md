@@ -99,6 +99,9 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   execute and validate every generated mode on Windows and Linux.
   Non-loopback Server configurations now enforce bearer authentication even for
   same-host proxy peers; the bootstrap central Client receives the read token.
+  `doctor` now returns failure for unavailable/non-2xx providers or missing
+  configured secret environments; a live local Ollama check returned zero while
+  the unavailable llama.cpp example returned one.
 
 ## M0 acceptance checklist
 
@@ -246,8 +249,8 @@ authorization or claim either live gate passed beforehand.
 - [ ] M4 live Debian/inference and multi-user gates; M5 cannot be declared passed
   until the release's required live suite passes.
 
-Latest available verification: Windows Release build and 84 tests; native
-Ubuntu/WSL Release restore/build and 84 tests;
+Latest available verification: Windows Release build and 90 tests; native
+Ubuntu/WSL Release restore/build and 90 tests;
 OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
 native OpenCode 2.2.7 → Ollama 0.40.16 real-model inference with verified
 `thinking-off`/`thinking-on` variants and no duplicate native Ollama catalog row;

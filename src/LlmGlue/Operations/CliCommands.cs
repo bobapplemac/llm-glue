@@ -12,7 +12,18 @@ namespace LlmGlue.Operations;
 public static class CliCommands
 {
     public static async Task<int> DoctorAsync(GlueOptions options, CancellationToken cancellationToken)
+        => await DoctorAsync(options, cancellationToken, provider => new HttpClient
+        {
+            BaseAddress = provider.Url,
+            Timeout = TimeSpan.FromSeconds(5)
+        });
+
+    internal static async Task<int> DoctorAsync(
+        GlueOptions options,
+        CancellationToken cancellationToken,
+        Func<ProviderOptions, HttpClient> createProviderClient)
     {
+        var failures = 0;
         Console.WriteLine($"LLM Glue {ProductInfo.Revision} doctor");
         Console.WriteLine($"Config: {options.ConfigPath}");
         Console.WriteLine($"Roles: agent={options.Roles.Agent}, server={options.Roles.Server}, client={options.Roles.Client}");
@@ -20,26 +31,47 @@ public static class CliCommands
         Console.WriteLine($"OpenCode inference route: {(options.Server.OpenCodeInferenceUrl is null ? "direct provider endpoints" : options.Server.OpenCodeInferenceUrl)}");
         Console.WriteLine($"Server read token: {SecretStatus(options.Server.ReadToken, options.Server.ReadTokenEnvironment)}");
         Console.WriteLine($"Server write token: {SecretStatus(options.Server.WriteToken, options.Server.WriteTokenEnvironment)}");
+        failures += MissingSecret(options.Server.ReadToken, options.Server.ReadTokenEnvironment);
+        failures += MissingSecret(options.Server.WriteToken, options.Server.WriteTokenEnvironment);
         Console.WriteLine($"Server state: {ResolvePath(options, options.Server.StateDirectory)} (retention {options.Server.ArtifactRetention})");
         if (options.Agent.SubmitTo is not null) Console.WriteLine($"Agent submission: {options.Agent.SubmitTo}");
-        if (options.Agent.WriteTokenEnvironment is not null || options.Agent.WriteToken is not null) Console.WriteLine($"Agent write token: {SecretStatus(options.Agent.WriteToken, options.Agent.WriteTokenEnvironment)}");
+        if (options.Agent.WriteTokenEnvironment is not null || options.Agent.WriteToken is not null)
+        {
+            Console.WriteLine($"Agent write token: {SecretStatus(options.Agent.WriteToken, options.Agent.WriteTokenEnvironment)}");
+            failures += MissingSecret(options.Agent.WriteToken, options.Agent.WriteTokenEnvironment);
+        }
         Console.WriteLine($"Server exclusions: {options.Server.Exclusions.Count}");
         if (options.Client.Source is not null) Console.WriteLine($"Client source: {options.Client.Source}");
-        if (options.Client.TokenEnvironment is not null || options.Client.Token is not null) Console.WriteLine($"Client token: {SecretStatus(options.Client.Token, options.Client.TokenEnvironment)}");
+        if (options.Client.TokenEnvironment is not null || options.Client.Token is not null)
+        {
+            Console.WriteLine($"Client token: {SecretStatus(options.Client.Token, options.Client.TokenEnvironment)}");
+            failures += MissingSecret(options.Client.Token, options.Client.TokenEnvironment);
+        }
         foreach (var provider in options.Providers)
         {
             Console.WriteLine($"Provider {provider.Name} policy: probe={provider.ProbeMode} timeout={provider.ProbeTimeoutSeconds}s, gguf={provider.InspectGguf}, full-hash={provider.HashModelFiles}");
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, provider.Type == "ollama" ? "api/version" : "v1/models");
-                using var client = new HttpClient { BaseAddress = provider.Url, Timeout = TimeSpan.FromSeconds(5) };
+                using var client = createProviderClient(provider);
                 using var response = await client.SendAsync(request, cancellationToken);
                 Console.WriteLine($"Provider {provider.Name} ({provider.Type}, {provider.Url}): HTTP {(int)response.StatusCode}");
+                if (!response.IsSuccessStatusCode) failures++;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException) { Console.WriteLine($"Provider {provider.Name}: unavailable ({ex.Message})"); }
+            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                Console.WriteLine($"Provider {provider.Name}: unavailable ({ex.Message})");
+                failures++;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                Console.WriteLine($"Provider {provider.Name}: unavailable ({ex.Message})");
+                failures++;
+            }
         }
         foreach (var target in options.Client.Targets) Console.WriteLine($"Target {target.Type}: {ResolvePath(options, target.Path)} ({(File.Exists(ResolvePath(options, target.Path)) ? "exists" : "will be created")})");
-        return 0;
+        Console.WriteLine(failures == 0 ? "Doctor result: healthy" : $"Doctor result: {failures} failure(s)");
+        return failures == 0 ? 0 : 1;
     }
 
     public static async Task<int> DiscoverAsync(GlueOptions options, CancellationToken cancellationToken)
@@ -131,4 +163,7 @@ public static class CliCommands
         : environmentName is not null
             ? $"environment {environmentName} ({(string.IsNullOrEmpty(Environment.GetEnvironmentVariable(environmentName)) ? "missing" : "set")})"
             : "not configured";
+    private static int MissingSecret(string? literal, string? environmentName) => literal is null
+        && environmentName is not null
+        && string.IsNullOrEmpty(Environment.GetEnvironmentVariable(environmentName)) ? 1 : 0;
 }

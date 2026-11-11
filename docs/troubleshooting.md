@@ -2,7 +2,11 @@
 
 Start with `llm-glue doctor --config <path>`. It reports the selected sidecar,
 enabled roles, server/client endpoints, token-environment presence, provider HTTP
-reachability, and resolved target paths without printing token values.
+reachability, and resolved target paths without printing token values. Exit code
+zero means every configured secret source was available and every provider probe
+returned success. Missing secret environments, connection failures, and non-2xx
+provider responses produce exit code one, so the command is safe to use in
+bootstrap and monitoring scripts.
 
 ## Catalog is empty
 
