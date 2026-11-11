@@ -6,13 +6,30 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Current status
 
+- **Official releases:** r2 is published from commit
+  `131bf67f68b5a95c1cc693720e01805f953ab005`. Its guarded local publisher ran
+  all 105 tests and produced both self-contained RIDs. A live labhost03 upgrade
+  then exposed CRLF line endings in the published `SHA256SUMS`; the immutable r2
+  Linux archive verified after normalizing that input and was installed manually.
+  The r2 service, authenticated health endpoint, discovery of ten llama.cpp
+  deployments, generated LiteLLM include, and a real authenticated
+  LiteLLM-to-llama.cpp completion all passed. MarkIV OpenCode 2.2.7 then loaded
+  the generated central provider, selected its `thinking-on` variant,
+  authenticated to the r2-managed LiteLLM route, and returned the exact live
+  marker `OPENCODE_R2_OK`. The Linux bootstrap now normalizes checksum input,
+  the Windows publisher emits LF-only metadata, and the mocked
+  bootstrap matrix exercises CRLF input. A second live finding was that this
+  host's LiteLLM cold start exceeds r2's approximately 20-second health window;
+  the next revision allows a two-minute bounded health qualification window.
+  These corrections are implemented and locally verified but are not published.
+
 - **M0 — evidence/interface validation:** implementation design complete;
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,
   Ollama 0.40.16, and llama.cpp direct/router builds. Two-account Linux
   precedence, Windows 2.2.7 system-level JSONC discovery/comment parsing, and
   representative central discovery are live-qualified; the later M4 run also
   qualified LocalService and a temporary second native Windows account.
-- **M1 — core domain/discovery:** implemented; the full 105-test suite
+- **M1 — core domain/discovery:** implemented; the full 107-test suite
   pass on .NET 10. Includes strict TOML role composition, provenance-aware domain
   types, safe GGUF metadata parsing, Ollama and llama.cpp adapters, and stable
   inventory hashes. Configured llama.cpp directories now enrich only

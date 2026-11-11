@@ -117,7 +117,8 @@ asset="llm-glue-${tag}-linux-x64.tar.gz"
 base="https://github.com/$repo/releases/download/$tag"
 curl --fail --silent --show-error --location "$base/$asset" -o "$tmp/$asset"
 curl --fail --silent --show-error --location "$base/SHA256SUMS" -o "$tmp/SHA256SUMS"
-(cd "$tmp" && grep -E "[[:space:]]${asset}$" SHA256SUMS | sha256sum --check --strict -)
+tr -d '\r' < "$tmp/SHA256SUMS" > "$tmp/SHA256SUMS.normalized"
+(cd "$tmp" && grep -E "[[:space:]]${asset}$" SHA256SUMS.normalized | sha256sum --check --strict -)
 mkdir -p "$tmp/stage"
 tar -C "$tmp/stage" -xzf "$tmp/$asset"
 staged="$tmp/stage/llm-glue"

@@ -9,7 +9,7 @@ trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$tmp/release/stage" "$tmp/bin"
 cp -- "$binary" "$tmp/release/stage/llm-glue"
 tar -C "$tmp/release/stage" -czf "$tmp/release/llm-glue-r1-linux-x64.tar.gz" llm-glue
-(cd "$tmp/release" && sha256sum llm-glue-r1-linux-x64.tar.gz > SHA256SUMS)
+(cd "$tmp/release" && sha256sum llm-glue-r1-linux-x64.tar.gz | sed 's/$/\r/' > SHA256SUMS)
 
 printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' 'url="${!#}"' 'out=""' 'for ((i=1; i<=$#; i++)); do if [[ "${!i}" == -o ]]; then j=$((i+1)); out="${!j}"; fi; done' 'case "$url" in' '  */releases/latest) printf '\''%s\n'\'' '\''{"tag_name":"r1"}'\'' ;;' '  */SHA256SUMS) cp -- "$MOCK_RELEASE/SHA256SUMS" "$out" ;;' '  */llm-glue-r1-linux-x64.tar.gz) cp -- "$MOCK_RELEASE/llm-glue-r1-linux-x64.tar.gz" "$out" ;;' '  *) echo "unexpected URL: $url" >&2; exit 2 ;;' 'esac' > "$tmp/bin/curl"
 chmod +x "$tmp/bin/curl"
@@ -38,5 +38,13 @@ run_mode central-llama env LLM_GLUE_READ_TOKEN=test-read LLM_GLUE_WRITE_TOKEN=te
 grep -Fq 'source = "http://127.0.0.1:9876"' "$tmp/central-llama/llm-glue.conf"
 grep -Fq 'type = "litellm"' "$tmp/central-llama/llm-glue.conf"
 grep -Fq 'opencode_inference_url = "http://litellm.test:4000"' "$tmp/central-llama/llm-glue.conf"
+
+cp -- "$tmp/release/SHA256SUMS" "$tmp/release/SHA256SUMS.valid"
+sed -E 's/^[0-9a-f]{64}/0000000000000000000000000000000000000000000000000000000000000000/' "$tmp/release/SHA256SUMS.valid" > "$tmp/release/SHA256SUMS"
+if env LLM_GLUE_MODE=standalone-ollama LLM_GLUE_INSTALL_DIR="$tmp/checksum-rejection" LLM_GLUE_OLLAMA_URL=http://127.0.0.1:11434 LLM_GLUE_OPENCODE_PATH="$tmp/rejected.json" "$root/install.sh"; then
+  echo 'bootstrap accepted a mismatched checksum' >&2
+  exit 1
+fi
+[[ ! -e "$tmp/checksum-rejection/llm-glue" ]]
 
 echo 'Bash bootstrap configuration matrix passed.'

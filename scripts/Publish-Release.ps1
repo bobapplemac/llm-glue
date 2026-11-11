@@ -63,8 +63,11 @@ New-Item -ItemType Directory -Force -Path $package | Out-Null
 Compress-Archive -Path (Join-Path $root "$OutputDirectory/publish/win-x64/*") -DestinationPath (Join-Path $package "llm-glue-r$Revision-win-x64.zip") -Force
 tar -C (Join-Path $root "$OutputDirectory/publish/linux-x64") -czf (Join-Path $package "llm-glue-r$Revision-linux-x64.tar.gz") .
 $assets = Get-ChildItem -LiteralPath $package -File | Where-Object Name -Like "llm-glue-r$Revision-*"
-$assets | ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant(), $_.Name } | Set-Content -LiteralPath (Join-Path $package 'SHA256SUMS') -Encoding utf8NoBOM
-@{ product='LLM Glue'; revision="r$Revision"; assemblyVersion='1.0.0.0'; fileVersion="1.$Revision.0.0"; commit=$ReleaseHead; assets=@('linux-x64','win-x64') } | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $package 'manifest.json') -Encoding utf8NoBOM
+$utf8NoBom = [Text.UTF8Encoding]::new($false)
+$checksumText = (($assets | ForEach-Object { "{0}  {1}" -f (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant(), $_.Name }) -join "`n") + "`n"
+$manifestText = (@{ product='LLM Glue'; revision="r$Revision"; assemblyVersion='1.0.0.0'; fileVersion="1.$Revision.0.0"; commit=$ReleaseHead; assets=@('linux-x64','win-x64') } | ConvertTo-Json -Compress) + "`n"
+[IO.File]::WriteAllText((Join-Path $package 'SHA256SUMS'), $checksumText, $utf8NoBom)
+[IO.File]::WriteAllText((Join-Path $package 'manifest.json'), $manifestText, $utf8NoBom)
 
 Invoke-Git fetch --prune | Out-Null
 if ((Invoke-Git rev-parse '@{upstream}') -ne $ReleaseHead) { throw 'Remote changed after build; aborting.' }

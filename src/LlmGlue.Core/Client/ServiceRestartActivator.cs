@@ -17,21 +17,31 @@ public sealed partial class ServiceRestartActivator(string serviceName, HttpClie
         else throw new PlatformNotSupportedException("Controlled service activation supports Windows and Linux.");
 
         if (healthClient is not null && healthUrl is not null)
+            await WaitForHealthAsync(healthClient, healthUrl, 60, TimeSpan.FromSeconds(2), cancellationToken);
+    }
+
+    internal static async Task WaitForHealthAsync(HttpClient healthClient, Uri healthUrl, int maximumAttempts, TimeSpan retryDelay, CancellationToken cancellationToken)
+    {
+        if (maximumAttempts <= 0) throw new ArgumentOutOfRangeException(nameof(maximumAttempts));
+        if (retryDelay < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(retryDelay));
+
+        Exception? last = null;
+        // Model routers can legitimately need close to a minute to load their
+        // configuration and initialize database-backed middleware after a
+        // container recreation. Keep individual requests bounded while allowing
+        // a two-minute cold-start qualification window in the production caller.
+        for (var attempt = 0; attempt < maximumAttempts; attempt++)
         {
-            Exception? last = null;
-            for (var attempt = 0; attempt < 10; attempt++)
+            try
             {
-                try
-                {
-                    using var response = await healthClient.GetAsync(healthUrl, cancellationToken);
-                    if (response.IsSuccessStatusCode) return;
-                    last = new HttpRequestException($"Health endpoint returned {(int)response.StatusCode}.");
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException) { last = ex; }
-                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+                using var response = await healthClient.GetAsync(healthUrl, cancellationToken);
+                if (response.IsSuccessStatusCode) return;
+                last = new HttpRequestException($"Health endpoint returned {(int)response.StatusCode}.");
             }
-            throw new InvalidOperationException("Service restarted but failed its health check.", last);
+            catch (Exception ex) when (ex is not OperationCanceledException) { last = ex; }
+            if (attempt + 1 < maximumAttempts) await Task.Delay(retryDelay, cancellationToken);
         }
+        throw new InvalidOperationException("Service restarted but failed its health check.", last);
     }
 
     private static async Task RunAsync(string executable, IReadOnlyList<string> arguments, bool allowAlreadyStopped, CancellationToken cancellationToken)
