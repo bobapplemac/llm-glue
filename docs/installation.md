@@ -120,3 +120,9 @@ Server role is enabled or SCM/systemd running state otherwise. Failed or
 interrupted activation restores and reverifies the previous executable. Windows
 uses a hidden post-exit helper because a running executable cannot be replaced;
 its result log is printed before the CLI exits.
+
+Maintainers can repeat the isolated elevated lifecycle gates with
+`scripts/Test-WindowsServiceLive.ps1` (optionally `-AllRoles`) and, on a disposable
+systemd host with no existing LLM Glue resources,
+`scripts/Test-LinuxServiceLive.sh`. Both scripts refuse an existing service; the
+Linux script additionally refuses an existing account or owned service directory.

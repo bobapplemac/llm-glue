@@ -57,7 +57,17 @@ environment. The following remain mandatory:
 - Captured Off/On and effort-level request bodies at llama.cpp.
 - Functional inference and context/KV/runtime observation.
 - Model add, change, removal, outage, stale-grace, restart, and rollback scenarios.
-- Native systemd install/repair/restart/update/rollback/uninstall behavior.
+
+## Linux systemd lifecycle — pass in Ubuntu/WSL
+
+A native systemd instance ran the r1 Linux single-file binary under the fixed,
+non-login `llm-glue` identity. An isolated Server configuration passed unit
+install/enable, start/HTTP health, stop, executable relocation plus `service
+repair`, restart/health, synchronous service rollback, uninstall preservation,
+and final cleanup verification. The test first refused any pre-existing unit,
+account, or owned service directories; afterward none of its system resources
+remained. This qualifies service mechanics, not the unavailable Debian
+llama.cpp/LiteLLM inference path.
 
 ## Multi-user and UI — not run
 

@@ -51,7 +51,7 @@ Last updated: 2026-11-11
   Service registration now provisions stable least-privilege identities and
   verifies exact executable, sidecar, state, log, and target access before
   registering the service. Elevated Windows all-role lifecycle and rollback now
-  pass; native systemd remains unqualified.
+  pass; native Ubuntu/WSL systemd install/repair/rollback/uninstall also passes.
   Both bootstrap scripts now cover remote-client, standalone Ollama, and central
   llama.cpp/LiteLLM modes, validate before privileged copying, protect generated
   sidecars, and preserve existing configuration. Isolated mocked-release matrices
@@ -180,7 +180,8 @@ authorization or claim either live gate passed beforehand.
   states without GitHub mutation; Bash also verifies partial-failure guidance.
 - [x] Live Windows SCM install/start/health/move/repair/restart/service rollback/
   uninstall passes under LocalService with isolated all-role paths.
-- [ ] Native Linux systemd install/move/repair/update/rollback/uninstall qualification.
+- [x] Native Ubuntu/WSL systemd install/start/health/move/repair/restart/service
+  rollback/uninstall and preservation pass under the fixed `llm-glue` identity.
 - [ ] Live update-apply from an official release asset; none exists without release
   authorization. Windows service rollback is live-qualified.
 - [ ] Authenticated preflight against the actual clean, already-pushed upstream
