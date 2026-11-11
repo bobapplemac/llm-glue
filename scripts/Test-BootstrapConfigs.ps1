@@ -1,7 +1,8 @@
 [CmdletBinding()]
-param([string]$Binary = (Join-Path $PSScriptRoot '..\artifacts\service-check\win-x64\llm-glue.exe'))
+param([string]$Binary)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+if (-not $Binary) { $Binary = Join-Path $root 'artifacts\service-check\win-x64\llm-glue.exe' }
 $Binary = (Resolve-Path $Binary).Path
 $temporary = Join-Path ([IO.Path]::GetTempPath()) "llm-glue-bootstrap-test-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $temporary | Out-Null
@@ -29,6 +30,8 @@ try {
     $remote = Join-Path $temporary 'remote'
     & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://catalog.example -ServerToken test-read
     & (Join-Path $remote 'llm-glue.exe') config validate --config (Join-Path $remote 'llm-glue.conf')
+    $remoteConfigBytes = [IO.File]::ReadAllBytes((Join-Path $remote 'llm-glue.conf'))
+    if ($remoteConfigBytes.Length -ge 3 -and $remoteConfigBytes[0] -eq 0xEF -and $remoteConfigBytes[1] -eq 0xBB -and $remoteConfigBytes[2] -eq 0xBF) { throw 'Generated configuration unexpectedly contains a UTF-8 BOM.' }
     if (-not (Select-String -Quiet -SimpleMatch 'token = "test-read"' (Join-Path $remote 'llm-glue.conf'))) { throw 'Remote token was not generated.' }
     if (-not (Select-String -Quiet -SimpleMatch 'C:\\ProgramData\\opencode\\opencode.jsonc' (Join-Path $remote 'llm-glue.conf'))) { throw 'Remote client did not use the system JSONC default.' }
     $remoteHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $remote 'llm-glue.conf')).Hash

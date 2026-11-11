@@ -18,6 +18,10 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   cold start and r3's expanded bounded activation window passed it without the
   r2 rollback loop. MarkIV OpenCode 2.2.7 selected `thinking-on` through the
   r3-managed route and returned the exact live marker `OPENCODE_R3_OK`.
+  The first subsequent Windows PowerShell 5.1 bootstrap exposed that its
+  `Set-Content` does not recognize the PowerShell 7 `utf8NoBOM` encoding name.
+  The main-branch bootstrap now uses the cross-version .NET UTF-8 encoder and
+  its matrix explicitly rejects a generated BOM.
 
 - **M0 — evidence/interface validation:** implementation design complete;
   executable tests completed for OpenCode 2.2.7, LiteLLM 1.106.3/1.109.0,

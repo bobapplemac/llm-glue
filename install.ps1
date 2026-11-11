@@ -98,7 +98,8 @@ try {
         $logPath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\logs\llm-glue.log' } else { 'logs\llm-glue.log' }
         $content = @('[roles]','agent = true','server = true','client = true','','[[agent.providers]]','name = "local-llama"','type = "llama.cpp"',('url = ' + (ConvertTo-TomlString $LlamaUrl)),('model_directories = [' + (ConvertTo-TomlString $ModelDirectory) + ']'),'inspect_gguf = true','hash_model_files = false','probe_mode = "loaded-only"','','[server]',('listen = ' + (ConvertTo-TomlString $ListenUrl)),('opencode_inference_url = ' + (ConvertTo-TomlString $LiteLlmUrl)),('read_token = ' + (ConvertTo-TomlString $ReadToken)),('write_token = ' + (ConvertTo-TomlString $WriteToken)),'acknowledge_insecure_remote_http = true',('state_directory = ' + (ConvertTo-TomlString $statePath)),'','[client]',('source = ' + (ConvertTo-TomlString $localSource)),('token = ' + (ConvertTo-TomlString $ReadToken)),'','[[client.targets]]','type = "litellm"',('path = ' + (ConvertTo-TomlString $LiteLlmGeneratedPath)),('primary_config_path = ' + (ConvertTo-TomlString $LiteLlmPrimaryPath)),('service_name = ' + (ConvertTo-TomlString $LiteLlmService)),('health_url = ' + (ConvertTo-TomlString $LiteLlmHealthUrl)),'','[logging]',('file = ' + (ConvertTo-TomlString $logPath)))
     }
-    $content | Set-Content -LiteralPath $candidate -Encoding utf8NoBOM
+    $utf8NoBom = [Text.UTF8Encoding]::new($false)
+    [IO.File]::WriteAllLines($candidate, [string[]]$content, $utf8NoBom)
     & $stagedExecutable config validate --config $candidate
     if ($LASTEXITCODE -ne 0) { throw 'Generated configuration failed validation before installation.' }
     if (Test-Path $config) {
