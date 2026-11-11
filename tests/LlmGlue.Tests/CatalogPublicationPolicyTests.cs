@@ -28,6 +28,24 @@ public sealed class CatalogPublicationPolicyTests
     }
 
     [Fact]
+    public void ScopedWildcardRuleHidesMatchesAndKeepsDiagnostics()
+    {
+        var included = GenerationTests.Qualified();
+        var hidden = included with
+        {
+            Identity = included.Identity with { ModelId = "bench-01-02", DisplayName = "Bench 01 02", Route = "bench-01-02" }
+        };
+        var snapshot = LlmGlue.Core.Domain.DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [included, hidden]);
+        var rule = new ExclusionRuleOptions("llama.cpp", "lab", null, null, null, "bench-*");
+
+        var view = CatalogPublicationPolicy.Apply(snapshot, [rule]);
+
+        Assert.Equal(2, view.Diagnostics.Deployments.Count);
+        Assert.Equal("qwen-model", Assert.Single(view.Published.Deployments).Identity.ModelId);
+        Assert.Contains("model_pattern=bench-*", view.Diagnostics.Deployments.Single(x => x.Identity.ModelId == "bench-01-02").Warnings.Single());
+    }
+
+    [Fact]
     public async Task ApiStateGeneratesFromFilteredViewAndRejectsOlderInventory()
     {
         var store = new ArtifactStore();

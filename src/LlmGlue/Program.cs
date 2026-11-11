@@ -5,6 +5,7 @@ using LlmGlue.Core.Generation;
 using LlmGlue.Core.Client;
 using LlmGlue.Services;
 using LlmGlue.Core.Providers;
+using LlmGlue.Core.Reconciliation;
 using LlmGlue.Operations;
 using LlmGlue.Observability;
 using Microsoft.Extensions.Hosting.Systemd;
@@ -16,6 +17,12 @@ using NLog.Targets;
 if (args is ["--version"])
 {
     Console.WriteLine($"LLM Glue {ProductInfo.Revision}");
+    return;
+}
+
+if (args.FirstOrDefault() == "help" || args.Any(argument => argument is "--help" or "/?" or "-h"))
+{
+    Console.WriteLine(CliCommands.HelpText);
     return;
 }
 
@@ -143,7 +150,8 @@ static void AddAgent(IServiceCollection services, GlueOptions options)
         provider.GetServices<IModelDiscoveryAdapter>(), provider.GetRequiredService<ApiState>(),
         provider.GetRequiredService<ILogger<AgentDiscoveryService>>(),
         TimeSpan.FromSeconds(options.Agent.DiscoveryIntervalSeconds),
-        TimeSpan.FromSeconds(options.Agent.RemovalGraceSeconds)));
+        TimeSpan.FromSeconds(options.Agent.RemovalGraceSeconds),
+        options.Agent.ExcludeModels));
 }
 
 static void AddRemoteAgent(IServiceCollection services, GlueOptions options)
@@ -159,7 +167,8 @@ static void AddRemoteAgent(IServiceCollection services, GlueOptions options)
         provider.GetRequiredService<ILogger<RemoteAgentDiscoveryService>>(),
         provider.GetRequiredService<TimeProvider>(),
         TimeSpan.FromSeconds(options.Agent.DiscoveryIntervalSeconds),
-        TimeSpan.FromSeconds(options.Agent.RemovalGraceSeconds)));
+        TimeSpan.FromSeconds(options.Agent.RemovalGraceSeconds),
+        options.Agent.ExcludeModels));
 }
 
 static void AddDiscoveryAdapters(IServiceCollection services, GlueOptions options)
@@ -176,6 +185,8 @@ static void AddDiscoveryAdapters(IServiceCollection services, GlueOptions option
                 (provider.ModelPathMappings ?? []).Select(mapping => mapping with { LocalDirectory = ResolveConfigPath(options, mapping.LocalDirectory) }).ToArray(),
                 provider.InspectGguf,
                 provider.HashModelFiles);
+        if (options.Agent.ExcludeModels.Count != 0)
+            adapter = new AgentExclusionDiscoveryAdapter(adapter, options.Agent.ExcludeModels);
         if (provider.ProbeMode != CapabilityProbeMode.Off)
         {
             var probeClient = new HttpClient { BaseAddress = provider.Url, Timeout = Timeout.InfiniteTimeSpan };

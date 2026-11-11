@@ -18,6 +18,7 @@ public sealed record RoleOptions(bool Agent, bool Server, bool Client);
 
 public sealed record AgentOptions(
     IReadOnlyList<ProviderOptions> Providers,
+    IReadOnlyList<string> ExcludeModels,
     Uri? SubmitTo,
     string? WriteTokenEnvironment,
     string? WriteToken,
@@ -55,7 +56,8 @@ public sealed record ExclusionRuleOptions(
     string? InstanceId,
     string? ModelId,
     string? DisplayName,
-    string? ProviderModel);
+    string? ProviderModel,
+    string? ModelPattern = null);
 
 public sealed record ClientOptions(Uri? Source, string? TokenEnvironment, string? Token, int PollIntervalSeconds, IReadOnlyList<TargetOptions> Targets);
 

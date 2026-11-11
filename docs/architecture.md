@@ -153,8 +153,13 @@ local service identity before checking its configured health URL.
 
 ## Configuration
 
-There is one human-managed TOML sidecar, `llm-glue.conf`. Explicit `--config`
-wins, followed by an executable-side sidecar and, on Linux, `/etc/llm-glue.conf`.
+There is one human-managed TOML configuration, named either `llm-glue.conf` or
+`llm-glue.toml`. Explicit `--config` wins, followed by `.conf` then `.toml`
+beside the executable, then the same order under `/etc/llm-glue` on Linux or
+`%ProgramData%\LLMGlue` on Windows. Legacy Linux root-level files remain final
+fallbacks. Agent exclusion patterns remove matching inventory before publication
+or submission; server exclusion patterns retain diagnostics while filtering
+generated artifacts.
 Relative data paths resolve against the selected config directory.
 
 ## Operations and release

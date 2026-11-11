@@ -22,6 +22,10 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
   `opencode` deny policy follows the same rule: preserve identical operator-owned
   statements and every unrelated policy, and remove only an owned statement.
 - Generated artifacts must be deterministic and must not contain credentials.
+- Agent model exclusions are a pre-export boundary; excluded inventory must not
+  be submitted upstream. Server exclusions retain diagnostic visibility while
+  filtering generated artifacts. Exact and wildcard semantics must not be
+  conflated.
 - Network schemas are versioned independently from the product revision.
 - Ordinary development and test builds identify as `r0`. Only the guarded
   publisher may assign an explicitly authorized official `rN` revision; the

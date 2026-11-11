@@ -78,8 +78,19 @@ llm-glue run --config /path/to/llm-glue.conf
 
 An Agent-only host uses `agent.submit_to` and
 `agent.write_token_environment`; see `examples/remote-agent.conf`. The destination
-is the Server root, not the inventory endpoint. Exact server publication filters
-use one or more rules such as:
+is the Server root, not the inventory endpoint. To prevent matching inventory
+from leaving any Agent host, use case-insensitive exact names or `*`/`?` patterns:
+
+```toml
+[agent]
+exclude_models = ["private-*", "ollama/workstation/experimental-?"]
+```
+
+Patterns match model ID, display name, route, `provider/model`, and
+`provider/instance/model`. Agent exclusions are absent from submitted inventory
+and therefore from server diagnostics.
+
+Server publication filters use one or more rules such as:
 
 ```toml
 [[server.exclusions]]
@@ -88,8 +99,26 @@ instance_id = "workstation"
 model_id = "private-model"
 ```
 
-All supplied fields in a rule must match. Exclusions hide catalog publication
-only: diagnostics retain the deployment and identify the matching rule.
+For a wildcard rule, use `model_pattern` and optionally scope it with exact
+fields:
+
+```toml
+[[server.exclusions]]
+provider_id = "llama.cpp"
+instance_id = "labhost03-router"
+model_pattern = "bench-*"
+```
+
+All supplied fields in a rule must match. Exact fields remain exact; only
+`model_pattern` is case-insensitive and treats `*` and `?` specially. Server
+exclusions hide catalog publication only: diagnostics retain the deployment and
+identify the matching rule.
+
+Without `--config`, lookup order is executable-adjacent `llm-glue.conf`, then
+`llm-glue.toml`, followed by the same filenames in `/etc/llm-glue` on Linux or
+`%ProgramData%\LLMGlue` on Windows. `/etc/llm-glue.conf` and
+`/etc/llm-glue.toml` remain legacy Linux fallbacks. Run `llm-glue --help` without
+a configuration file to see the complete command list.
 
 `server.state_directory` controls durable catalog/artifact storage and resolves
 relative to the sidecar directory. The service identity must be able to create

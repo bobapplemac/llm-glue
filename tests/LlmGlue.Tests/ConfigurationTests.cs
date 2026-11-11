@@ -218,6 +218,59 @@ public sealed class ConfigurationTests
     }
 
     [Fact]
+    public void ConfigDiscoverySupportsBothExtensionsAndPrefersAdjacentConf()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "llm-glue-config-tests");
+        var executable = Path.Combine(root, "apps", "llm-glue.exe");
+        var adjacentConf = Path.Combine(root, "apps", "llm-glue.conf");
+        var adjacentToml = Path.Combine(root, "apps", "llm-glue.toml");
+        var canonical = Path.Combine(root, "canonical");
+
+        var resolved = ConfigPathResolver.Resolve(executable, null, false,
+            path => path == adjacentConf || path == adjacentToml, canonical);
+
+        Assert.Equal(adjacentConf, resolved);
+    }
+
+    [Fact]
+    public void ConfigDiscoveryUsesAdjacentTomlWhenConfIsAbsent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "llm-glue-config-tests");
+        var executable = Path.Combine(root, "apps", "llm-glue.exe");
+        var adjacentToml = Path.Combine(root, "apps", "llm-glue.toml");
+
+        var resolved = ConfigPathResolver.Resolve(executable, null, false, path => path == adjacentToml, Path.Combine(root, "canonical"));
+
+        Assert.Equal(adjacentToml, resolved);
+    }
+
+    [Theory]
+    [InlineData("llm-glue.conf")]
+    [InlineData("llm-glue.toml")]
+    public void ConfigDiscoveryUsesCanonicalFolderForEitherExtension(string filename)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "llm-glue-config-tests");
+        var executable = Path.Combine(root, "apps", "llm-glue.exe");
+        var canonical = Path.Combine(root, "canonical");
+        var expected = Path.Combine(canonical, filename);
+
+        var resolved = ConfigPathResolver.Resolve(executable, null, false, path => path == expected, canonical);
+
+        Assert.Equal(expected, resolved);
+    }
+
+    [Fact]
+    public void ConfigDiscoveryRetainsLegacyLinuxTomlFallback()
+    {
+        var executable = Path.Combine(Path.GetTempPath(), "llm-glue-config-tests", "llm-glue");
+
+        var resolved = ConfigPathResolver.Resolve(executable, null, true,
+            path => path == "/etc/llm-glue.toml", Path.Combine(Path.GetTempPath(), "canonical"));
+
+        Assert.Equal("/etc/llm-glue.toml", resolved);
+    }
+
+    [Fact]
     public void LoadsRemoteAgentAndExactServerExclusions()
     {
         var agentPath = WriteTemp("""
@@ -231,6 +284,7 @@ public sealed class ConfigurationTests
             write_token_environment = "LLM_GLUE_WRITE_TOKEN"
             discovery_interval_seconds = 15
             removal_grace_seconds = 120
+            exclude_models = ["private-*", "ollama/workstation/large-model"]
 
             [[agent.providers]]
             type = "ollama"
@@ -247,14 +301,20 @@ public sealed class ConfigurationTests
             provider_id = "ollama"
             instance_id = "workstation"
             model_id = "private-model"
+
+            [[server.exclusions]]
+            provider_id = "llama.cpp"
+            model_pattern = "bench-*"
             """);
         try
         {
             var agent = TomlConfigLoader.Load(agentPath);
             Assert.Equal(new Uri("https://glue.example.test"), agent.Agent.SubmitTo);
             Assert.Equal(15, agent.Agent.DiscoveryIntervalSeconds);
-            var exclusion = Assert.Single(TomlConfigLoader.Load(serverPath).Server.Exclusions);
-            Assert.Equal("private-model", exclusion.ModelId);
+            Assert.Equal(["private-*", "ollama/workstation/large-model"], agent.Agent.ExcludeModels);
+            var exclusions = TomlConfigLoader.Load(serverPath).Server.Exclusions;
+            Assert.Equal("private-model", exclusions[0].ModelId);
+            Assert.Equal("bench-*", exclusions[1].ModelPattern);
         }
         finally
         {

@@ -89,8 +89,15 @@ scans user profiles or claims unrelated settings.
 Useful commands include `run`, `status`, `discover`, `doctor`, `config validate`,
 `config preview opencode|litellm`, `sync --once`, `service
 install|repair|start|stop|status|uninstall`, and `update check|apply|rollback`.
-All commands accept `--config`; otherwise the executable-side `llm-glue.conf` is
-used, with `/etc/llm-glue.conf` as the Linux fallback.
+Run `llm-glue --help` (also `help`, `/?`, or `-h`) for built-in usage. All
+commands accept `--config`; otherwise LLM Glue checks `llm-glue.conf` then
+`llm-glue.toml` beside the executable, followed by the platform configuration
+folder (`/etc/llm-glue` or `%ProgramData%\LLMGlue`). Legacy Linux root-level
+paths remain supported.
+
+Model export can be filtered at two boundaries. Agent `exclude_models` patterns
+prevent matching inventory from leaving that host. Server `model_pattern` rules
+retain diagnostic visibility while omitting matches from generated catalogs.
 
 ## Security
 

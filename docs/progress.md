@@ -6,6 +6,17 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Current status
 
+- **Post-r4 development:** automatic configuration discovery accepts both
+  `llm-glue.conf` and `llm-glue.toml` beside the executable and in platform
+  configuration folders while preserving Linux legacy paths. `help`, `--help`,
+  `/?`, and `-h` work before configuration loading. Agent-side exact/wildcard
+  exclusions prevent model export; server-side `model_pattern` exclusions retain
+  diagnostics while filtering generated catalogs. All 131 Release tests pass;
+  all four help spellings passed against the built executable, and an adjacent
+  `llm-glue.toml` was selected and validated without `--config`. Self-contained
+  win-x64 and linux-x64 publishes also pass. No post-r4 release has been
+  authorized.
+
 - **Official release:** r4 is published from commit
   `342f40052f5b85609f310c89b8fe10ee5c77534c`. The guarded publisher passed
   all 114 tests, built both self-contained RIDs with FileVersion `1.4.0.0`, and

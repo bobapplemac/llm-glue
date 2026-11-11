@@ -1,5 +1,6 @@
 using LlmGlue.Api;
 using LlmGlue.Core.Abstractions;
+using LlmGlue.Core.Domain;
 using LlmGlue.Core.Reconciliation;
 using LlmGlue.Observability;
 
@@ -10,7 +11,8 @@ public sealed class AgentDiscoveryService(
     ApiState state,
     ILogger<AgentDiscoveryService> logger,
     TimeSpan interval,
-    TimeSpan removalGrace) : BackgroundService
+    TimeSpan removalGrace,
+    IReadOnlyList<string> excludeModels) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -30,10 +32,14 @@ public sealed class AgentDiscoveryService(
                 catch (Exception ex) { logger.LogError(ex, "Provider {Provider} discovery failed; retaining prior deployments through grace", adapter.ProviderType); }
             }
 
+            var filtered = ModelExclusionPatterns.Apply(discovered, excludeModels);
+            if (filtered.Count != discovered.Count)
+                logger.LogInformation("Agent exclusions removed {Count} deployments from export", discovered.Count - filtered.Count);
             try
             {
                 var now = state.TimeProvider.GetUtcNow();
-                var reconciled = CatalogReconciler.Reconcile(state.Snapshot, discovered, now, removalGrace);
+                var baseline = DiscoverySnapshot.Create(state.Snapshot.CapturedAt, ModelExclusionPatterns.Apply(state.Snapshot.Deployments, excludeModels));
+                var reconciled = CatalogReconciler.Reconcile(baseline, filtered, now, removalGrace);
                 foreach (var conflict in reconciled.Conflicts) logger.LogError("Catalog conflict: {Conflict}", conflict);
                 await state.PublishAsync(reconciled.Snapshot, stoppingToken);
             }

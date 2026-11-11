@@ -43,7 +43,8 @@ public static class CatalogPublicationPolicy
             && Match(rule.InstanceId, identity.InstanceId)
             && Match(rule.ModelId, identity.ModelId)
             && Match(rule.DisplayName, identity.DisplayName)
-            && Match(rule.ProviderModel, $"{identity.ProviderId}/{identity.InstanceId}/{identity.ModelId}");
+            && Match(rule.ProviderModel, $"{identity.ProviderId}/{identity.InstanceId}/{identity.ModelId}")
+            && (rule.ModelPattern is null || ModelExclusionPatterns.Matches(rule.ModelPattern, deployment));
     }
 
     private static bool Match(string? expected, string actual) => expected is null || string.Equals(expected, actual, StringComparison.Ordinal);
@@ -51,7 +52,7 @@ public static class CatalogPublicationPolicy
     private static string Describe(ExclusionRuleOptions rule) => string.Join(", ", new[]
     {
         Pair("provider_id", rule.ProviderId), Pair("instance_id", rule.InstanceId), Pair("model_id", rule.ModelId),
-        Pair("display_name", rule.DisplayName), Pair("provider_model", rule.ProviderModel)
+        Pair("display_name", rule.DisplayName), Pair("provider_model", rule.ProviderModel), Pair("model_pattern", rule.ModelPattern)
     }.Where(x => x is not null));
 
     private static string? Pair(string name, string? value) => value is null ? null : $"{name}={value}";

@@ -27,7 +27,8 @@ public sealed class RemoteAgentDiscoveryService(
     ILogger<RemoteAgentDiscoveryService> logger,
     TimeProvider timeProvider,
     TimeSpan interval,
-    TimeSpan removalGrace) : BackgroundService
+    TimeSpan removalGrace,
+    IReadOnlyList<string> excludeModels) : BackgroundService
 {
     private DiscoverySnapshot _previous = DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, []);
 
@@ -49,7 +50,11 @@ public sealed class RemoteAgentDiscoveryService(
                 catch (Exception ex) { logger.LogError(ex, "Provider {Provider} discovery failed; retaining prior deployments through grace", adapter.ProviderType); }
             }
 
-            var reconciled = CatalogReconciler.Reconcile(_previous, discovered, timeProvider.GetUtcNow(), removalGrace);
+            var filtered = ModelExclusionPatterns.Apply(discovered, excludeModels);
+            if (filtered.Count != discovered.Count)
+                logger.LogInformation("Agent exclusions removed {Count} deployments from export", discovered.Count - filtered.Count);
+            var baseline = DiscoverySnapshot.Create(_previous.CapturedAt, ModelExclusionPatterns.Apply(_previous.Deployments, excludeModels));
+            var reconciled = CatalogReconciler.Reconcile(baseline, filtered, timeProvider.GetUtcNow(), removalGrace);
             _previous = reconciled.Snapshot;
             try
             {

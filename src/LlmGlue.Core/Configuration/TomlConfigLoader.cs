@@ -24,11 +24,16 @@ public static class TomlConfigLoader
         var roleOptions = new RoleOptions(Bool(roles, "agent", false), Bool(roles, "server", false), Bool(roles, "client", false));
 
         var agent = OptionalTable(root, "agent");
-        CheckKeys(agent, "agent", "providers", "submit_to", "write_token_environment", "write_token", "discovery_interval_seconds", "removal_grace_seconds");
+        CheckKeys(agent, "agent", "providers", "exclude_models", "submit_to", "write_token_environment", "write_token", "discovery_interval_seconds", "removal_grace_seconds");
         var providers = TableArray(agent, "providers").Select(ReadProvider).ToArray();
+        var excludeModels = StringArray(agent, "exclude_models").ToArray();
+        if (excludeModels.Any(string.IsNullOrWhiteSpace)) throw new ConfigurationException("agent.exclude_models cannot contain empty patterns.");
+        if (excludeModels.Distinct(StringComparer.OrdinalIgnoreCase).Count() != excludeModels.Length)
+            throw new ConfigurationException("agent.exclude_models patterns must be unique (case-insensitive).");
         var submitToText = OptionalString(agent, "submit_to");
         var agentOptions = new AgentOptions(
             providers,
+            excludeModels,
             submitToText is null ? null : HttpUri(submitToText, "agent.submit_to"),
             OptionalString(agent, "write_token_environment"),
             OptionalString(agent, "write_token"),
@@ -105,15 +110,16 @@ public static class TomlConfigLoader
 
     private static ExclusionRuleOptions ReadExclusion(TomlTable table)
     {
-        CheckKeys(table, "server.exclusions", "provider_id", "instance_id", "model_id", "display_name", "provider_model");
+        CheckKeys(table, "server.exclusions", "provider_id", "instance_id", "model_id", "display_name", "provider_model", "model_pattern");
         var rule = new ExclusionRuleOptions(
             OptionalString(table, "provider_id"),
             OptionalString(table, "instance_id"),
             OptionalString(table, "model_id"),
             OptionalString(table, "display_name"),
-            OptionalString(table, "provider_model"));
-        if (rule is { ProviderId: null, InstanceId: null, ModelId: null, DisplayName: null, ProviderModel: null })
-            throw new ConfigurationException("Each [[server.exclusions]] rule must specify at least one exact match field.");
+            OptionalString(table, "provider_model"),
+            OptionalString(table, "model_pattern"));
+        if (rule is { ProviderId: null, InstanceId: null, ModelId: null, DisplayName: null, ProviderModel: null, ModelPattern: null })
+            throw new ConfigurationException("Each [[server.exclusions]] rule must specify at least one match field.");
         return rule;
     }
 

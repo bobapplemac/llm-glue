@@ -6,11 +6,41 @@ using LlmGlue.Core.Configuration;
 using LlmGlue.Core.Domain;
 using LlmGlue.Core.Generation;
 using LlmGlue.Core.Providers;
+using LlmGlue.Core.Reconciliation;
 
 namespace LlmGlue.Operations;
 
 public static class CliCommands
 {
+    public const string HelpText = """
+        LLM Glue - discover local LLM deployments and synchronize client configuration
+
+        Usage:
+          llm-glue [run] [--config PATH]
+          llm-glue <command> [options] [--config PATH]
+
+        Commands:
+          help, --help, /?, -h          Show this help without loading configuration
+          --version                     Show the product revision
+          status                       Show server catalog status
+          discover                     Print the normalized discovery snapshot
+          doctor                       Check configuration, secrets, providers, and targets
+          config validate              Validate the selected TOML configuration
+          config preview opencode      Preview generated OpenCode JSON
+          config preview litellm       Preview generated LiteLLM YAML
+          sync --once                  Synchronize configured client targets once
+          service <action>             install|repair|start|stop|status|uninstall
+          update check                 Check for a newer stable release
+          update apply [--service]     Verify, stage, and activate an update
+          update rollback [--service]  Restore the rollback executable
+
+        Configuration search order:
+          1. Explicit --config PATH
+          2. llm-glue.conf, then llm-glue.toml, beside the executable
+          3. /etc/llm-glue or %ProgramData%\LLMGlue (same filename precedence)
+          4. Legacy /etc/llm-glue.conf or /etc/llm-glue.toml on Linux
+        """;
+
     public static async Task<int> DoctorAsync(GlueOptions options, CancellationToken cancellationToken)
         => await DoctorAsync(options, cancellationToken, provider => new HttpClient
         {
@@ -41,6 +71,7 @@ public static class CliCommands
             failures += MissingSecret(options.Agent.WriteToken, options.Agent.WriteTokenEnvironment);
         }
         Console.WriteLine($"Server exclusions: {options.Server.Exclusions.Count}");
+        Console.WriteLine($"Agent model exclusions: {options.Agent.ExcludeModels.Count}");
         if (options.Client.Source is not null) Console.WriteLine($"Client source: {options.Client.Source}");
         if (options.Client.TokenEnvironment is not null || options.Client.Token is not null)
         {
@@ -152,6 +183,8 @@ public static class CliCommands
                     (provider.ModelPathMappings ?? []).Select(mapping => mapping with { LocalDirectory = ResolvePath(options, mapping.LocalDirectory) }).ToArray(),
                     provider.InspectGguf,
                     provider.HashModelFiles);
+            if (options.Agent.ExcludeModels.Count != 0)
+                adapter = new AgentExclusionDiscoveryAdapter(adapter, options.Agent.ExcludeModels);
             if (provider.ProbeMode != CapabilityProbeMode.Off)
             {
                 adapter = new ProbingDiscoveryAdapter(adapter, new InferenceRouteProbe(
@@ -159,7 +192,7 @@ public static class CliCommands
             }
             models.AddRange(await adapter.DiscoverAsync(cancellationToken));
         }
-        return DiscoverySnapshot.Create(DateTimeOffset.UtcNow, models);
+        return DiscoverySnapshot.Create(DateTimeOffset.UtcNow, ModelExclusionPatterns.Apply(models, options.Agent.ExcludeModels));
     }
 
     private static string ResolvePath(GlueOptions options, string path) => Path.IsPathRooted(path) ? Path.GetFullPath(path) : Path.GetFullPath(path, options.BaseDirectory);
