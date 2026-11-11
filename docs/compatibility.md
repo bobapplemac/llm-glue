@@ -7,6 +7,7 @@ release source. Live production qualification is tracked separately.
 | Integration | Version | Evidence | Result |
 |---|---:|---|---|
 | OpenCode | 2.2.7 | Live Windows executable, two native Linux accounts, official schema/docs | System config wins conflicts for both accounts; nonconflicting user/project values survive; effective models available at `/api/model`; source arrays are not effective config; watched files apply without explicit reload in this test. |
+| Paseo | 0.15.4 | Live MarkIV desktop UI | Model chooser displayed the generated central and local provider/model IDs; selecting the central route exposed `Thinking off` and `Thinking on`. Inference is qualified separately through the same OpenCode route. |
 | LiteLLM Proxy | 1.106.3 and 1.109.0 | Live Debian Docker Compose service plus isolated Windows install/source | Both versions accept the dedicated YAML include and concatenate `model_list`. Debian controlled Compose recreation, health, real llama.cpp forwarding, and atomic rollback passed. Development `--reload` remains unsuitable. |
 | Ollama | 0.40.16 | Live local HTTP API, OpenAI-compatible inference, and OpenCode 2.2.7 | `/api/tags`, `/api/show`, `/api/ps`, and `/api/version` match documented shapes. Native and `reasoning_effort` Off/On thinking, effective/native context separation, full VRAM residency, loaded-only route probing, named variant selection, and real OpenCode inference passed for Qwen 3.5 4B. |
 | llama.cpp | 8681 (`b8681-Debian`) and router `0.9.0-dev` (`0a94a3f`) | Live Ubuntu direct server and Debian 13.7/CUDA router | Direct and current `data[]` router shapes are distinguished. The router qualified Qwen MTP, Gemma 4, GPT-OSS, multipart GGUF, configured/effective context, KV/GPU/speculative traits, reasoning probes, lifecycle, and outage recovery. |
@@ -218,6 +219,7 @@ Sources: <https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.
 - Two-account system precedence is qualified on Linux/WSL, but not Windows or
   Windows Server 2025.
 - OpenCode functional inference and CLI variant selection are qualified on native
-  Windows; Paseo UI behavior remains unqualified.
+  Windows; Paseo 0.15.4 catalog and binary-variant presentation are also
+  live-qualified.
 
 These limits do not authorize optimistic capability publication.

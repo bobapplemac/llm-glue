@@ -80,8 +80,10 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   authenticated Windows OpenCode Off/On inference, add/change/remove propagation,
   transient outage/grace/recovery, and live fail-once activation rollback. GPT-OSS
   reasoning-off remains unknown because `reasoning_effort=none` still emitted
-  reasoning. Windows multi-account/system-target service, Paseo UI, and
-  least-privilege delegation for that host's Docker Compose restart remain open.
+  reasoning. Paseo 0.15.4 displayed the generated central and local model IDs and
+  exposed `Thinking off`/`Thinking on` for the selected central route. Windows
+  multi-account/system-target service and least-privilege delegation for that
+  host's Docker Compose restart remain open.
   Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
   captured mock upstream verified stable alias routing, streamed response flow,
   environment-backed client/backend authentication, `temperature`, and the binary
@@ -169,8 +171,8 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Next steps
 
-Complete the remaining Windows multi-account/system-target and Paseo
-catalog/variant visibility checks, and decide how the lab operator will delegate
+Complete the remaining Windows multi-account/system-target checks and decide how
+the lab operator will delegate
 the exact Docker Compose activation unit to the fixed service identity. Then
 exercise the implemented M5
 service install/move/update/rollback/uninstall flows on both OSes and the guarded
@@ -264,7 +266,7 @@ authorization or claim either live gate passed beforehand.
 - [ ] Authenticated preflight against the actual clean, already-pushed upstream
   with GitHub CLI available. No publication authorized; isolated Git-state
   success/failure matrices already pass.
-- [ ] Remaining M4 Windows multi-account/system-target, Paseo UI, and lab Compose
+- [ ] Remaining M4 Windows multi-account/system-target and lab Compose
   least-privilege delegation gates; M5 cannot be declared passed until the
   release's required live suite passes.
 

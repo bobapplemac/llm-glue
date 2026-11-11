@@ -303,7 +303,7 @@ the qualification harness; neither is an LLM Glue runtime dependency. This
 qualifies Debian 13 service and binary mechanics; the representative-model path
 on `labhost03` is qualified separately above.
 
-## Multi-user precedence — Linux pass; Windows/UI pending
+## Multi-user precedence and Paseo presentation
 
 An isolated Ubuntu/WSL run created two actual OS accounts and installed the exact
 OpenCode 2.2.7 binary plus the generated system artifact temporarily. For both
@@ -315,14 +315,22 @@ targets and cleanup left neither test accounts nor `/etc/opencode` behind.
 Reproduce on an isolated Linux/WSL host with
 `sudo scripts/Test-OpenCodeMultiUserLive.sh /path/to/opencode-2.2.7`.
 
-Equivalent Windows multi-account behavior and Paseo UI variant presentation are
-still unqualified.
+Equivalent Windows multi-account behavior remains unqualified.
+
+Paseo 0.15.4 on MarkIV was inspected through its real model chooser. Searching
+for `llm` displayed the exact generated central route
+`llm-glue-llama-cpp-labhost03-router/bench-01-01` and all three generated local
+Ollama routes. Selecting `bench-01-01` added a thinking selector whose menu
+contained both `Thinking off` and `Thinking on`. This live UI observation
+qualifies catalog and binary-variant presentation; real inference through the
+same central route is covered by the OpenCode/LiteLLM/llama.cpp qualification
+above rather than being inferred from the UI.
 
 ## Gate status
 
 The representative Debian central inference, generated include/restart/rollback,
 catalog lifecycle, native Windows OpenCode/Ollama inference, and Linux
 multi-account precedence paths are verified. M4 remains **partial** only for
-Windows multi-account/system-target behavior, Paseo UI presentation, and
+Windows multi-account/system-target behavior and
 least-privilege delegation of the lab's Docker Compose restart unit; these are
 not simulated or waived.

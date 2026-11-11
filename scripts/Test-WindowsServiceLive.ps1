@@ -37,15 +37,17 @@ function Wait-Healthy {
 }
 function Wait-OwnedOpenCodeTarget {
     if (-not $AllRoles) { return }
-    $target = Join-Path $testRoot 'opencode.json'
+    $target = Join-Path $testRoot 'opencode.jsonc'
     $ownership = $target + '.llm-glue-ownership.json'
     $deadline = [DateTime]::UtcNow.AddSeconds(45)
     do {
         if ((Test-Path -LiteralPath $target) -and (Test-Path -LiteralPath $ownership)) {
             try {
-                $catalog = Get-Content -LiteralPath $target -Raw | ConvertFrom-Json -Depth 100
+                $catalogText = Get-Content -LiteralPath $target -Raw
+                $catalog = $catalogText | ConvertFrom-Json -Depth 100
                 $state = Get-Content -LiteralPath $ownership -Raw | ConvertFrom-Json
-                if (@($catalog.disabled_providers) -contains 'ollama' -and @($state.disabledProviders) -contains 'ollama') { return }
+                $ownedDisablements = @($state.controllers.PSObject.Properties | ForEach-Object { $_.Value.disabledProviders })
+                if ($state.schemaVersion -eq 2 -and @($catalog.disabled_providers) -contains 'ollama' -and @($ownedDisablements) -contains 'ollama' -and $catalogText.Contains('// Managed by LLM Glue.')) { return }
             } catch { }
         }
         Start-Sleep -Milliseconds 500
@@ -58,7 +60,7 @@ if ($AllRoles) {
         '[roles]','agent = true','server = true','client = true','',
         '[[agent.providers]]','type = "ollama"','name = "qualification-ollama"','url = "http://127.0.0.1:11434"','',
         '[server]','listen = "http://127.0.0.1:8765"',('state_directory = ' + (Quote-Toml (Join-Path $testRoot 'state'))),'',
-        '[client]','source = "http://127.0.0.1:8765"','','[[client.targets]]','type = "opencode"',('path = ' + (Quote-Toml (Join-Path $testRoot 'opencode.json'))),'',
+        '[client]','source = "http://127.0.0.1:8765"','','[[client.targets]]','type = "opencode"',('path = ' + (Quote-Toml (Join-Path $testRoot 'opencode.jsonc'))),'',
         '[logging]',('file = ' + (Quote-Toml (Join-Path $testRoot 'logs\llm-glue.log')))
     )
 } else {
