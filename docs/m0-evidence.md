@@ -79,6 +79,9 @@ could not validate: chat routes must use `openai/<model>` plus `api_base` becaus
 must use the public LiteLLM URL plus generated alias rather than the private
 llama.cpp discovery endpoint. LiteLLM also requires a master key by default.
 These corrections are captured in ADR 0005 and a repeatable captured-upstream test.
+The same test subsequently drove OpenCode 2.2.7 through LiteLLM; it established
+that the generated custom provider must declare its credential environment name
+at provider level as well as reference it in settings before OpenCode routes it.
 
 ## TOML choice
 

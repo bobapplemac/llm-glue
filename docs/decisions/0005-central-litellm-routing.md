@@ -26,7 +26,9 @@ request to guard the boundary.
 Central OpenCode provider settings use the documented
 `{env:LLM_GLUE_INFERENCE_API_KEY}` substitution for LiteLLM client
 authentication. The generated artifact discloses only the fixed environment
-variable name, never the credential.
+variable name, never the credential. The provider also declares that variable in
+its `env` list; live OpenCode 2.2.7 execution showed this metadata is required for
+the custom provider to be considered routable.
 
 ## Consequences
 

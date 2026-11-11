@@ -24,13 +24,15 @@ public sealed class OpenCodeGenerator(Uri? inferenceBaseUrl = null) : IConfigura
             if (!endpoint.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)) endpoint += "/v1";
             var settings = new JsonObject { ["baseURL"] = endpoint };
             if (inferenceBaseUrl is not null) settings["apiKey"] = $"{{env:{InferenceApiKeyEnvironment}}}";
-            providers[GenerationHelpers.Slug("llm-glue", group.Key.ProviderId, group.Key.InstanceId)] = new JsonObject
+            var provider = new JsonObject
             {
                 ["name"] = $"LLM Glue {group.Key.InstanceId}",
                 ["package"] = "@opencode/ai/providers/openai-compatible",
                 ["settings"] = settings,
                 ["models"] = models
             };
+            if (inferenceBaseUrl is not null) provider["env"] = new JsonArray(InferenceApiKeyEnvironment);
+            providers[GenerationHelpers.Slug("llm-glue", group.Key.ProviderId, group.Key.InstanceId)] = provider;
         }
         var root = new JsonObject { ["$schema"] = "https://opencode.ai/config.json", ["providers"] = providers };
         var text = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true, TypeInfoResolver = new DefaultJsonTypeInfoResolver() }) + "\n";

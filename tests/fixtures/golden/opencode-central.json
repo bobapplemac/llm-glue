@@ -1,0 +1,49 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "providers": {
+    "llm-glue-llama-cpp-lab": {
+      "name": "LLM Glue lab",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://litellm.example.test/v1",
+        "apiKey": "{env:LLM_GLUE_INFERENCE_API_KEY}"
+      },
+      "env": [
+        "LLM_GLUE_INFERENCE_API_KEY"
+      ],
+      "models": {
+        "qwen-model": {
+          "modelID": "llama-cpp-lab-qwen-model",
+          "name": "Qwen Test",
+          "capabilities": {
+            "tools": true,
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ],
+            "temperature": true,
+            "reasoning": {
+              "supported": true,
+              "toggle": true
+            }
+          },
+          "family": "qwen",
+          "limit": {
+            "context": 65536
+          },
+          "variants": [
+            {
+              "id": "thinking-on",
+              "body": {
+                "enable_thinking": true,
+                "temperature": 0.6
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

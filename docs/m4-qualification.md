@@ -32,10 +32,10 @@ reported effective context 4096 versus native context 262144 and
 load. With the model held loaded, LLM Glue's `loaded-only` policy added verified
 `ollama:bounded-route-probe` evidence only to that route and did not probe the two
 dormant routes. The model was explicitly unloaded afterward. This verifies the
-native provider contract and probe policy; OpenCode/Paseo forwarding and UI
-selection remain unqualified.
+native provider contract and probe policy; real-model OpenCode/Paseo forwarding
+and Paseo UI selection remain unqualified.
 
-## LiteLLM forwarding with captured upstream — pass
+## OpenCode and LiteLLM forwarding with captured upstream — pass
 
 Pinned LiteLLM 1.109.0 was launched with its required master key using the
 generated golden route shape and an environment-backed provider credential. A
@@ -49,6 +49,16 @@ at request time in 1.109.0 (use `openai/` with `api_base`), and central OpenCode
 artifacts must use the client-reachable LiteLLM URL plus LiteLLM alias rather than
 the private llama.cpp route. Live llama.cpp interpretation of the thinking field,
 effort-level profiles, and real model output remain part of the Debian gate below.
+
+OpenCode 2.2.7 then loaded the central golden artifact and executed a real
+noninteractive `run` using `llm-glue-llama-cpp-lab/qwen-model#thinking-on`.
+OpenCode authenticated to LiteLLM through the generated environment reference,
+LiteLLM resolved the stable alias, and the streamed `FORWARDED` response returned
+to OpenCode. The captured upstream body contained the backend model ID,
+`temperature = 0.6`, and `enable_thinking = true`. Initial execution also proved
+that custom providers need provider-level `env` metadata to become routable; the
+generator now emits it. This qualifies client/proxy transport with a captured
+upstream, not llama.cpp's interpretation or Paseo UI behavior.
 
 ## Windows service lifecycle — pass
 

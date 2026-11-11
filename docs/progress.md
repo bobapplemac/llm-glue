@@ -38,11 +38,12 @@ Last updated: 2026-11-11
   health, relocation/repair, restart, service rollback, and uninstall cleanup.
   Native Ollama Off/On inference, effective/native context separation, full-VRAM
   residency, and loaded-only route probing passed for Qwen 3.5 4B. OpenCode/Paseo
-  reasoning/thinking parameter forwarding and the Debian llama.cpp/LiteLLM, multi-account, restart,
+  real-model reasoning/effort behavior and the Debian llama.cpp/LiteLLM, multi-account, restart,
   change/removal, parameter-capture, and Paseo paths remain blocked on unavailable
-  environments. A real LiteLLM 1.109.0 proxy with a captured mock upstream did
-  verify stable alias routing, response flow, standard inference parameters, the
-  binary `enable_thinking` field, and environment-backed backend authentication.
+  environments. Real OpenCode 2.2.7 through a real LiteLLM 1.109.0 proxy and a
+  captured mock upstream verified stable alias routing, streamed response flow,
+  environment-backed client/backend authentication, `temperature`, and the binary
+  `enable_thinking` field.
   See `docs/m4-qualification.md`.
 - **M5 — release hardening:** implementation substantially complete: dual-RID
   self-contained single files, runtime-derived rN version identity, interactive
@@ -152,6 +153,9 @@ authorization or claim either live gate passed beforehand.
   stable alias resolution, response flow, standard parameters, binary
   `enable_thinking`, and backend auth;
   the representative llama.cpp/thinking path remains M4.
+- [x] OpenCode 2.2.7 noninteractive forwarding through LiteLLM verifies custom
+  provider activation, the generated credential reference and alias, streamed
+  response flow, and `thinking-on` body transport against a captured upstream.
 - [x] Golden JSON/YAML are deterministic across platform newlines.
 - [x] Generated OpenCode artifact accepted by OpenCode 2.2.7 effective model API.
 - [x] Versioned health/inventory/models/artifact/status/Agent endpoints exist.
@@ -204,7 +208,8 @@ authorization or claim either live gate passed beforehand.
 
 Latest available verification: clean Windows Release build and 71 tests; native
 Ubuntu/WSL Release restore/build and 71 tests;
-LiteLLM 1.109.0 proxy forwarding with a captured upstream; PowerShell and Bash bootstrap
+OpenCode 2.2.7 → LiteLLM 1.109.0 forwarding with a captured upstream;
+PowerShell and Bash bootstrap
 matrices validate all three modes with real
 single-file binaries; r1 win-x64/linux-x64 execution and Windows/Linux service
 install dry runs pass. These are implementation/packaging evidence, not substitutes

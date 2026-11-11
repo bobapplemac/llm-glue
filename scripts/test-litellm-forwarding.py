@@ -46,24 +46,53 @@ class CaptureHandler(http.server.BaseHTTPRequestHandler):
             "body": body,
         }
         type(self).captured_event.set()
-        payload = json.dumps(
-            {
-                "id": "chatcmpl-llm-glue-test",
-                "object": "chat.completion",
-                "created": 1,
-                "model": body.get("model", "upstream-model"),
-                "choices": [
-                    {
-                        "index": 0,
-                        "message": {"role": "assistant", "content": "FORWARDED"},
-                        "finish_reason": "stop",
-                    }
-                ],
-                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
-            }
-        ).encode()
+        response = {
+            "id": "chatcmpl-llm-glue-test",
+            "object": "chat.completion",
+            "created": 1,
+            "model": body.get("model", "upstream-model"),
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "FORWARDED"},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+        }
+        if body.get("stream"):
+            chunks = [
+                {
+                    "id": "chatcmpl-llm-glue-test",
+                    "object": "chat.completion.chunk",
+                    "created": 1,
+                    "model": body.get("model", "upstream-model"),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {"role": "assistant", "content": "FORWARDED"},
+                            "finish_reason": None,
+                        }
+                    ],
+                },
+                {
+                    "id": "chatcmpl-llm-glue-test",
+                    "object": "chat.completion.chunk",
+                    "created": 1,
+                    "model": body.get("model", "upstream-model"),
+                    "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                },
+            ]
+            payload = (
+                b"".join(f"data: {json.dumps(chunk)}\n\n".encode() for chunk in chunks)
+                + b"data: [DONE]\n\n"
+            )
+            content_type = "text/event-stream"
+        else:
+            payload = json.dumps(response).encode()
+            content_type = "application/json"
         self.send_response(200)
-        self.send_header("content-type", "application/json")
+        self.send_header("content-type", content_type)
         self.send_header("content-length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
@@ -117,9 +146,100 @@ def installed_version() -> str:
     return version("litellm")
 
 
+def exercise_opencode(
+    executable: str, repository: pathlib.Path, base_url: str, master_key: str
+) -> None:
+    artifacts = repository / "artifacts"
+    artifacts.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="opencode-litellm-", dir=artifacts) as temporary:
+        root = pathlib.Path(temporary)
+        config = root / "opencode.json"
+        golden = (
+            repository / "tests" / "fixtures" / "golden" / "opencode-central.json"
+        ).read_text(encoding="utf-8")
+        config.write_text(
+            golden.replace("https://litellm.example.test/v1", f"{base_url}/v1"),
+            encoding="utf-8",
+        )
+        environment = os.environ.copy()
+        windows_interop = executable.lower().endswith(".exe") and os.name != "nt"
+        environment["OPENCODE_CONFIG"] = str(config)
+        environment["XDG_CONFIG_HOME"] = str(root / "config")
+        environment["XDG_DATA_HOME"] = str(root / "data")
+        environment["XDG_CACHE_HOME"] = str(root / "cache")
+        environment["LLM_GLUE_INFERENCE_API_KEY"] = master_key
+        if windows_interop:
+            inherited = environment.get("WSLENV", "")
+            exported = (
+                "OPENCODE_CONFIG/p:XDG_CONFIG_HOME/p:XDG_DATA_HOME/p:"
+                "XDG_CACHE_HOME/p:LLM_GLUE_INFERENCE_API_KEY"
+            )
+            environment["WSLENV"] = f"{inherited}:{exported}" if inherited else exported
+        for directory in (root / "config", root / "data", root / "cache"):
+            directory.mkdir()
+
+        CaptureHandler.captured = None
+        CaptureHandler.captured_event.clear()
+        result = subprocess.run(
+            [
+                executable,
+                "--standalone",
+                "run",
+                "--model",
+                "llm-glue-llama-cpp-lab/qwen-model#thinking-on",
+                "--format",
+                "json",
+                "--archived",
+                "reply FORWARDED",
+            ],
+            cwd=repository,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+        if result.returncode != 0 or "FORWARDED" not in result.stdout:
+            models = subprocess.run(
+                [executable, "--standalone", "models"],
+                cwd=repository,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            debug = subprocess.run(
+                [executable, "--standalone", "debug", "config"],
+                cwd=repository,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            raise AssertionError(
+                f"OpenCode failed with code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                f"\nmodels:\n{models.stdout}\n{models.stderr}\ndebug config:\n{debug.stdout}\n{debug.stderr}"
+            )
+        if not CaptureHandler.captured_event.wait(5) or CaptureHandler.captured is None:
+            raise AssertionError("OpenCode request did not reach the captured upstream")
+        captured = CaptureHandler.captured
+        body = captured["body"]
+        expected = {"model": "upstream-model", "temperature": 0.6, "enable_thinking": True}
+        for key, value in expected.items():
+            if body.get(key) != value:
+                raise AssertionError(
+                    f"OpenCode forwarded {key!r} as {body.get(key)!r}, expected {value!r}"
+                )
+        if captured["authorization"] != "Bearer integration-secret":
+            raise AssertionError(
+                "OpenCode/LiteLLM path did not use the environment-backed provider credential"
+            )
+        print("PASS OpenCode 2.2.7: central variant traversed LiteLLM with alias and parameters")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--keep-logs", action="store_true")
+    parser.add_argument("--opencode", help="optional OpenCode 2.2.7 executable for full client forwarding")
     args = parser.parse_args()
 
     version = installed_version()
@@ -138,10 +258,9 @@ def main() -> int:
         log_path = root / "litellm.log"
         golden_path = pathlib.Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "golden" / "litellm.yaml"
         generated = golden_path.read_text(encoding="utf-8")
-        generated = generated.replace("llama-cpp-lab-qwen-model", "llm-glue-forwarding")
         generated = generated.replace("openai/qwen-model", "openai/upstream-model")
         generated = generated.replace("http://127.0.0.1:8081/v1", f"http://127.0.0.1:{upstream_port}/v1")
-        if "llm-glue-forwarding" not in generated or "openai/upstream-model" not in generated:
+        if "llama-cpp-lab-qwen-model" not in generated or "openai/upstream-model" not in generated:
             raise RuntimeError("generated LiteLLM golden fixture no longer has the expected route shape")
         config.write_text(generated, encoding="utf-8")
         environment = os.environ.copy()
@@ -162,7 +281,7 @@ def main() -> int:
             response = request_json(
                 f"{base_url}/v1/chat/completions",
                 {
-                    "model": "llm-glue-forwarding",
+                    "model": "llama-cpp-lab-qwen-model",
                     "messages": [{"role": "user", "content": "reply FORWARDED"}],
                     "temperature": 0.25,
                     "top_p": 0.8,
@@ -192,6 +311,8 @@ def main() -> int:
             if captured["authorization"] != "Bearer integration-secret":
                 raise AssertionError("environment-backed provider credential was not forwarded")
             print(f"PASS LiteLLM {version}: generated route forwarded response and inference parameters")
+            if args.opencode:
+                exercise_opencode(args.opencode, pathlib.Path(__file__).resolve().parents[1], base_url, master_key)
         except Exception:
             log.flush()
             log.seek(0)

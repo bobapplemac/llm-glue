@@ -60,7 +60,8 @@ continues to use each private llama.cpp route. Configuration validation rejects 
 Server/LiteLLM target without this boundary. Standalone Ollama deployments omit
 the setting and continue to publish direct provider routes. Central provider
 settings reference `LLM_GLUE_INFERENCE_API_KEY` through OpenCode's `{env:...}`
-substitution; the secret itself never enters an artifact.
+substitution and declare that environment source at provider level so OpenCode
+activates the custom provider; the secret itself never enters an artifact.
 
 See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md) and
 [ADR 0005](decisions/0005-central-litellm-routing.md).

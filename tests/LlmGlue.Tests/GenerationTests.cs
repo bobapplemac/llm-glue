@@ -35,9 +35,12 @@ public sealed class GenerationTests
             .GenerateAsync(Snapshot(), TestContext.Current.CancellationToken);
         ArtifactValidator.Validate(artifact);
         using var json = JsonDocument.Parse(artifact.Content);
+        using var expected = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "fixtures", "golden", "opencode-central.json")));
+        Assert.True(JsonElement.DeepEquals(expected.RootElement, json.RootElement));
         var provider = json.RootElement.GetProperty("providers").GetProperty("llm-glue-llama-cpp-lab");
         Assert.Equal("https://litellm.example.test/v1", provider.GetProperty("settings").GetProperty("baseURL").GetString());
         Assert.Equal("{env:LLM_GLUE_INFERENCE_API_KEY}", provider.GetProperty("settings").GetProperty("apiKey").GetString());
+        Assert.Equal("LLM_GLUE_INFERENCE_API_KEY", provider.GetProperty("env")[0].GetString());
         Assert.Equal("llama-cpp-lab-qwen-model", provider.GetProperty("models").GetProperty("qwen-model").GetProperty("modelID").GetString());
         Assert.DoesNotContain("integration-secret", Encoding.UTF8.GetString(artifact.Content), StringComparison.Ordinal);
     }

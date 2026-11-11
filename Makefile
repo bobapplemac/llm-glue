@@ -6,6 +6,7 @@ OUT ?= artifacts
 REVISION ?= 0
 DRY_RUN ?= 0
 PYTHON ?= python3
+OPENCODE ?=
 
 ifeq ($(REVISION),0)
 ASSEMBLY_VERSION := 0.0.0.0
@@ -21,7 +22,7 @@ VERSION_ARGS := -p:AssemblyVersion=$(ASSEMBLY_VERSION) -p:FileVersion=$(FILE_VER
 .PHONY: help restore build test test-litellm clean publish-linux publish-windows package release-check release
 
 help: ## Show this help and configurable variables
-	@awk 'BEGIN {FS = ":.*## "; printf "LLM Glue r0 build\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2} END {printf "\nVariables: CONFIG=%s RID=%s OUT=%s REVISION=%s DRY_RUN=%s PYTHON=%s\n", "$(CONFIG)", "$(RID)", "$(OUT)", "$(REVISION)", "$(DRY_RUN)", "$(PYTHON)"}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*## "; printf "LLM Glue r0 build\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2} END {printf "\nVariables: CONFIG=%s RID=%s OUT=%s REVISION=%s DRY_RUN=%s PYTHON=%s OPENCODE=%s\n", "$(CONFIG)", "$(RID)", "$(OUT)", "$(REVISION)", "$(DRY_RUN)", "$(PYTHON)", "$(OPENCODE)"}' $(MAKEFILE_LIST)
 
 restore: ## Restore pinned .NET dependencies
 	dotnet restore LlmGlue.slnx
@@ -33,7 +34,7 @@ test: ## Run all automated tests
 	dotnet test LlmGlue.slnx -c $(CONFIG) --no-restore --verbosity minimal
 
 test-litellm: ## Run opt-in LiteLLM 1.109.0 forwarding integration test
-	$(PYTHON) scripts/test-litellm-forwarding.py
+	$(PYTHON) scripts/test-litellm-forwarding.py $(if $(OPENCODE),--opencode "$(OPENCODE)",)
 
 clean: ## Clean owned build output only
 	dotnet clean LlmGlue.slnx -c $(CONFIG)

@@ -63,9 +63,18 @@ credential with the documented `{env:LLM_GLUE_INFERENCE_API_KEY}` substitution. 
 captured-upstream test is not a substitute for representative
 llama.cpp model inference.
 
+The same harness optionally launched OpenCode 2.2.7 with the central golden
+artifact. Its real noninteractive `run` path selected `thinking-on`, authenticated
+to LiteLLM through the environment reference, resolved the generated alias, and
+streamed the captured response. The upstream capture proved OpenCode/LiteLLM sent
+`temperature = 0.6` and `enable_thinking = true`. Provider-level `env` metadata is
+required in addition to the setting reference for OpenCode to activate the custom
+provider.
+
 Reproduce with Python 3.10+ and `litellm[proxy]==1.109.0` installed by running
-`make test-litellm PYTHON=/path/to/venv/bin/python`. The harness binds only
-ephemeral loopback ports and uses test credentials.
+`make test-litellm PYTHON=/path/to/venv/bin/python`. Add
+`OPENCODE=/path/to/opencode` to include the OpenCode 2.2.7 path. The harness binds
+only ephemeral loopback ports and uses test credentials.
 
 Sources: <https://github.com/BerriAI/litellm/releases/tag/v1.109.0> and
 <https://docs.litellm.ai/docs/proxy/ui_credentials>.
