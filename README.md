@@ -25,9 +25,10 @@ Windows PowerShell:
 irm https://raw.githubusercontent.com/bobapplemac/llm-glue/main/install.ps1 | iex
 ```
 
-New Windows service installations default to `%ProgramData%\LLMGlue`; installs
-without service registration remain under `%LOCALAPPDATA%\LLMGlue`. Use an
-explicit `-InstallDirectory` with the inspected local script to override either.
+Installation is system-wide and requires elevation. Windows uses
+`%ProgramData%\LLMGlue` with the executable in `bin`; Linux uses
+`/usr/local/bin/llm-glue` plus conventional `/etc` and `/var` paths. The Windows
+setup adds only the owned `bin` child to the machine PATH.
 
 Linux Bash:
 

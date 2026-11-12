@@ -21,10 +21,15 @@ semantics without serving the intended always-on deployment model.
 - The binary owns detection, prompting, TOML generation, validation, secrets,
   canonical installation, permissions, service registration, activation, repair,
   and uninstall behavior.
-- Installation is system-wide and requires elevation. Windows installs the
-  executable under `%ProgramFiles%\LLM Glue` and mutable data under
-  `%ProgramData%\LLMGlue`. Linux uses `/opt/llm-glue`, `/etc/llm-glue`,
-  `/var/lib/llm-glue`, and `/var/log/llm-glue`.
+- Installation is system-wide and requires elevation. Windows keeps the complete
+  installation under `%ProgramData%\LLMGlue`, with the executable in its `bin`
+  child and only that child added to the machine PATH. Linux uses
+  `/usr/local/bin/llm-glue`, `/etc/llm-glue`, `/var/lib/llm-glue`, and
+  `/var/log/llm-glue`.
+- Automatically generated/renewed TLS material and update/rollback staging are
+  mutable state under the platform state directory. Operator-supplied
+  certificates remain externally owned, configured by path, and read-only to
+  the service.
 - The service remains least-privileged: LocalService on Windows and the fixed
   non-login `llm-glue` account on Linux. Administrative setup does not imply an
   Administrator/root runtime.

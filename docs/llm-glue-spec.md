@@ -241,7 +241,7 @@ Ship self-contained, single-file publishes for `linux-x64` and `win-x64` where .
 ### 8.1 Path and sidecar requirements
 
 - Default config resolution: explicitly supplied `--config` path; otherwise `llm-glue.conf` then `llm-glue.toml` beside the executable, then the same names in the platform canonical configuration folder. On Linux retain `/etc/llm-glue.conf` and `/etc/llm-glue.toml` as legacy fallbacks. Define precedence and report the selected path in `doctor`.
-- Windows installs the executable under `%ProgramFiles%\LLM Glue` and configuration/state/logs under `%ProgramData%\LLMGlue`. Linux uses `/opt/llm-glue`, `/etc/llm-glue`, `/var/lib/llm-glue`, and `/var/log/llm-glue`.
+- Windows keeps the complete installation under `%ProgramData%\LLMGlue`, places the executable in its `bin` child, and adds only that owned child to the machine PATH. Linux uses `/usr/local/bin/llm-glue`, `/etc/llm-glue`, `/var/lib/llm-glue`, and `/var/log/llm-glue`. Generated TLS and update/rollback staging are mutable state; operator certificate paths remain externally owned.
 - No mandatory working-directory assumption. Resolve relative data/log paths against the configuration directory (or explicitly documented configurable base), not an arbitrary current working directory.
 - Keep all persistent state (cache, downloaded revision history, logs) in configurable locations. Do not silently write into the executable directory when it is read-only.
 - User-local, portable, and arbitrarily relocated installations are not supported product paths. The bootstrap may stage a verified temporary binary only to invoke canonical setup.

@@ -75,6 +75,7 @@ public static class SetupManager
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(paths.Config, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         _ = TomlConfigLoader.Load(paths.Config);
         if (OperatingSystem.IsWindows()) await ProtectWindowsConfigAsync(paths.Config, cancellationToken);
+        if (OperatingSystem.IsWindows()) EnsureWindowsMachinePath(Path.GetDirectoryName(paths.Executable)!);
         var options = TomlConfigLoader.Load(paths.Config);
         await ServiceManager.ExecuteAsync("install", paths.Executable, options, cancellationToken);
         await ServiceManager.ExecuteAsync("start", paths.Executable, options, cancellationToken);
@@ -86,11 +87,10 @@ public static class SetupManager
     {
         if (OperatingSystem.IsWindows())
         {
-            var install = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "LLM Glue");
             var data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "LLMGlue");
-            return (Path.Combine(install, "llm-glue.exe"), Path.Combine(data, "llm-glue.toml"), Path.Combine(data, "state"), Path.Combine(data, "logs", "llm-glue.log"), @"C:\ProgramData\opencode\opencode.jsonc");
+            return (Path.Combine(data, "bin", "llm-glue.exe"), Path.Combine(data, "llm-glue.toml"), Path.Combine(data, "state"), Path.Combine(data, "logs", "llm-glue.log"), @"C:\ProgramData\opencode\opencode.jsonc");
         }
-        if (OperatingSystem.IsLinux()) return ("/opt/llm-glue/llm-glue", "/etc/llm-glue/llm-glue.toml", "/var/lib/llm-glue", "/var/log/llm-glue/llm-glue.log", "/etc/opencode/opencode.jsonc");
+        if (OperatingSystem.IsLinux()) return ("/usr/local/bin/llm-glue", "/etc/llm-glue/llm-glue.toml", "/var/lib/llm-glue", "/var/log/llm-glue/llm-glue.log", "/etc/opencode/opencode.jsonc");
         throw new PlatformNotSupportedException("Setup supports Windows and Linux.");
     }
 
@@ -127,6 +127,26 @@ public static class SetupManager
     {
         var sid = WindowsIdentity.GetCurrent().User?.Value ?? throw new InvalidOperationException("Cannot determine current Windows identity.");
         await RunAsync("icacls.exe", [path, "/inheritance:r", "/grant:r", $"*{sid}:(F)", "*S-1-5-18:(F)", "*S-1-5-32-544:(F)"], cancellationToken);
+    }
+
+    [SupportedOSPlatform("windows")]
+    internal static void EnsureWindowsMachinePath(string directory)
+    {
+        var current = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.Machine) ?? "";
+        var values = current.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        if (values.Any(x => Path.GetFullPath(x).Equals(Path.GetFullPath(directory), StringComparison.OrdinalIgnoreCase))) return;
+        values.Add(directory);
+        Environment.SetEnvironmentVariable("Path", string.Join(';', values), EnvironmentVariableTarget.Machine);
+        Console.WriteLine($"Added {directory} to the machine PATH; new terminals will inherit it.");
+    }
+
+    [SupportedOSPlatform("windows")]
+    internal static void RemoveWindowsMachinePath(string directory)
+    {
+        var current = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.Machine) ?? "";
+        var values = current.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !Path.GetFullPath(x).Equals(Path.GetFullPath(directory), StringComparison.OrdinalIgnoreCase)).ToArray();
+        Environment.SetEnvironmentVariable("Path", string.Join(';', values), EnvironmentVariableTarget.Machine);
     }
 
     private static void RequireAdministrator()

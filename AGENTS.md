@@ -15,7 +15,7 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
 - Preserve operator-owned configuration. LLM Glue may reconcile only keys or
   files explicitly assigned to it.
 - Installation is system-wide only. Lifecycle commands use the canonical
-  Program Files/ProgramData paths on Windows and opt/etc/var paths on Linux;
+  ProgramData tree on Windows and `/usr/local/bin` plus etc/var paths on Linux;
   setup/uninstall require elevation while services retain least privilege.
 - Direct Ollama/OpenCode output must suppress the duplicate built-in `ollama`
   provider. Preserve unrelated and pre-existing `disabled_providers` values and

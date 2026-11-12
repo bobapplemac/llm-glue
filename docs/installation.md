@@ -49,15 +49,14 @@ prompting for them.
 Set `server.embed_opencode_inference_api_key = false` to opt out; every
 OpenCode/Paseo process must then receive `LLM_GLUE_INFERENCE_API_KEY`.
 
-On Windows, a new service installation defaults to
-`%ProgramData%\LLMGlue`, keeping the executable, sidecar, state, and logs in a
-machine-scoped location suitable for LocalService. A non-service installation
-defaults to `%LOCALAPPDATA%\LLMGlue` so it remains non-elevated. An explicit
-`-InstallDirectory` always wins. If a service rerun detects an existing legacy
-per-user installation and no ProgramData installation, it preserves the legacy
-path and prints an explicit migration warning; pass the ProgramData path only
-when intentionally migrating. Existing `.conf` or `.toml` sidecars are validated
-and preserved without creating a competing filename.
+Installation is system-wide and requires elevation. Windows keeps the complete
+installation below `%ProgramData%\LLMGlue`: `bin\llm-glue.exe`,
+`llm-glue.toml`, `state`, and `logs`. Setup adds only the Administrator-owned
+`bin` child to the machine PATH; clean and regular uninstall remove that exact
+owned PATH entry. Linux installs `/usr/local/bin/llm-glue`,
+`/etc/llm-glue/llm-glue.toml`, `/var/lib/llm-glue`, and `/var/log/llm-glue`.
+User-local, portable, and relocation-based installation are no longer supported
+product paths.
 
 Headless PowerShell installs use `-NonInteractive` with the corresponding named
 parameters. Composable installs use `-Mode custom`, `-Roles`, `-AgentProviders`, and
@@ -78,10 +77,8 @@ Headless Linux installs set `LLM_GLUE_NONINTERACTIVE=1`,
 `LLM_GLUE_LITELLM_*` URL/paths/service/health settings, and
 `LLM_GLUE_INSTALL_SERVICE`. Central mode uses `LLM_GLUE_INFERENCE_API_KEY`; set
 `LLM_GLUE_EMBED_INFERENCE_API_KEY=0` for the environment-reference opt-out.
-`LLM_GLUE_INSTALL_DIR` and
-`LLM_GLUE_CONFIG_PATH` override destinations. Linux service installs otherwise
-use `/opt/llm-glue` and `/etc/llm-glue.conf`; foreground installs remain
-user-writable.
+The legacy bootstrap destination overrides remain only until the setup-capable
+release is published. Binary-owned setup always uses the canonical system paths.
 
 For a custom headless Linux install, set `LLM_GLUE_MODE=custom`, comma-separated
 `LLM_GLUE_ROLES`, and the applicable comma-separated
@@ -111,7 +108,8 @@ within seconds and no later than the configured client polling interval.
 
 New Server configurations default to `https://127.0.0.1:8765` and
 `tls_auto_generate = true`. On first start, LLM Glue creates
-`state/tls/server.crt` and `state/tls/server.key` relative to the sidecar. The
+`tls/server.crt` and `tls/server.key` below the canonical mutable state directory
+(`/var/lib/llm-glue` or `%ProgramData%\LLMGlue\state`). The
 self-signed RSA certificate is valid for 398 days. Existing files are never
 replaced merely because they exist. `llm-glue doctor` prints the public-key
 SHA-256 identifier for client provisioning.

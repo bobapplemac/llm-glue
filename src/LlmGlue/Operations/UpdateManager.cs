@@ -8,7 +8,7 @@ using LlmGlue.Core.Security;
 namespace LlmGlue.Operations;
 
 public sealed record UpdateInfo(int Revision, string Tag, string AssetName, Uri AssetUrl, Uri ChecksumsUrl);
-public sealed record UpdateApplyOptions(bool AllowDowngrade = false, bool ServiceMode = false, Uri? HealthUrl = null, string? HealthToken = null);
+public sealed record UpdateApplyOptions(bool AllowDowngrade = false, bool ServiceMode = false, Uri? HealthUrl = null, string? HealthToken = null, string? StateDirectory = null);
 
 public static partial class UpdateManager
 {
@@ -40,8 +40,8 @@ public static partial class UpdateManager
         if (!options.AllowDowngrade && update.Revision < CurrentRevision) throw new InvalidOperationException("Downgrades require explicit authorization.");
         var executable = Path.GetFullPath(executablePath);
         if (Path.GetExtension(executable).Equals(".dll", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Self-update requires a published self-contained executable.");
-        var directory = Path.GetDirectoryName(executable)!;
-        var stage = Path.Combine(directory, ".llm-glue-update", update.Tag);
+        var updateRoot = UpdateRoot(executable, options.StateDirectory);
+        var stage = Path.Combine(updateRoot, update.Tag);
         Directory.CreateDirectory(stage);
         var archive = Path.Combine(stage, update.AssetName);
         var sums = Path.Combine(stage, "SHA256SUMS");
@@ -61,7 +61,7 @@ public static partial class UpdateManager
         else await ExtractTarGzAsync(archive, extracted, cancellationToken);
         var replacement = Path.Combine(extracted, OperatingSystem.IsWindows() ? "llm-glue.exe" : "llm-glue");
         if (!File.Exists(replacement)) throw new InvalidDataException("Update archive does not contain the expected executable.");
-        var rollback = executable + ".rollback";
+        var rollback = Path.Combine(updateRoot, "llm-glue.rollback");
         File.Copy(executable, rollback, true);
         if (OperatingSystem.IsLinux()) File.SetUnixFileMode(replacement, File.GetUnixFileMode(rollback));
         if (OperatingSystem.IsWindows())
@@ -84,13 +84,17 @@ public static partial class UpdateManager
     }
 
     public static async Task RollbackAsync(string executablePath, bool serviceMode, Uri? healthUrl, string? healthToken, CancellationToken cancellationToken)
+        => await RollbackAsync(executablePath, serviceMode, healthUrl, healthToken, null, cancellationToken);
+
+    public static async Task RollbackAsync(string executablePath, bool serviceMode, Uri? healthUrl, string? healthToken, string? stateDirectory, CancellationToken cancellationToken)
     {
         var executable = Path.GetFullPath(executablePath);
-        var rollback = executable + ".rollback";
+        var updateRoot = UpdateRoot(executable, stateDirectory);
+        var rollback = Path.Combine(updateRoot, "llm-glue.rollback");
         if (!File.Exists(rollback)) throw new FileNotFoundException("No rollback executable exists.", rollback);
-        var fallback = executable + ".pre-rollback";
+        var fallback = Path.Combine(updateRoot, "llm-glue.pre-rollback");
         File.Copy(executable, fallback, true);
-        var stage = Path.Combine(Path.GetDirectoryName(executable)!, ".llm-glue-update", "rollback");
+        var stage = Path.Combine(updateRoot, "rollback");
         Directory.CreateDirectory(stage);
         if (OperatingSystem.IsWindows())
         {
@@ -109,6 +113,15 @@ public static partial class UpdateManager
         var result = Path.Combine(stage, "rollback-result.log");
         StartLinuxActivator(activator, rollback, executable, fallback, serviceMode, healthUrl, healthToken, result);
         Console.WriteLine($"Rollback is staged and will apply after this process exits. Result: {result}");
+    }
+
+    private static string UpdateRoot(string executable, string? stateDirectory)
+    {
+        var root = stateDirectory is null
+            ? Path.Combine(Path.GetDirectoryName(executable)!, ".llm-glue-update")
+            : Path.Combine(Path.GetFullPath(stateDirectory), "updates");
+        Directory.CreateDirectory(root);
+        return root;
     }
 
     public static async Task<int> ActivateStagedAsync(

@@ -49,5 +49,17 @@ public sealed class SetupConfigurationTests
         Assert.NotEqual(first, second);
     }
 
+    [Fact]
+    public void UsesCanonicalSystemPaths()
+    {
+        var paths = SetupManager.CanonicalPaths();
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.StartsWith(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), paths.Executable, StringComparison.OrdinalIgnoreCase);
+            Assert.EndsWith(Path.Combine("LLMGlue", "bin", "llm-glue.exe"), paths.Executable, StringComparison.OrdinalIgnoreCase);
+        }
+        else if (OperatingSystem.IsLinux()) Assert.Equal("/usr/local/bin/llm-glue", paths.Executable);
+    }
+
     private static int Count(string text, string value) => text.Split(value, StringSplitOptions.None).Length - 1;
 }

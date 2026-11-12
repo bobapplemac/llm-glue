@@ -4,6 +4,10 @@
 
 - ADR 0021 replaces duplicated bootstrap orchestration and user-local/portable
   installation with an elevated, binary-owned, canonical system lifecycle.
+- The canonical layout is `%ProgramData%\LLMGlue` on Windows (owned `bin` added
+  to machine PATH) and `/usr/local/bin` plus `/etc/llm-glue`, `/var/lib/llm-glue`,
+  and `/var/log/llm-glue` on Linux. Generated TLS and update/rollback staging
+  live under mutable state; operator certificates remain external and read-only.
 - `llm-glue setup` now routes before configuration loading, composes all roles,
   providers, and targets, generates protected TOML and 24-byte tokens, installs
   to canonical Windows/Linux paths, and registers/starts the least-privileged

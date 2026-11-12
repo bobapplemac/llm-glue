@@ -124,12 +124,12 @@ if (args.Take(2).SequenceEqual(["update", "apply"]))
     await UpdateManager.ApplyAsync(http, executablePath, new UpdateApplyOptions(
         args.Contains("--allow-downgrade", StringComparer.Ordinal),
         args.Contains("--service", StringComparer.Ordinal),
-        ServiceHealthUrl(options), ServiceHealthToken(options)), CancellationToken.None);
+        ServiceHealthUrl(options), ServiceHealthToken(options), ResolveConfigPath(options, options.Server.StateDirectory)), CancellationToken.None);
     return;
 }
 if (args.Take(2).SequenceEqual(["update", "rollback"]))
 {
-    await UpdateManager.RollbackAsync(executablePath, args.Contains("--service", StringComparer.Ordinal), ServiceHealthUrl(options), ServiceHealthToken(options), CancellationToken.None);
+    await UpdateManager.RollbackAsync(executablePath, args.Contains("--service", StringComparer.Ordinal), ServiceHealthUrl(options), ServiceHealthToken(options), ResolveConfigPath(options, options.Server.StateDirectory), CancellationToken.None);
     return;
 }
 

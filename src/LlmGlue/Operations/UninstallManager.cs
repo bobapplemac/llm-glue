@@ -27,13 +27,16 @@ public static class UninstallManager
         await CleanupTargetsAsync(options, clean, target => target.Type == "litellm"
             ? new ServiceRestartActivator(target.ServiceName!, new HttpClient { Timeout = TimeSpan.FromSeconds(5) }, target.HealthUrl)
             : new NoOpTargetActivator(), cancellationToken);
+        if (OperatingSystem.IsWindows()) SetupManager.RemoveWindowsMachinePath(Path.GetDirectoryName(canonical.Executable)!);
 
-        var delete = new List<string> { canonical.Executable, canonical.Executable + ".rollback", Path.Combine(Path.GetDirectoryName(canonical.Executable)!, ".llm-glue-update") };
+        var delete = new List<string> { canonical.Executable, Path.Combine(canonical.StateDirectory, "updates") };
+        if (OperatingSystem.IsWindows()) delete.Add(Path.GetDirectoryName(canonical.Executable)!);
         if (clean)
         {
             delete.Add(canonical.Config);
             delete.Add(canonical.StateDirectory);
             delete.Add(Path.GetDirectoryName(canonical.LogFile)!);
+            delete.Add(Path.GetDirectoryName(canonical.Config)!);
         }
         if (OperatingSystem.IsWindows()) StartWindowsFinalizer(executable, delete, clean);
         else
