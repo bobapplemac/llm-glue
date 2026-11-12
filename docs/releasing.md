@@ -81,6 +81,21 @@ r4 service reported 11 discovered/published models, LiteLLM recovered from its
 expected configuration cold restart, and its authenticated catalog contained
 the new dormant-route alias.
 
+Official `r5` was published from
+`167131de6accbdd12deb8b08c9c2fa137372c21a` on 2026-11-11 after explicit
+authorization. The guarded PowerShell publisher passed all 148 tests, verified
+the generated CLI/TOML references, and built both self-contained RIDs. The
+manifest records FileVersion `1.5.0.0` and the exact commit. The published
+SHA-256 values are
+`d623074661f05bf9636c2fb21a053ae6005e5130d1c3d9f2aafb255ed4f3890a`
+for linux-x64 and
+`acf9572b439fcd7377a5aaed1f9cdf78cdf6b90af187f3957a4da7bf8291e4ae`
+for win-x64; GitHub's asset digests match. This release adds layered model
+exclusions, dual config filenames and pre-config help, ProgramData service
+installation, single-token remote-client provisioning, 60-second polling,
+concise OpenCode namespaces, hostname-scoped LiteLLM aliases, and generated
+operator references.
+
 Both publishers require exactly one remote named `origin`, an `origin/<branch>`
 upstream, and the pinned raw remote URL `github.com/bobapplemac/llm-glue`. This
 prevents an otherwise clean checkout from publishing the project identity from an
@@ -89,9 +104,9 @@ ambiguous or substituted repository.
 Dry runs:
 
 ```text
-make release-check REVISION=4
-make release REVISION=4 DRY_RUN=1
-pwsh ./scripts/Publish-Release.ps1 -Revision 4 -DryRun
+make release-check REVISION=6
+make release REVISION=6 DRY_RUN=1
+pwsh ./scripts/Publish-Release.ps1 -Revision 6 -DryRun
 ```
 
 Both implementations build/test both RIDs, create immutable archives, SHA-256

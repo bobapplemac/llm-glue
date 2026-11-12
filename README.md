@@ -5,7 +5,7 @@ about their capabilities, publishes versioned configuration artifacts, and
 safely synchronizes those artifacts into OpenCode or LiteLLM.
 
 The current stable release is
-[LLM Glue r4](https://github.com/bobapplemac/llm-glue/releases/tag/r4).
+[LLM Glue r5](https://github.com/bobapplemac/llm-glue/releases/tag/r5).
 Ordinary development builds identify as `r0`; the guarded release publisher
 assigns the authorized `rN` product and file versions. See the authoritative
 [product specification](docs/llm-glue-spec.md), [progress](docs/progress.md),

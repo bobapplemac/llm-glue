@@ -86,7 +86,16 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Current status
 
-- **Post-r4 development:** automatic configuration discovery accepts both
+- **Official release:** r5 is published from commit
+  `167131de6accbdd12deb8b08c9c2fa137372c21a`. The guarded publisher passed all
+  148 tests, verified generated reference drift, built both self-contained RIDs,
+  and published exact-commit metadata with FileVersion `1.5.0.0`. GitHub's asset
+  digests match the local checksums. It includes all post-r4 configuration,
+  exclusion, Windows install-root, credential provisioning, polling, namespace,
+  alias, and generated-documentation work described above. Live r5 deployment
+  qualification remains separate from publication evidence.
+
+- **Delivered in r5:** automatic configuration discovery accepts both
   `llm-glue.conf` and `llm-glue.toml` beside the executable and in platform
   configuration folders while preserving Linux legacy paths. `help`, `--help`,
   `/?`, and `-h` work before configuration loading. Agent-side exact/wildcard
@@ -94,13 +103,13 @@ The requirement-level gate audit is maintained in `docs/completion-audit.md`.
   diagnostics while filtering generated catalogs. All 131 Release tests pass;
   all four help spellings passed against the built executable, and an adjacent
   `llm-glue.toml` was selected and validated without `--config`. Self-contained
-  win-x64 and linux-x64 publishes also pass. No post-r4 release has been
-  authorized. The PowerShell bootstrap now defaults fresh service installs to
-  `%ProgramData%\LLMGlue` while retaining `%LOCALAPPDATA%\LLMGlue` for
+  win-x64 and linux-x64 publishes also pass. The PowerShell bootstrap now
+  defaults fresh service installs to `%ProgramData%\LLMGlue` while retaining
+  `%LOCALAPPDATA%\LLMGlue` for
   non-service installs. It preserves detected legacy per-user services and
   existing `.toml` sidecars; the mocked bootstrap matrix passes.
 
-- **Official release:** r4 is published from commit
+- **Previous official release:** r4 is published from commit
   `342f40052f5b85609f310c89b8fe10ee5c77534c`. The guarded publisher passed
   all 114 tests, built both self-contained RIDs with FileVersion `1.4.0.0`, and
   published exact-commit manifest/checksum metadata. GitHub's asset digests match

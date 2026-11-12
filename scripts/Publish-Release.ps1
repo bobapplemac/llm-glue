@@ -80,6 +80,11 @@ if (-not $NonInteractive) {
     $confirmation = Read-Host "Publish immutable GitHub release r$Revision? Type r$Revision"
     if ($confirmation -ne "r$Revision") { throw 'Confirmation did not match.' }
 }
+else {
+    # Non-interactive publication is already an explicit opt-in; prevent the
+    # high-impact ShouldProcess hook from trying to prompt through a headless host.
+    $ConfirmPreference = 'None'
+}
 if ($PSCmdlet.ShouldProcess("origin and GitHub", "Publish r$Revision")) {
     Invoke-Git tag -a "r$Revision" -m "LLM Glue r$Revision" | Out-Null
     Invoke-Git push origin "r$Revision" | Out-Null
