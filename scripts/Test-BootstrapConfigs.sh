@@ -23,8 +23,9 @@ run_mode() {
   [[ "$(stat -c '%a' "$destination/llm-glue.conf")" == 600 ]]
 }
 
-run_mode remote-client env LLM_GLUE_SERVER_URL=https://catalog.example LLM_GLUE_SERVER_TOKEN=test-read
+run_mode remote-client env LLM_GLUE_SERVER_URL=https://catalog.example:8765 LLM_GLUE_SERVER_TOKEN=test-read
 grep -Fq 'token = "test-read"' "$tmp/remote-client/llm-glue.conf"
+grep -Fq 'allow_invalid_server_certificate = true' "$tmp/remote-client/llm-glue.conf"
 grep -Fq 'path = "/etc/opencode/opencode.jsonc"' "$tmp/remote-client/llm-glue.conf"
 remote_hash="$(sha256sum "$tmp/remote-client/llm-glue.conf")"
 run_mode remote-client env LLM_GLUE_SERVER_URL=https://changed.example LLM_GLUE_SERVER_TOKEN=changed LLM_GLUE_OPENCODE_PATH="$tmp/changed.json"
@@ -34,8 +35,11 @@ run_mode remote-client env LLM_GLUE_SERVER_URL=https://changed.example LLM_GLUE_
 run_mode standalone-ollama env LLM_GLUE_OLLAMA_URL=http://127.0.0.1:11434 LLM_GLUE_OPENCODE_PATH="$tmp/opencode.json"
 grep -Fq '[[agent.providers]]' "$tmp/standalone-ollama/llm-glue.conf"
 
-run_mode central-llama env LLM_GLUE_READ_TOKEN=test-read LLM_GLUE_WRITE_TOKEN=test-write LLM_GLUE_INFERENCE_API_KEY=test-inference LLM_GLUE_LISTEN_URL=http://0.0.0.0:9876 LLM_GLUE_LITELLM_URL=http://litellm.test:4000 LLM_GLUE_MODEL_DIRECTORY="$tmp/models" LLM_GLUE_LITELLM_GENERATED="$tmp/generated.yaml" LLM_GLUE_LITELLM_PRIMARY="$tmp/litellm.yaml"
-grep -Fq 'source = "http://127.0.0.1:9876"' "$tmp/central-llama/llm-glue.conf"
+run_mode central-llama env LLM_GLUE_GENERATE_API_KEYS=1 LLM_GLUE_INFERENCE_API_KEY=test-inference LLM_GLUE_LISTEN_URL=https://0.0.0.0:9876 LLM_GLUE_TLS_SERVER_NAMES=localhost,catalog.example LLM_GLUE_LITELLM_URL=http://litellm.test:4000 LLM_GLUE_MODEL_DIRECTORY="$tmp/models" LLM_GLUE_LITELLM_GENERATED="$tmp/generated.yaml" LLM_GLUE_LITELLM_PRIMARY="$tmp/litellm.yaml"
+grep -Fq 'listen = "https://0.0.0.0:9876"' "$tmp/central-llama/llm-glue.conf"
+grep -Fq 'tls_server_names = ["localhost", "catalog.example"]' "$tmp/central-llama/llm-glue.conf"
+grep -Eq 'read_token = "[0-9a-f]{48}"' "$tmp/central-llama/llm-glue.conf"
+grep -Eq 'write_token = "[0-9a-f]{48}"' "$tmp/central-llama/llm-glue.conf"
 grep -Fq 'type = "litellm"' "$tmp/central-llama/llm-glue.conf"
 grep -Fq 'opencode_inference_url = "http://litellm.test:4000"' "$tmp/central-llama/llm-glue.conf"
 grep -Fq 'opencode_inference_api_key = "test-inference"' "$tmp/central-llama/llm-glue.conf"

@@ -8,6 +8,8 @@ using LlmGlue.Core.Generation;
 using LlmGlue.Core.Documentation;
 using LlmGlue.Core.Providers;
 using LlmGlue.Core.Reconciliation;
+using LlmGlue.Core.Security;
+using LlmGlue.Security;
 
 namespace LlmGlue.Operations;
 
@@ -32,6 +34,13 @@ public static class CliCommands
         Console.WriteLine($"Config: {options.ConfigPath}");
         Console.WriteLine($"Roles: agent={options.Roles.Agent}, server={options.Roles.Server}, client={options.Roles.Client}");
         Console.WriteLine($"Server: {options.Server.Listen}");
+        if (options.Server.Listen.Scheme == Uri.UriSchemeHttps)
+        {
+            using var tls = ServerTlsCertificateManager.LoadOrCreate(options);
+            Console.WriteLine($"Server TLS certificate: {tls.CertificatePath}");
+            Console.WriteLine($"Server TLS public-key SHA-256: {tls.PublicKeySha256}");
+            Console.WriteLine($"Server TLS SNI names: {(options.Server.TlsServerNames.Count == 0 ? "any" : string.Join(", ", options.Server.TlsServerNames))}");
+        }
         Console.WriteLine($"OpenCode inference route: {(options.Server.OpenCodeInferenceUrl is null ? "direct provider endpoints" : options.Server.OpenCodeInferenceUrl)}");
         Console.WriteLine($"OpenCode namespace: {options.Server.OpenCodeNamespace} ({options.Server.OpenCodeNamespaceOverrides.Count} override(s))");
         Console.WriteLine($"LiteLLM namespace: {options.Server.LiteLlmNamespace}");
@@ -123,8 +132,8 @@ public static class CliCommands
 
     public static async Task<int> SyncOnceAsync(GlueOptions options, CancellationToken cancellationToken)
     {
-        var source = options.Client.Source ?? options.Server.Listen;
-        using var http = new HttpClient { BaseAddress = source, Timeout = TimeSpan.FromSeconds(30) };
+        var source = EffectiveClientSource(options);
+        using var http = CreateServerClient(options, source, TimeSpan.FromSeconds(30));
         var token = SecretResolver.Resolve(options.Client.Token, options.Client.TokenEnvironment);
         if ((options.Client.Token is not null || options.Client.TokenEnvironment is not null) && string.IsNullOrEmpty(token)) throw new ConfigurationException("Client token source is configured but unavailable.");
         var results = await new ArtifactSyncClient(http, CreateTargets(options), token).SyncOnceAsync(cancellationToken);
@@ -134,14 +143,14 @@ public static class CliCommands
 
     public static async Task<int> StatusAsync(GlueOptions options, CancellationToken cancellationToken)
     {
-        var source = options.Client.Source ?? options.Server.Listen;
+        var source = EffectiveClientSource(options);
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(source, "api/v1/status"));
         if (options.Client.TokenEnvironment is not null || options.Client.Token is not null)
         {
             var token = SecretResolver.Resolve(options.Client.Token, options.Client.TokenEnvironment);
             if (!string.IsNullOrEmpty(token)) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        using var http = CreateServerClient(options, null, TimeSpan.FromSeconds(10));
         using var response = await http.SendAsync(request, cancellationToken);
         Console.WriteLine(await response.Content.ReadAsStringAsync(cancellationToken));
         return response.IsSuccessStatusCode ? 0 : 1;
@@ -155,7 +164,7 @@ public static class CliCommands
             var path = ResolvePath(options, target.Path);
             if (target.Type == "opencode")
             {
-                var source = options.Client.Source ?? options.Server.Listen;
+                var source = EffectiveClientSource(options);
                 targets.Add(new OpenCodeTarget(path, new AtomicFileInstaller(), new NoOpTargetActivator(), $"source:{source.AbsoluteUri.TrimEnd('/')}", target.DenyBuiltInOpenCodeProvider));
             }
             else targets.Add(new LiteLlmTarget(path, ResolvePath(options, target.PrimaryConfigPath!), new AtomicFileInstaller(), new ServiceRestartActivator(target.ServiceName!, new HttpClient { Timeout = TimeSpan.FromSeconds(5) }, target.HealthUrl)));
@@ -192,6 +201,24 @@ public static class CliCommands
     }
 
     private static string ResolvePath(GlueOptions options, string path) => Path.IsPathRooted(path) ? Path.GetFullPath(path) : Path.GetFullPath(path, options.BaseDirectory);
+    private static Uri EffectiveClientSource(GlueOptions options)
+    {
+        if (options.Client.Source is not null) return options.Client.Source;
+        var builder = new UriBuilder(options.Server.Listen);
+        if (builder.Scheme == Uri.UriSchemeHttps) builder.Host = "localhost";
+        else if (builder.Host is "0.0.0.0" or "::" or "[::]" or "*" or "+") builder.Host = "127.0.0.1";
+        return builder.Uri;
+    }
+    private static HttpClient CreateServerClient(GlueOptions options, Uri? baseAddress, TimeSpan timeout)
+    {
+        var pin = options.Client.TrustedServerPublicKeySha256;
+        if (pin is null && options.Client.Source is null && options.Server.Listen.Scheme == Uri.UriSchemeHttps)
+        {
+            using var certificate = ServerTlsCertificateManager.LoadOrCreate(options);
+            pin = certificate.PublicKeySha256;
+        }
+        return TlsHttpClientFactory.Create(baseAddress, timeout, options.Client.AllowInvalidServerCertificate, pin);
+    }
     internal static string SecretStatus(string? literal, string? environmentName) => literal is not null
         ? "protected sidecar literal (set)"
         : environmentName is not null

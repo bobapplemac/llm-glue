@@ -3,7 +3,7 @@
 Official release assets are self-contained single files for `win-x64` and
 `linux-x64`. The Linux executable uses invariant globalization and does not
 require ICU; it was executed and service-qualified on Debian 13.5. Normal OS
-facilities such as glibc and systemd remain platform dependencies. Official `r1`
+facilities such as glibc and systemd remain platform dependencies. Official `r5`
 assets are available from GitHub Releases; ordinary development builds continue
 to identify as `r0` outside the guarded release path.
 
@@ -26,7 +26,8 @@ LLM_GLUE_INSTALL_DIR=$HOME/.local/lib/llm-glue ./install.sh
 
 Interactive installation offers `remote-client`, `standalone-ollama`, and
 `central-llama`. It asks only for the URLs, secrets, provider/target paths, and
-optional service registration needed by that mode. The central mode configures
+optional service registration needed by that mode. Server URLs include the
+nonstandard default port, for example `https://catalog.example:8765`. The central mode configures
 llama.cpp discovery, authenticated Server publication, and the owned LiteLLM
 include; it never edits the operator's primary LiteLLM YAML. Central mode also
 requires the externally reachable LiteLLM base URL (`-LiteLlmUrl` or
@@ -36,6 +37,9 @@ Central installation asks for a LiteLLM client key and stores it in the protecte
 LLM Glue server sidecar. The server embeds that key in authenticated OpenCode
 artifacts by default, so remote clients need only the LLM Glue server URL and
 read token. LiteLLM's master key or a properly scoped virtual key may be used.
+Central installation can generate independent read/write API keys from 24 random
+bytes each (`-GenerateApiKeys` or `LLM_GLUE_GENERATE_API_KEYS=1`) instead of
+prompting for them.
 Set `server.embed_opencode_inference_api_key = false` to opt out; every
 OpenCode/Paseo process must then receive `LLM_GLUE_INFERENCE_API_KEY`.
 
@@ -60,6 +64,9 @@ Headless Linux installs set `LLM_GLUE_NONINTERACTIVE=1`,
 `LLM_GLUE_MODE`, and applicable variables: `LLM_GLUE_SERVER_URL`,
 `LLM_GLUE_SERVER_TOKEN`, `LLM_GLUE_OLLAMA_URL`, `LLM_GLUE_LLAMA_URL`,
 `LLM_GLUE_LISTEN_URL`, `LLM_GLUE_READ_TOKEN`, `LLM_GLUE_WRITE_TOKEN`,
+`LLM_GLUE_GENERATE_API_KEYS`, `LLM_GLUE_TLS_SERVER_NAMES`,
+`LLM_GLUE_ALLOW_INVALID_SERVER_CERTIFICATE`,
+`LLM_GLUE_TRUSTED_SERVER_PUBLIC_KEY_SHA256`,
 `LLM_GLUE_MODEL_DIRECTORY`, `LLM_GLUE_OPENCODE_PATH`, the
 `LLM_GLUE_LITELLM_*` URL/paths/service/health settings, and
 `LLM_GLUE_INSTALL_SERVICE`. Central mode uses `LLM_GLUE_INFERENCE_API_KEY`; set
@@ -80,6 +87,48 @@ fixed identity read access. Never configure both literal and environment forms
 for one credential. Selecting service installation in either bootstrap registers,
 enables, and starts the service; initial target synchronization normally occurs
 within seconds and no later than the configured client polling interval.
+
+## HTTPS certificates and trust
+
+New Server configurations default to `https://127.0.0.1:8765` and
+`tls_auto_generate = true`. On first start, LLM Glue creates
+`state/tls/server.crt` and `state/tls/server.key` relative to the sidecar. The
+self-signed RSA certificate is valid for 30 years. Existing files are never
+regenerated or overwritten automatically. `llm-glue doctor` prints the public
+key SHA-256 identifier for client provisioning.
+
+To supply PEM/CRT files:
+
+```toml
+[server]
+listen = "https://0.0.0.0:8765"
+tls_auto_generate = false
+tls_certificate_path = "/etc/llm-glue/server.crt"
+tls_private_key_path = "/etc/llm-glue/server.key"
+tls_server_names = ["llm-glue.example.test", "*.lab.example.test"]
+```
+
+For PFX/P12, omit `tls_private_key_path` and configure either
+`tls_certificate_password` or `tls_certificate_password_environment`. LLM Glue
+never selects certificates from an operating-system certificate store. Exact,
+`*.suffix`, and `*` SNI entries are supported; a configured list rejects
+unmatched handshakes. `localhost` remains reserved for local service health and
+colocated Client operations even when it is not listed.
+
+Remote Clients and Agent-only hosts should preferably copy the identifier from
+Server `doctor` output:
+
+```toml
+[client]
+source = "https://llm-glue.example.test:8765"
+trusted_server_public_key_sha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+```
+
+The equivalent Agent setting belongs under `[agent]`. For encryption without
+server authentication, use `allow_invalid_server_certificate = true` instead.
+That mode accepts active interception and cannot be combined with a pin. The
+bootstrap remote-client mode defaults to accept-any for a zero-trust-store
+self-signed deployment; provide a pin to choose authenticated self-signed TLS.
 
 Before upgrading an older central installation, add either
 `opencode_inference_api_key = "..."` or

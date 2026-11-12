@@ -134,16 +134,16 @@ See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md),
 ## Network and persistence
 
 Network contracts use `/api/v1`. Artifacts are immutable by revision, expose
-content ETags, and retain last-known-good history. The embedded server is HTTP
-only. It defaults to loopback; remote access requires bearer authentication and
-an encrypted private network or operator-supplied reverse proxy unless the
-operator explicitly acknowledges insecure transport.
+content ETags, and retain last-known-good history. The embedded server defaults
+to file-backed Kestrel HTTPS and loopback. Remote access requires bearer
+authentication; remote plain HTTP additionally requires explicit insecure
+transport acknowledgement.
 
 Server publication generates and validates all target artifacts before swapping
 the visible inventory, then stores bounded per-target history. Conditional reads
 return 304 for matching ETags. Agent submissions must carry a canonical content
 hash and schema version; remote reads and writes use separate bearer credentials.
-Agent-only mode submits through that authenticated HTTP boundary and retains its
+Agent-only mode submits through that authenticated HTTP(S) boundary and retains its
 local grace state for retry. Server publication is serialized and refuses older
 snapshots so a delayed request cannot roll artifacts backward.
 
@@ -185,6 +185,14 @@ fallbacks. Agent exclusion patterns remove matching inventory before publication
 or submission; server exclusion patterns retain diagnostics while filtering
 generated artifacts.
 Relative data paths resolve against the selected config directory.
+
+HTTPS certificate ownership is file-only. Kestrel loads PFX/P12 or PEM/CRT plus
+key files; automatic mode creates a 30-year self-signed PEM pair under the Server
+state directory with fail-closed partial-material detection. Configured
+exact/wildcard SNI names become certificate SANs and reject unmatched handshakes;
+`localhost` remains reserved for local management. Outbound Agent/Client Server
+connections use platform validation, an explicit SHA-256 SubjectPublicKeyInfo
+pin, or an explicit accept-any policy. See ADR 0021.
 
 The typed configuration catalog in `ReferenceDocumentation` is also the source
 of truth for accepted keys: TOML validation derives each scope's allow-list from

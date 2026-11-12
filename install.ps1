@@ -2,15 +2,19 @@
 param(
     [string]$InstallDirectory,
     [ValidateSet('remote-client','standalone-ollama','central-llama')][string]$Mode = 'remote-client',
-    [string]$ServerUrl = 'https://replace-with-your-server',
+    [string]$ServerUrl = 'https://replace-with-your-server:8765',
     [string]$ServerToken,
     [string]$InferenceApiKey,
     [string]$OllamaUrl = 'http://127.0.0.1:11434',
     [string]$LlamaUrl = 'http://127.0.0.1:8081',
     [string]$ModelDirectory = 'D:\Models\GGUF',
-    [string]$ListenUrl = 'http://0.0.0.0:8765',
+    [string]$ListenUrl = 'https://0.0.0.0:8765',
     [string]$ReadToken,
     [string]$WriteToken,
+    [switch]$GenerateApiKeys,
+    [bool]$AllowInvalidServerCertificate = $true,
+    [string]$TrustedServerPublicKeySha256,
+    [string[]]$TlsServerNames = @(),
     [string]$OpenCodePath = 'C:\ProgramData\opencode\opencode.jsonc',
     [string]$LiteLlmGeneratedPath = 'C:\ProgramData\LiteLLM\llm-glue-models.yaml',
     [string]$LiteLlmPrimaryPath = 'C:\ProgramData\LiteLLM\config.yaml',
@@ -22,6 +26,12 @@ param(
     [switch]$NonInteractive
 )
 $ErrorActionPreference = 'Stop'
+function New-RandomHex([int]$ByteCount = 24) {
+    $bytes = New-Object byte[] $ByteCount
+    $generator = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $generator.GetBytes($bytes) } finally { $generator.Dispose() }
+    return -join ($bytes | ForEach-Object { $_.ToString('x2') })
+}
 $installDirectoryWasSpecified = $PSBoundParameters.ContainsKey('InstallDirectory')
 if (-not $NonInteractive) {
     $answer = Read-Host "Installation mode [remote-client/standalone-ollama/central-llama] ($Mode)"
@@ -30,6 +40,8 @@ if (-not $NonInteractive) {
         $answer = Read-Host "LLM Glue server URL ($ServerUrl)"; if ($answer) { $ServerUrl = $answer }
         $secret = Read-Host 'Server read token (leave blank to use LLM_GLUE_READ_TOKEN at runtime)' -AsSecureString
         if ($secret.Length) { $ServerToken = [Net.NetworkCredential]::new('', $secret).Password }
+        $answer = Read-Host 'Pinned Server public-key SHA-256 (blank accepts any self-signed certificate)'
+        if ($answer) { $TrustedServerPublicKeySha256 = $answer; $AllowInvalidServerCertificate = $false }
         $answer = Read-Host "OpenCode system config path ($OpenCodePath)"; if ($answer) { $OpenCodePath = $answer }
     } elseif ($Mode -eq 'standalone-ollama') {
         $answer = Read-Host "Ollama URL ($OllamaUrl)"; if ($answer) { $OllamaUrl = $answer }
@@ -38,8 +50,15 @@ if (-not $NonInteractive) {
         $answer = Read-Host "llama.cpp URL ($LlamaUrl)"; if ($answer) { $LlamaUrl = $answer }
         $answer = Read-Host "GGUF model directory ($ModelDirectory)"; if ($answer) { $ModelDirectory = $answer }
         $answer = Read-Host "LLM Glue listen URL ($ListenUrl)"; if ($answer) { $ListenUrl = $answer }
-        $secret = Read-Host 'Remote client read token' -AsSecureString; if ($secret.Length) { $ReadToken = [Net.NetworkCredential]::new('', $secret).Password }
-        $secret = Read-Host 'Remote agent write token' -AsSecureString; if ($secret.Length) { $WriteToken = [Net.NetworkCredential]::new('', $secret).Password }
+        $defaultNames = if ($TlsServerNames.Count) { $TlsServerNames -join ',' } else { "localhost,$([Net.Dns]::GetHostName())" }
+        $answer = Read-Host "TLS/SNI server names, comma separated ($defaultNames)"
+        $selectedNames = if ($answer) { $answer } else { $defaultNames }
+        $TlsServerNames = @($selectedNames -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        if (-not $GenerateApiKeys) { $GenerateApiKeys = (Read-Host 'Auto-generate 24-byte read/write API keys? [Y/n]') -notmatch '^[Nn]$' }
+        if (-not $GenerateApiKeys) {
+            $secret = Read-Host 'Remote client read token' -AsSecureString; if ($secret.Length) { $ReadToken = [Net.NetworkCredential]::new('', $secret).Password }
+            $secret = Read-Host 'Remote agent write token' -AsSecureString; if ($secret.Length) { $WriteToken = [Net.NetworkCredential]::new('', $secret).Password }
+        }
         $answer = Read-Host "LiteLLM primary config path ($LiteLlmPrimaryPath)"; if ($answer) { $LiteLlmPrimaryPath = $answer }
         $answer = Read-Host "LLM Glue LiteLLM include path ($LiteLlmGeneratedPath)"; if ($answer) { $LiteLlmGeneratedPath = $answer }
         $answer = Read-Host "LiteLLM Windows service ($LiteLlmService)"; if ($answer) { $LiteLlmService = $answer }
@@ -51,6 +70,11 @@ if (-not $NonInteractive) {
         $answer = Read-Host "LiteLLM health URL ($LiteLlmHealthUrl)"; if ($answer) { $LiteLlmHealthUrl = $answer }
     }
     if (-not $InstallService) { $InstallService = (Read-Host 'Register the Windows service? [y/N]') -match '^[Yy]$' }
+}
+if ($Mode -eq 'central-llama' -and $TlsServerNames.Count -eq 0) { $TlsServerNames = @('localhost', [Net.Dns]::GetHostName()) }
+if ($Mode -eq 'central-llama' -and $GenerateApiKeys) {
+    if (-not $ReadToken) { $ReadToken = New-RandomHex }
+    if (-not $WriteToken) { $WriteToken = New-RandomHex }
 }
 if ($installDirectoryWasSpecified -and [string]::IsNullOrWhiteSpace($InstallDirectory)) { throw '-InstallDirectory cannot be empty.' }
 if (-not $installDirectoryWasSpecified) {
@@ -74,7 +98,7 @@ if (-not $installDirectoryWasSpecified) {
     }
 }
 if ($InstallService -and $Mode -eq 'remote-client' -and -not $ServerToken) { throw 'Service-mode remote-client requires -ServerToken; Windows services do not inherit the installer environment.' }
-if ($NonInteractive -and $Mode -eq 'remote-client' -and $ServerUrl -eq 'https://replace-with-your-server') { throw 'Noninteractive remote-client installation requires -ServerUrl.' }
+if ($NonInteractive -and $Mode -eq 'remote-client' -and $ServerUrl -eq 'https://replace-with-your-server:8765') { throw 'Noninteractive remote-client installation requires -ServerUrl.' }
 if ($Mode -eq 'central-llama' -and (-not $ReadToken -or -not $WriteToken)) { throw 'central-llama requires -ReadToken and -WriteToken.' }
 if ($Mode -eq 'central-llama' -and $LiteLlmUrl -eq 'http://replace-with-your-litellm:4000') { throw 'central-llama requires -LiteLlmUrl reachable by remote OpenCode clients.' }
 if ($Mode -eq 'central-llama' -and -not $DoNotEmbedInferenceApiKey -and -not $InferenceApiKey) { throw 'central-llama requires -InferenceApiKey by default. Use -DoNotEmbedInferenceApiKey only when every OpenCode process receives LLM_GLUE_INFERENCE_API_KEY separately.' }
@@ -117,18 +141,19 @@ try {
     $candidate = Join-Path $temporary 'llm-glue.conf'
     if ($Mode -eq 'remote-client') {
         $tokenLine = if ($ServerToken) { 'token = ' + (ConvertTo-TomlString $ServerToken) } else { 'token_environment = "LLM_GLUE_READ_TOKEN"' }
-        $content = @('[roles]','agent = false','server = false','client = true','','[client]',('source = ' + (ConvertTo-TomlString $ServerUrl)),$tokenLine,'','[[client.targets]]','type = "opencode"',('path = ' + (ConvertTo-TomlString $OpenCodePath)))
+        $trustLine = if ($TrustedServerPublicKeySha256) { 'trusted_server_public_key_sha256 = ' + (ConvertTo-TomlString $TrustedServerPublicKeySha256) } else { 'allow_invalid_server_certificate = ' + $AllowInvalidServerCertificate.ToString().ToLowerInvariant() }
+        $content = @('[roles]','agent = false','server = false','client = true','','[client]',('source = ' + (ConvertTo-TomlString $ServerUrl)),$tokenLine,$trustLine,'','[[client.targets]]','type = "opencode"',('path = ' + (ConvertTo-TomlString $OpenCodePath)))
     } elseif ($Mode -eq 'standalone-ollama') {
         $statePath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\state' } else { 'state' }
         $logPath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\logs\llm-glue.log' } else { 'logs\llm-glue.log' }
-        $content = @('[roles]','agent = true','server = true','client = true','','[[agent.providers]]','name = "local-ollama"','type = "ollama"',('url = ' + (ConvertTo-TomlString $OllamaUrl)),'','[server]','listen = "http://127.0.0.1:8765"',('state_directory = ' + (ConvertTo-TomlString $statePath)),'','[client]','source = "http://127.0.0.1:8765"','','[[client.targets]]','type = "opencode"',('path = ' + (ConvertTo-TomlString $OpenCodePath)),'','[logging]',('file = ' + (ConvertTo-TomlString $logPath)))
+        $content = @('[roles]','agent = true','server = true','client = true','','[[agent.providers]]','name = "local-ollama"','type = "ollama"',('url = ' + (ConvertTo-TomlString $OllamaUrl)),'','[server]','listen = "https://127.0.0.1:8765"','tls_auto_generate = true','tls_server_names = ["localhost"]',('state_directory = ' + (ConvertTo-TomlString $statePath)),'','[client]','','[[client.targets]]','type = "opencode"',('path = ' + (ConvertTo-TomlString $OpenCodePath)),'','[logging]',('file = ' + (ConvertTo-TomlString $logPath)))
     } else {
         $listen = [Uri]$ListenUrl
-        $localSource = "http://127.0.0.1:$($listen.Port)"
+        $tlsNames = '[' + (($TlsServerNames | ForEach-Object { ConvertTo-TomlString $_ }) -join ', ') + ']'
         $statePath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\state' } else { 'state' }
         $logPath = if ($InstallService) { Join-Path $env:ProgramData 'LLMGlue\logs\llm-glue.log' } else { 'logs\llm-glue.log' }
         $credentialLines = if ($DoNotEmbedInferenceApiKey) { @('embed_opencode_inference_api_key = false') } else { @('embed_opencode_inference_api_key = true', ('opencode_inference_api_key = ' + (ConvertTo-TomlString $InferenceApiKey))) }
-        $content = @('[roles]','agent = true','server = true','client = true','','[[agent.providers]]','name = "local-llama"','type = "llama.cpp"',('url = ' + (ConvertTo-TomlString $LlamaUrl)),('model_directories = [' + (ConvertTo-TomlString $ModelDirectory) + ']'),'inspect_gguf = true','hash_model_files = false','probe_mode = "loaded-only"','','[server]',('listen = ' + (ConvertTo-TomlString $ListenUrl)),('opencode_inference_url = ' + (ConvertTo-TomlString $LiteLlmUrl))) + $credentialLines + @(('read_token = ' + (ConvertTo-TomlString $ReadToken)),('write_token = ' + (ConvertTo-TomlString $WriteToken)),'acknowledge_insecure_remote_http = true',('state_directory = ' + (ConvertTo-TomlString $statePath)),'','[client]',('source = ' + (ConvertTo-TomlString $localSource)),('token = ' + (ConvertTo-TomlString $ReadToken)),'','[[client.targets]]','type = "litellm"',('path = ' + (ConvertTo-TomlString $LiteLlmGeneratedPath)),('primary_config_path = ' + (ConvertTo-TomlString $LiteLlmPrimaryPath)),('service_name = ' + (ConvertTo-TomlString $LiteLlmService)),('health_url = ' + (ConvertTo-TomlString $LiteLlmHealthUrl)),'','[logging]',('file = ' + (ConvertTo-TomlString $logPath)))
+        $content = @('[roles]','agent = true','server = true','client = true','','[[agent.providers]]','name = "local-llama"','type = "llama.cpp"',('url = ' + (ConvertTo-TomlString $LlamaUrl)),('model_directories = [' + (ConvertTo-TomlString $ModelDirectory) + ']'),'inspect_gguf = true','hash_model_files = false','probe_mode = "loaded-only"','','[server]',('listen = ' + (ConvertTo-TomlString $ListenUrl)),'tls_auto_generate = true',('tls_server_names = ' + $tlsNames),('opencode_inference_url = ' + (ConvertTo-TomlString $LiteLlmUrl))) + $credentialLines + @(('read_token = ' + (ConvertTo-TomlString $ReadToken)),('write_token = ' + (ConvertTo-TomlString $WriteToken)),('state_directory = ' + (ConvertTo-TomlString $statePath)),'','[client]',('token = ' + (ConvertTo-TomlString $ReadToken)),'','[[client.targets]]','type = "litellm"',('path = ' + (ConvertTo-TomlString $LiteLlmGeneratedPath)),('primary_config_path = ' + (ConvertTo-TomlString $LiteLlmPrimaryPath)),('service_name = ' + (ConvertTo-TomlString $LiteLlmService)),('health_url = ' + (ConvertTo-TomlString $LiteLlmHealthUrl)),'','[logging]',('file = ' + (ConvertTo-TomlString $logPath)))
     }
     $utf8NoBom = [Text.UTF8Encoding]::new($false)
     [IO.File]::WriteAllLines($candidate, [string[]]$content, $utf8NoBom)

@@ -91,6 +91,12 @@ OpenCode artifact by default; operators can opt out and provision
 `LLM_GLUE_INFERENCE_API_KEY` to every OpenCode process instead.
 See [installation](docs/installation.md) before using the network-pipe form.
 
+New Servers default to native Kestrel HTTPS on port 8765 and can create a
+30-year self-signed PEM certificate/key automatically. File-based PFX/P12 and
+PEM/CRT certificates are supported; certificate-store configuration is not.
+Remote Agents and Clients can use normal platform trust, pin the Server public
+key's SHA-256 identifier, or explicitly accept any invalid certificate.
+
 OpenCode destination scope is explicit: configure the system file for a global
 catalog, or repeat `[[client.targets]]` with one path per selected user. Existing
 JSON/JSONC is merged using an adjacent, source-scoped ownership document; new
@@ -122,7 +128,7 @@ that internal route name does not change OpenCode's visible namespace.
 
 ## Security
 
-The HTTP server defaults to loopback. Bearer authentication is mandatory on
+The HTTPS server defaults to loopback. Bearer authentication is mandatory on
 non-loopback listeners, and bare remote HTTP requires an explicit insecure
 transport acknowledgement because bearer tokens do not provide encryption.
 LiteLLM artifacts never embed provider credentials. Authenticated OpenCode

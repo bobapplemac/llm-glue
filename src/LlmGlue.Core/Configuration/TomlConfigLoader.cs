@@ -38,11 +38,14 @@ public static class TomlConfigLoader
             submitToText is null ? null : HttpUri(submitToText, "agent.submit_to"),
             OptionalString(agent, "write_token_environment"),
             OptionalString(agent, "write_token"),
+            Bool(agent, "allow_invalid_server_certificate", false),
+            OptionalPin(agent, "trusted_server_public_key_sha256"),
             PositiveInt(agent, "discovery_interval_seconds", 60),
             PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");
         CheckKeys(server, "server");
+        var listen = AbsoluteUri(String(server, "listen", "https://127.0.0.1:8765"), "server.listen");
         var openCodeInferenceUrl = OptionalString(server, "opencode_inference_url");
         var openCodeNamespace = String(server, "opencode_namespace", "llm-glue");
         ValidateOpenCodeNamespace(openCodeNamespace, "server.opencode_namespace");
@@ -50,7 +53,7 @@ public static class TomlConfigLoader
         var liteLlmNamespace = OptionalString(server, "litellm_namespace") ?? NormalizeNamespace(Environment.MachineName);
         ValidateNamespace(liteLlmNamespace, "server.litellm_namespace");
         var serverOptions = new ServerOptions(
-            AbsoluteUri(String(server, "listen", "http://127.0.0.1:8765"), "server.listen"),
+            listen,
             openCodeInferenceUrl is null ? null : HttpUri(openCodeInferenceUrl, "server.opencode_inference_url"),
             Bool(server, "embed_opencode_inference_api_key", true),
             OptionalString(server, "opencode_inference_api_key_environment"),
@@ -61,6 +64,12 @@ public static class TomlConfigLoader
             OptionalString(server, "read_token_environment"), OptionalString(server, "write_token_environment"),
             OptionalString(server, "read_token"), OptionalString(server, "write_token"),
             Bool(server, "acknowledge_insecure_remote_http", false),
+            Bool(server, "tls_auto_generate", listen.Scheme == Uri.UriSchemeHttps),
+            OptionalString(server, "tls_certificate_path"),
+            OptionalString(server, "tls_private_key_path"),
+            OptionalString(server, "tls_certificate_password_environment"),
+            OptionalString(server, "tls_certificate_password"),
+            StringArray(server, "tls_server_names").ToArray(),
             TableArray(server, "exclusions").Select(ReadExclusion).ToArray(),
             String(server, "state_directory", "state"),
             PositiveInt(server, "artifact_retention", 5));
@@ -71,6 +80,8 @@ public static class TomlConfigLoader
         var source = OptionalString(client, "source");
         var tokenEnvironment = OptionalString(client, "token_environment");
         var token = OptionalString(client, "token");
+        var clientAllowInvalidCertificate = Bool(client, "allow_invalid_server_certificate", false);
+        var clientTrustedPublicKey = OptionalPin(client, "trusted_server_public_key_sha256");
         var targets = TableArray(client, "targets").Select(ReadTarget).ToArray();
         ValidateUniqueTargetPaths(targets, baseDirectory);
         if (roleOptions.Server && targets.Any(x => x.Type == "litellm") && serverOptions.OpenCodeInferenceUrl is null)
@@ -90,22 +101,28 @@ public static class TomlConfigLoader
             throw new ConfigurationException("Agent-only role requires agent.submit_to.");
         ValidateSecretChoice("agent write token", agentOptions.WriteTokenEnvironment, agentOptions.WriteToken);
         ValidateSecretChoice("OpenCode inference API key", serverOptions.OpenCodeInferenceApiKeyEnvironment, serverOptions.OpenCodeInferenceApiKey);
+        ValidateSecretChoice("TLS certificate password", serverOptions.TlsCertificatePasswordEnvironment, serverOptions.TlsCertificatePassword);
         ValidateSecretChoice("server read token", serverOptions.ReadTokenEnvironment, serverOptions.ReadToken);
         ValidateSecretChoice("server write token", serverOptions.WriteTokenEnvironment, serverOptions.WriteToken);
         ValidateSecretChoice("client token", tokenEnvironment, token);
+        ValidateTlsClientPolicy("agent", agentOptions.AllowInvalidServerCertificate, agentOptions.TrustedServerPublicKeySha256);
+        ValidateTlsClientPolicy("client", clientAllowInvalidCertificate, clientTrustedPublicKey);
         ValidateOpenCodeInferenceSecret(serverOptions);
         if (agentOptions.SubmitTo is not null && !agentOptions.SubmitTo.IsLoopback && agentOptions.WriteTokenEnvironment is null && agentOptions.WriteToken is null)
             throw new ConfigurationException("Remote agent.submit_to requires agent.write_token_environment or a protected agent.write_token.");
         if (roleOptions.Server && agentOptions.SubmitTo is not null)
             throw new ConfigurationException("agent.submit_to is only valid when the Server role is disabled; combined Agent+Server uses the in-process publication boundary.");
         var sourceUri = source is null ? null : HttpUri(source, "client.source");
+        ValidateTlsClientTarget("agent", agentOptions.SubmitTo, agentOptions.AllowInvalidServerCertificate, agentOptions.TrustedServerPublicKeySha256);
+        ValidateTlsClientTarget("client", sourceUri ?? (roleOptions.Server ? serverOptions.Listen : null), clientAllowInvalidCertificate, clientTrustedPublicKey);
         if (roleOptions.Client && sourceUri is null && !roleOptions.Server)
             throw new ConfigurationException("Client role requires client.source unless Server is enabled in-process.");
         if (roleOptions.Client && sourceUri is not null && !sourceUri.IsLoopback && tokenEnvironment is null && token is null)
             throw new ConfigurationException("Remote client.source requires client.token_environment or a protected client.token.");
 
         return new GlueOptions(roleOptions, agentOptions, serverOptions,
-            new ClientOptions(sourceUri, tokenEnvironment, token, PositiveInt(client, "poll_interval_seconds", 60), targets), loggingOptions, fullPath, baseDirectory);
+            new ClientOptions(sourceUri, tokenEnvironment, token, clientAllowInvalidCertificate, clientTrustedPublicKey,
+                PositiveInt(client, "poll_interval_seconds", 60), targets), loggingOptions, fullPath, baseDirectory);
     }
 
     private static OpenCodeNamespaceOverrideOptions ReadOpenCodeNamespaceOverride(TomlTable table)
@@ -236,13 +253,53 @@ public static class TomlConfigLoader
 
     private static void ValidateListen(ServerOptions server)
     {
-        if (server.Listen.Scheme != Uri.UriSchemeHttp) throw new ConfigurationException("server.listen must use http; TLS termination is external.");
+        if (server.Listen.Scheme != Uri.UriSchemeHttp && server.Listen.Scheme != Uri.UriSchemeHttps) throw new ConfigurationException("server.listen must use http or https.");
         if (!string.IsNullOrEmpty(server.Listen.UserInfo)) throw new ConfigurationException("server.listen cannot contain user information.");
         var loopback = server.Listen.IsLoopback;
         if (!loopback && (server.ReadTokenEnvironment is null && server.ReadToken is null || server.WriteTokenEnvironment is null && server.WriteToken is null))
             throw new ConfigurationException("Non-loopback server.listen requires both read and write token sources.");
-        if (!loopback && !server.AcknowledgeInsecureRemoteHttp)
+        if (!loopback && server.Listen.Scheme == Uri.UriSchemeHttp && !server.AcknowledgeInsecureRemoteHttp)
             throw new ConfigurationException("Non-loopback plain HTTP requires acknowledge_insecure_remote_http = true.");
+        var hasTlsSettings = server.TlsCertificatePath is not null || server.TlsPrivateKeyPath is not null
+            || server.TlsCertificatePasswordEnvironment is not null || server.TlsCertificatePassword is not null
+            || server.TlsServerNames.Count != 0;
+        if (server.Listen.Scheme == Uri.UriSchemeHttp && (server.TlsAutoGenerate || hasTlsSettings))
+            throw new ConfigurationException("TLS settings require an https server.listen URI.");
+        if (server.Listen.Scheme != Uri.UriSchemeHttps) return;
+        if (!server.TlsAutoGenerate && server.TlsCertificatePath is null)
+            throw new ConfigurationException("HTTPS requires tls_certificate_path or tls_auto_generate = true.");
+        var extension = Path.GetExtension(server.TlsCertificatePath ?? string.Empty);
+        var pfx = extension.Equals(".pfx", StringComparison.OrdinalIgnoreCase) || extension.Equals(".p12", StringComparison.OrdinalIgnoreCase);
+        if (pfx && server.TlsPrivateKeyPath is not null) throw new ConfigurationException("PFX certificates cannot use tls_private_key_path.");
+        if (!pfx && server.TlsCertificatePath is not null && server.TlsPrivateKeyPath is null && !server.TlsAutoGenerate)
+            throw new ConfigurationException("PEM/CRT certificates require tls_private_key_path.");
+        if (!pfx && (server.TlsCertificatePasswordEnvironment is not null || server.TlsCertificatePassword is not null))
+            throw new ConfigurationException("TLS certificate passwords apply only to PFX/P12 files.");
+        if (server.TlsServerNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != server.TlsServerNames.Count)
+            throw new ConfigurationException("server.tls_server_names must be unique (case-insensitive).");
+        foreach (var name in server.TlsServerNames) ValidateSniName(name);
+    }
+
+    private static void ValidateTlsClientPolicy(string scope, bool allowInvalid, string? pin)
+    {
+        if (allowInvalid && pin is not null)
+            throw new ConfigurationException($"{scope}.allow_invalid_server_certificate and {scope}.trusted_server_public_key_sha256 are mutually exclusive.");
+    }
+
+    private static void ValidateTlsClientTarget(string scope, Uri? target, bool allowInvalid, string? pin)
+    {
+        if ((allowInvalid || pin is not null) && target?.Scheme != Uri.UriSchemeHttps)
+            throw new ConfigurationException($"{scope} TLS trust settings require an HTTPS Server URI.");
+    }
+
+    private static void ValidateSniName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 253 || name.Contains('/') || name.Contains(':'))
+            throw new ConfigurationException($"Invalid server.tls_server_names entry '{name}'.");
+        if (name == "*") return;
+        var host = name.StartsWith("*.", StringComparison.Ordinal) ? name[2..] : name;
+        if (host.Length == 0 || Uri.CheckHostName(host) != UriHostNameType.Dns)
+            throw new ConfigurationException($"Invalid server.tls_server_names entry '{name}'.");
     }
 
     private static void ValidateSecretChoice(string name, string? environment, string? literal)
@@ -256,6 +313,15 @@ public static class TomlConfigLoader
     private static string RequiredString(TomlTable table, string key) => OptionalString(table, key) ?? throw new ConfigurationException($"Missing string '{key}'.");
     private static string String(TomlTable table, string key, string defaultValue) => OptionalString(table, key) ?? defaultValue;
     private static string? OptionalString(TomlTable table, string key) => !table.TryGetValue(key, out var value) ? null : value is string text && !string.IsNullOrWhiteSpace(text) ? text : throw new ConfigurationException($"'{key}' must be a non-empty string.");
+    private static string? OptionalPin(TomlTable table, string key)
+    {
+        var value = OptionalString(table, key);
+        if (value is null) return null;
+        if (value.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase)) value = value[7..];
+        if (value.Length != 64 || value.Any(character => !Uri.IsHexDigit(character)))
+            throw new ConfigurationException($"'{key}' must be a 64-character hexadecimal SHA-256 public-key hash.");
+        return value.ToLowerInvariant();
+    }
     private static bool Bool(TomlTable table, string key, bool defaultValue) => !table.TryGetValue(key, out var value) ? defaultValue : value is bool result ? result : throw new ConfigurationException($"'{key}' must be a boolean.");
     private static int PositiveInt(TomlTable table, string key, int defaultValue) => !table.TryGetValue(key, out var value) ? defaultValue : value is long result && result is > 0 and <= 3600 ? (int)result : throw new ConfigurationException($"'{key}' must be an integer from 1 through 3600.");
     private static IReadOnlyList<string> StringArray(TomlTable table, string key) => !table.TryGetValue(key, out var value) ? [] : value is TomlArray array && array.All(x => x is string) ? array.Cast<string>().ToArray() : throw new ConfigurationException($"'{key}' must be an array of strings.");

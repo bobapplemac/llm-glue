@@ -22,6 +22,8 @@ public sealed record AgentOptions(
     Uri? SubmitTo,
     string? WriteTokenEnvironment,
     string? WriteToken,
+    bool AllowInvalidServerCertificate,
+    string? TrustedServerPublicKeySha256,
     int DiscoveryIntervalSeconds,
     int RemovalGraceSeconds);
 
@@ -53,6 +55,12 @@ public sealed record ServerOptions(
     string? ReadToken,
     string? WriteToken,
     bool AcknowledgeInsecureRemoteHttp,
+    bool TlsAutoGenerate,
+    string? TlsCertificatePath,
+    string? TlsPrivateKeyPath,
+    string? TlsCertificatePasswordEnvironment,
+    string? TlsCertificatePassword,
+    IReadOnlyList<string> TlsServerNames,
     IReadOnlyList<ExclusionRuleOptions> Exclusions,
     string StateDirectory,
     int ArtifactRetention);
@@ -70,7 +78,14 @@ public sealed record ExclusionRuleOptions(
     string? ProviderModel,
     string? ModelPattern = null);
 
-public sealed record ClientOptions(Uri? Source, string? TokenEnvironment, string? Token, int PollIntervalSeconds, IReadOnlyList<TargetOptions> Targets);
+public sealed record ClientOptions(
+    Uri? Source,
+    string? TokenEnvironment,
+    string? Token,
+    bool AllowInvalidServerCertificate,
+    string? TrustedServerPublicKeySha256,
+    int PollIntervalSeconds,
+    IReadOnlyList<TargetOptions> Targets);
 
 public sealed record TargetOptions(string Type, string Path, string? PrimaryConfigPath, string? ServiceName, Uri? HealthUrl, bool DenyBuiltInOpenCodeProvider);
 

@@ -3,9 +3,15 @@
 LLM Glue has no remote execution or model-management API in v1. Its remote surface
 is inventory submission and read-only catalog/artifact retrieval.
 
-- Kestrel defaults to loopback and serves plain HTTP. Remote binding requires
-  explicit insecure-transport acknowledgement plus separate read and write bearer
-  credentials. Use an encrypted private network or operator TLS reverse proxy.
+- Kestrel defaults to loopback HTTPS on port 8765. It loads only file-based
+  PFX/P12 or PEM/CRT-plus-key material and can create a 30-year self-signed PEM
+  pair. Remote plain HTTP requires explicit acknowledgement; non-loopback access
+  still requires separate read and write bearer credentials.
+- Platform certificate validation is the outbound default. A SHA-256
+  SubjectPublicKeyInfo pin authenticates a configured self-signed Server without
+  trusting it machine-wide. `allow_invalid_server_certificate = true` provides
+  encryption without server authentication and is vulnerable to an active
+  man-in-the-middle; it is mutually exclusive with pinning.
 - Proxy headers never convert a remote peer into loopback. The unauthenticated
   loopback exception applies only when the configured Server listener is itself
   loopback; a non-loopback deployment still authenticates requests arriving from
@@ -59,3 +65,6 @@ for inference credentials when embedding is disabled. Headless services may use
 single TOML sidecar when its ACL/mode protects the service identity; literal and
 environment sources are mutually exclusive. `doctor` reports only source and
 presence, never the literal value.
+
+See [ADR 0021](decisions/0021-file-based-kestrel-tls-and-public-key-pinning.md)
+for the TLS file, SNI, self-signed generation, and pinning boundary.

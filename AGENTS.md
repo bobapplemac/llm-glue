@@ -35,6 +35,10 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
 - New Windows service bootstraps default to `%ProgramData%\LLMGlue`; non-service
   installs may remain per-user. Never silently migrate an existing installation
   or shadow an existing `.toml` sidecar with a newly generated `.conf` file.
+- Server TLS is file-only: PFX/P12 or PEM/CRT plus key. Never introduce implicit
+  certificate-store lookup. Preserve existing key material, keep auto-generated
+  private keys restricted, and scope invalid-certificate/SPKI-pin policy only to
+  the configured remote LLM Glue Server connection.
 - Agent model exclusions are a pre-export boundary; excluded inventory must not
   be submitted upstream. Server exclusions retain diagnostic visibility while
   filtering generated artifacts. Exact and wildcard semantics must not be

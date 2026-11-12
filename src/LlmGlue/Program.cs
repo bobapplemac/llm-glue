@@ -8,8 +8,11 @@ using LlmGlue.Core.Providers;
 using LlmGlue.Core.Reconciliation;
 using LlmGlue.Operations;
 using LlmGlue.Observability;
+using LlmGlue.Security;
+using LlmGlue.Core.Security;
 using Microsoft.Extensions.Hosting.Systemd;
 using Microsoft.Extensions.Hosting.WindowsServices;
+using System.Net;
 using NLog.Config;
 using NLog.Extensions.Logging;
 using NLog.Targets;
@@ -104,10 +107,34 @@ if (args.Take(2).SequenceEqual(["update", "rollback"]))
 
 if (options.Roles.Server)
 {
+    using var serverTls = options.Server.Listen.Scheme == Uri.UriSchemeHttps
+        ? ServerTlsCertificateManager.LoadOrCreate(options)
+        : null;
     var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = OperationalDirectory(options) });
     ConfigureLogging(builder.Logging, options);
-    builder.WebHost.UseUrls(options.Server.Listen.ToString());
-    builder.WebHost.ConfigureKestrel(server => server.Limits.MaxRequestBodySize = 4 * 1024 * 1024);
+    if (serverTls is null) builder.WebHost.UseUrls(options.Server.Listen.ToString());
+    builder.WebHost.ConfigureKestrel(server =>
+    {
+        server.Limits.MaxRequestBodySize = 4 * 1024 * 1024;
+        if (serverTls is not null)
+        {
+            void ConfigureHttps(Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions listen) => listen.UseHttps(https =>
+            {
+                https.ServerCertificate = serverTls.Certificate;
+                if (options.Server.TlsServerNames.Count != 0)
+                    https.ServerCertificateSelector = (_, name) =>
+                        (name?.Equals("localhost", StringComparison.OrdinalIgnoreCase) == true
+                            || ServerTlsCertificateManager.MatchesServerName(options.Server.TlsServerNames, name))
+                            ? serverTls.Certificate
+                            : null;
+            });
+            var host = options.Server.Listen.Host;
+            if (host is "0.0.0.0" or "::" or "[::]" or "*" or "+") server.ListenAnyIP(options.Server.Listen.Port, ConfigureHttps);
+            else if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)) server.ListenLocalhost(options.Server.Listen.Port, ConfigureHttps);
+            else if (IPAddress.TryParse(host, out var address)) server.Listen(address, options.Server.Listen.Port, ConfigureHttps);
+            else server.ListenAnyIP(options.Server.Listen.Port, ConfigureHttps);
+        }
+    });
     AddServer(builder.Services, options);
     builder.Services.AddWindowsService(service => service.ServiceName = "LLMGlue");
     builder.Services.AddSystemd();
@@ -118,6 +145,8 @@ if (options.Roles.Server)
     app.UseMiddleware<ApiAuthenticationMiddleware>();
     app.MapGlueApi();
     app.Logger.LogInformation("Starting LLM Glue {Revision}", ProductInfo.Revision);
+    if (serverTls is not null)
+        app.Logger.LogInformation("HTTPS certificate {CertificatePath}; public-key SHA-256 {PublicKeySha256}", serverTls.CertificatePath, serverTls.PublicKeySha256);
     await app.RunAsync();
 }
 else
@@ -176,7 +205,9 @@ static void AddRemoteAgent(IServiceCollection services, GlueOptions options)
     AddDiscoveryAdapters(services, options);
     var destination = options.Agent.SubmitTo ?? throw new ConfigurationException("Agent-only role requires agent.submit_to.");
     var token = ResolveSecret(options.Agent.WriteToken, options.Agent.WriteTokenEnvironment, "Agent write token");
-    services.AddSingleton(new RemoteInventoryPublisher(new HttpClient { BaseAddress = EnsureTrailingSlash(destination), Timeout = TimeSpan.FromSeconds(30) }, token));
+    services.AddSingleton(new RemoteInventoryPublisher(TlsHttpClientFactory.Create(
+        EnsureTrailingSlash(destination), TimeSpan.FromSeconds(30),
+        options.Agent.AllowInvalidServerCertificate, options.Agent.TrustedServerPublicKeySha256), token));
     services.AddSingleton(TimeProvider.System);
     services.AddSingleton<IHostedService>(provider => new RemoteAgentDiscoveryService(
         provider.GetServices<IModelDiscoveryAdapter>(),
@@ -216,13 +247,31 @@ static void AddDiscoveryAdapters(IServiceCollection services, GlueOptions option
 
 static void AddClient(IServiceCollection services, GlueOptions options)
 {
-    var source = options.Client.Source ?? options.Server.Listen;
-    var sourceClient = new HttpClient { BaseAddress = source, Timeout = TimeSpan.FromSeconds(30) };
+    var source = EffectiveClientSource(options);
+    var trustedPublicKey = EffectiveClientPin(options);
+    var sourceClient = TlsHttpClientFactory.Create(source, TimeSpan.FromSeconds(30), options.Client.AllowInvalidServerCertificate, trustedPublicKey);
     var targets = CliCommands.CreateTargets(options);
     var token = ResolveSecret(options.Client.Token, options.Client.TokenEnvironment, "Client token");
     services.AddSingleton(new ArtifactSyncClient(sourceClient, targets, token));
     services.AddSingleton<IHostedService>(provider => new ClientPollingService(
         provider.GetRequiredService<ArtifactSyncClient>(), TimeSpan.FromSeconds(options.Client.PollIntervalSeconds), provider.GetRequiredService<ILogger<ClientPollingService>>()));
+}
+
+static Uri EffectiveClientSource(GlueOptions options)
+{
+    if (options.Client.Source is not null) return options.Client.Source;
+    var builder = new UriBuilder(options.Server.Listen);
+    if (builder.Scheme == Uri.UriSchemeHttps) builder.Host = "localhost";
+    else if (builder.Host is "0.0.0.0" or "::" or "[::]" or "*" or "+") builder.Host = "127.0.0.1";
+    return builder.Uri;
+}
+
+static string? EffectiveClientPin(GlueOptions options)
+{
+    if (options.Client.TrustedServerPublicKeySha256 is not null) return options.Client.TrustedServerPublicKeySha256;
+    if (options.Client.Source is not null || options.Server.Listen.Scheme != Uri.UriSchemeHttps) return null;
+    using var certificate = ServerTlsCertificateManager.LoadOrCreate(options);
+    return certificate.PublicKeySha256;
 }
 
 static Uri EnsureTrailingSlash(Uri value) => value.AbsoluteUri.EndsWith("/", StringComparison.Ordinal) ? value : new Uri(value.AbsoluteUri + "/", UriKind.Absolute);
@@ -231,7 +280,8 @@ static Uri? ServiceHealthUrl(GlueOptions options)
 {
     if (!options.Roles.Server) return null;
     var builder = new UriBuilder(options.Server.Listen) { Path = "/api/v1/health" };
-    if (builder.Host is "0.0.0.0" or "::" or "[::]") builder.Host = "127.0.0.1";
+    if (options.Server.Listen.Scheme == Uri.UriSchemeHttps) builder.Host = "localhost";
+    else if (builder.Host is "0.0.0.0" or "::" or "[::]") builder.Host = "127.0.0.1";
     return builder.Uri;
 }
 static string? ServiceHealthToken(GlueOptions options) => options.Roles.Server

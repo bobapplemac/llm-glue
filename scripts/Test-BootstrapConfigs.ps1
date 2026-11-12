@@ -35,11 +35,12 @@ try {
     if ($installerSource -notmatch "(?s)legacyInstallationExists.*?Preserving existing per-user service installation") { throw 'Windows bootstrap does not preserve an existing legacy per-user service installation.' }
     if ($installerSource -notmatch "(?s)machineInstallationExists.*?llm-glue\.toml.*?if \(-not \`$machineInstallationExists -and \`$legacyInstallationExists\)") { throw 'Windows bootstrap mistakes an existing ProgramData state/log directory for a machine installation.' }
     $remote = Join-Path $temporary 'remote'
-    & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://catalog.example -ServerToken test-read
+    & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://catalog.example:8765 -ServerToken test-read
     & (Join-Path $remote 'llm-glue.exe') config validate --config (Join-Path $remote 'llm-glue.conf')
     $remoteConfigBytes = [IO.File]::ReadAllBytes((Join-Path $remote 'llm-glue.conf'))
     if ($remoteConfigBytes.Length -ge 3 -and $remoteConfigBytes[0] -eq 0xEF -and $remoteConfigBytes[1] -eq 0xBB -and $remoteConfigBytes[2] -eq 0xBF) { throw 'Generated configuration unexpectedly contains a UTF-8 BOM.' }
     if (-not (Select-String -Quiet -SimpleMatch 'token = "test-read"' (Join-Path $remote 'llm-glue.conf'))) { throw 'Remote token was not generated.' }
+    if (-not (Select-String -Quiet -SimpleMatch 'allow_invalid_server_certificate = true' (Join-Path $remote 'llm-glue.conf'))) { throw 'Remote self-signed TLS trust mode was not generated.' }
     if (-not (Select-String -Quiet -SimpleMatch 'C:\\ProgramData\\opencode\\opencode.jsonc' (Join-Path $remote 'llm-glue.conf'))) { throw 'Remote client did not use the system JSONC default.' }
     $remoteHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $remote 'llm-glue.conf')).Hash
     & $installer -NonInteractive -Mode remote-client -InstallDirectory $remote -ServerUrl https://changed.example -ServerToken changed -OpenCodePath (Join-Path $temporary 'changed.json')
@@ -60,9 +61,12 @@ try {
     if (-not (Select-String -Quiet -SimpleMatch '[[agent.providers]]' (Join-Path $standalone 'llm-glue.conf'))) { throw 'Standalone provider was not generated.' }
 
     $central = Join-Path $temporary 'central'
-    & $installer -NonInteractive -Mode central-llama -InstallDirectory $central -ReadToken test-read -WriteToken test-write -InferenceApiKey test-inference -ListenUrl http://0.0.0.0:9876 -LiteLlmUrl http://litellm.test:4000 -ModelDirectory (Join-Path $temporary 'models') -LiteLlmGeneratedPath (Join-Path $temporary 'generated.yaml') -LiteLlmPrimaryPath (Join-Path $temporary 'litellm.yaml')
+    & $installer -NonInteractive -Mode central-llama -InstallDirectory $central -GenerateApiKeys -InferenceApiKey test-inference -ListenUrl https://0.0.0.0:9876 -TlsServerNames localhost,catalog.example -LiteLlmUrl http://litellm.test:4000 -ModelDirectory (Join-Path $temporary 'models') -LiteLlmGeneratedPath (Join-Path $temporary 'generated.yaml') -LiteLlmPrimaryPath (Join-Path $temporary 'litellm.yaml')
     & (Join-Path $central 'llm-glue.exe') config validate --config (Join-Path $central 'llm-glue.conf')
-    if (-not (Select-String -Quiet -SimpleMatch 'source = "http://127.0.0.1:9876"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central loopback source did not follow the listen port.' }
+    if (-not (Select-String -Quiet -SimpleMatch 'listen = "https://0.0.0.0:9876"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central HTTPS listener was not generated.' }
+    if (-not (Select-String -Quiet -SimpleMatch 'tls_server_names = ["localhost", "catalog.example"]' (Join-Path $central 'llm-glue.conf'))) { throw 'Central SNI names were not generated.' }
+    $centralText = Get-Content -LiteralPath (Join-Path $central 'llm-glue.conf') -Raw
+    if ($centralText -notmatch 'read_token = "[0-9a-f]{48}"' -or $centralText -notmatch 'write_token = "[0-9a-f]{48}"') { throw 'Central 24-byte API keys were not generated.' }
     if (-not (Select-String -Quiet -SimpleMatch 'type = "litellm"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central LiteLLM target was not generated.' }
     if (-not (Select-String -Quiet -SimpleMatch 'opencode_inference_url = "http://litellm.test:4000"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central OpenCode route does not use LiteLLM.' }
     if (-not (Select-String -Quiet -SimpleMatch 'opencode_inference_api_key = "test-inference"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central server did not receive the inference key for authenticated artifact embedding.' }

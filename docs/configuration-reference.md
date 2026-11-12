@@ -29,6 +29,8 @@ This file is generated from the same setting catalog used to reject unknown TOML
 | `agent.submit_to` | `HTTP(S) URI` | `none` | Remote Server root for Agent-only inventory submission. |
 | `agent.write_token_environment` | `string` | `none` | Environment variable containing the remote inventory write token. |
 | `agent.write_token` | `secret string` | `none` | Literal remote inventory write token; mutually exclusive with write_token_environment. |
+| `agent.allow_invalid_server_certificate` | `boolean` | `false` | Accept any TLS certificate for agent.submit_to; encrypts traffic without authenticating the Server. |
+| `agent.trusted_server_public_key_sha256` | `64-character hexadecimal SHA-256` | `none` | Require the Server certificate SubjectPublicKeyInfo hash to match, regardless of platform trust. |
 | `agent.discovery_interval_seconds` | `integer 1..3600` | `60` | Delay after each completed Agent discovery cycle. |
 | `agent.removal_grace_seconds` | `integer 1..3600` | `600` | Time an absent deployment remains degraded before removal. |
 
@@ -51,7 +53,7 @@ This file is generated from the same setting catalog used to reject unknown TOML
 
 | Setting | Type | Default / requirement | Description |
 |---|---|---|---|
-| `server.listen` | `HTTP URI` | `http://127.0.0.1:8765` | Kestrel listener. TLS termination is external. |
+| `server.listen` | `HTTP(S) URI` | `https://127.0.0.1:8765` | Kestrel listener; HTTPS uses file-based TLS settings below. |
 | `server.opencode_inference_url` | `HTTP(S) URI` | `none` | Client-reachable LiteLLM base URL used by central OpenCode artifacts. |
 | `server.embed_opencode_inference_api_key` | `boolean` | `true` | Embed the LiteLLM client key in authenticated OpenCode artifacts. |
 | `server.opencode_inference_api_key_environment` | `string` | `none` | Environment variable containing the embedded LiteLLM client key. |
@@ -64,6 +66,12 @@ This file is generated from the same setting catalog used to reject unknown TOML
 | `server.read_token` | `secret string` | `none` | Literal artifact/API read token. |
 | `server.write_token` | `secret string` | `none` | Literal Agent inventory write token. |
 | `server.acknowledge_insecure_remote_http` | `boolean` | `false` | Required acknowledgement for a non-loopback plaintext HTTP listener. |
+| `server.tls_auto_generate` | `boolean` | `true for HTTPS` | Create a 30-year self-signed PEM certificate/key when the configured files are absent. |
+| `server.tls_certificate_path` | `path` | `state/tls/server.crt when auto-generated` | PFX, PEM, or CRT server certificate file. |
+| `server.tls_private_key_path` | `path` | `state/tls/server.key when auto-generated` | PEM private-key file; required for PEM/CRT certificates and forbidden for PFX. |
+| `server.tls_certificate_password_environment` | `string` | `none` | Environment variable containing a PFX password. |
+| `server.tls_certificate_password` | `secret string` | `none` | Literal PFX password; mutually exclusive with the environment setting. |
+| `server.tls_server_names` | `array of DNS patterns` | `[]` | Exact, *.suffix, or * SNI names; unmatched TLS handshakes are refused, localhost remains available for local management, and names become auto-certificate SANs. |
 | `[[server.exclusions]]` | `array of tables` | `[]` | Publication-only exact/wildcard exclusion rules. |
 | `server.state_directory` | `path` | `state` | Durable catalog and artifact history directory. |
 | `server.artifact_retention` | `integer 1..3600` | `5` | Number of validated catalog/artifact states retained. |
@@ -94,6 +102,8 @@ This file is generated from the same setting catalog used to reject unknown TOML
 | `client.source` | `HTTP(S) URI` | `in-process Server listener` | Server root from which artifacts and status are fetched. |
 | `client.token_environment` | `string` | `none` | Environment variable containing the Server read token. |
 | `client.token` | `secret string` | `none` | Literal Server read token; mutually exclusive with token_environment. |
+| `client.allow_invalid_server_certificate` | `boolean` | `false` | Accept any TLS certificate for client.source; encrypts traffic without authenticating the Server. |
+| `client.trusted_server_public_key_sha256` | `64-character hexadecimal SHA-256` | `none` | Require the Server certificate SubjectPublicKeyInfo hash to match, regardless of platform trust. |
 | `client.poll_interval_seconds` | `integer 1..3600` | `60` | Delay between conditional artifact synchronization cycles. |
 | `[[client.targets]]` | `array of tables` | `[]` | Explicit local OpenCode or LiteLLM destinations. |
 

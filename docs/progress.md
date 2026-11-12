@@ -1,5 +1,27 @@
 # Progress
 
+## Post-r5 native HTTPS and self-signed provisioning
+
+- Kestrel now supports file-only PFX/P12 or PEM/CRT-plus-key TLS and defaults to
+  HTTPS on port 8765. Automatic mode creates a non-overwriting 3072-bit RSA,
+  SHA-256, Server Authentication PEM pair valid for 30 years.
+- Exact/wildcard SNI names restrict external handshakes and populate generated
+  SANs; `localhost` remains reserved for local management.
+  Agent and Client Server connections support normal platform validation, an
+  SPKI SHA-256 pin, or an explicit accept-any-invalid policy.
+- Both bootstrap installers show port 8765 in remote URL defaults, generate
+  self-signed HTTPS Server configurations, and can generate independent 24-byte
+  read/write API keys. Remote clients default to encrypted accept-any mode and
+  can instead receive a public-key pin.
+- Windows live-process qualification passed HTTPS health/status, correct-pin
+  acceptance, wrong-pin rejection, and unmatched-SNI refusal. PFX and PEM paths,
+  30-year validity, configuration validation, and pin logic have automated
+  coverage. The self-contained Linux build passed live HTTPS health and pinned
+  status retrieval under WSL; systemd qualification remains pending.
+- Release builds complete with zero warnings/errors and all 157 automated tests
+  pass. Both self-contained RIDs and the PowerShell/Bash mocked bootstrap
+  matrices pass, including random 24-byte API keys and generated TLS settings.
+
 ## Post-r4 generated operator references
 
 - Typed source catalogs now describe every CLI command/parameter and every

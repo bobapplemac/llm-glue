@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using LlmGlue.Core.Security;
 
 namespace LlmGlue.Operations;
 
@@ -215,7 +216,10 @@ public static partial class UpdateManager
 
     private static async Task<bool> VerifyLinuxServiceAsync(Uri? healthUrl, string? healthToken, CancellationToken cancellationToken)
     {
-        using var healthClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+        using var healthClient = TlsHttpClientFactory.Create(
+            null, TimeSpan.FromSeconds(2),
+            healthUrl?.Scheme == Uri.UriSchemeHttps,
+            trustedPublicKeySha256: null);
         for (var attempt = 0; attempt < 30; attempt++)
         {
             try
@@ -269,6 +273,7 @@ function Wait-State([string]$State) {
   throw "Service did not reach $State"
 }
 function Wait-Healthy {
+  if ($HealthUrl -like 'https://*') { [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true } }
   for ($i=0; $i -lt 30; $i++) {
     if ($HealthUrl) {
       try {

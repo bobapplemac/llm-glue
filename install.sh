@@ -4,13 +4,17 @@ set -euo pipefail
 repo="bobapplemac/llm-glue"
 install_service="${LLM_GLUE_INSTALL_SERVICE:-0}"
 mode="${LLM_GLUE_MODE:-remote-client}"
-server_url="${LLM_GLUE_SERVER_URL:-https://replace-with-your-server}"
+server_url="${LLM_GLUE_SERVER_URL:-https://replace-with-your-server:8765}"
 server_token="${LLM_GLUE_SERVER_TOKEN:-}"
 inference_api_key="${LLM_GLUE_INFERENCE_API_KEY:-}"
 embed_inference_api_key="${LLM_GLUE_EMBED_INFERENCE_API_KEY:-1}"
 read_token="${LLM_GLUE_READ_TOKEN:-}"
 write_token="${LLM_GLUE_WRITE_TOKEN:-}"
-listen_url="${LLM_GLUE_LISTEN_URL:-http://0.0.0.0:8765}"
+listen_url="${LLM_GLUE_LISTEN_URL:-https://0.0.0.0:8765}"
+generate_api_keys="${LLM_GLUE_GENERATE_API_KEYS:-0}"
+allow_invalid_server_certificate="${LLM_GLUE_ALLOW_INVALID_SERVER_CERTIFICATE:-1}"
+trusted_server_public_key_sha256="${LLM_GLUE_TRUSTED_SERVER_PUBLIC_KEY_SHA256:-}"
+tls_server_names="${LLM_GLUE_TLS_SERVER_NAMES:-localhost,$(hostname -f 2>/dev/null || hostname)}"
 ollama_url="${LLM_GLUE_OLLAMA_URL:-http://127.0.0.1:11434}"
 llama_url="${LLM_GLUE_LLAMA_URL:-http://127.0.0.1:8081}"
 model_directory="${LLM_GLUE_MODEL_DIRECTORY:-/mnt/models/gguf}"
@@ -60,12 +64,32 @@ toml_escape() {
   printf '%s' "$value"
 }
 
+random_hex_24() {
+  if command -v openssl >/dev/null 2>&1; then openssl rand -hex 24; else od -An -N24 -tx1 /dev/urandom | tr -d ' \n'; fi
+}
+
+toml_string_array() {
+  local value="$1" item first=1
+  printf '['
+  IFS=',' read -ra items <<< "$value"
+  for item in "${items[@]}"; do
+    item="${item#${item%%[![:space:]]*}}"; item="${item%${item##*[![:space:]]}}"
+    [[ -n "$item" ]] || continue
+    ((first)) || printf ', '
+    printf '"%s"' "$(toml_escape "$item")"
+    first=0
+  done
+  printf ']'
+}
+
 if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
   mode="$(prompt 'Installation mode [remote-client/standalone-ollama/central-llama]' "$mode")"
   case "$mode" in
     remote-client)
       server_url="$(prompt 'LLM Glue server URL' "$server_url")"
       server_token="$(prompt_secret 'Server read token (leave blank to use LLM_GLUE_READ_TOKEN at runtime)')"
+      trusted_server_public_key_sha256="$(prompt 'Pinned Server public-key SHA-256 (blank accepts any self-signed certificate)' "$trusted_server_public_key_sha256")"
+      [[ -z "$trusted_server_public_key_sha256" ]] || allow_invalid_server_certificate=0
       opencode_path="$(prompt 'OpenCode system config path' "$opencode_path")"
       ;;
     standalone-ollama)
@@ -76,8 +100,14 @@ if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
       llama_url="$(prompt 'llama.cpp URL' "$llama_url")"
       model_directory="$(prompt 'GGUF model directory' "$model_directory")"
       listen_url="$(prompt 'LLM Glue listen URL' "$listen_url")"
-      read_token="$(prompt_secret 'Remote client read token')"
-      write_token="$(prompt_secret 'Remote agent write token')"
+      tls_server_names="$(prompt 'TLS/SNI server names, comma separated' "$tls_server_names")"
+      printf 'Auto-generate 24-byte read/write API keys? [Y/n]: ' > /dev/tty
+      read -r answer < /dev/tty || true
+      [[ "$answer" =~ ^[Nn]$ ]] || generate_api_keys=1
+      if [[ "$generate_api_keys" != 1 ]]; then
+        read_token="$(prompt_secret 'Remote client read token')"
+        write_token="$(prompt_secret 'Remote agent write token')"
+      fi
       litellm_primary="$(prompt 'LiteLLM primary config path' "$litellm_primary")"
       litellm_generated="$(prompt 'LLM Glue LiteLLM include path' "$litellm_generated")"
       litellm_service="$(prompt 'LiteLLM systemd service' "$litellm_service")"
@@ -92,8 +122,13 @@ if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
   [[ "$answer" =~ ^[Yy]$ ]] && install_service=1
 fi
 
+if [[ "$mode" == central-llama && "$generate_api_keys" == 1 ]]; then
+  [[ -n "$read_token" ]] || read_token="$(random_hex_24)"
+  [[ -n "$write_token" ]] || write_token="$(random_hex_24)"
+fi
+
 [[ "$mode" == remote-client || "$mode" == standalone-ollama || "$mode" == central-llama ]] || { echo 'LLM_GLUE_MODE must be remote-client, standalone-ollama, or central-llama' >&2; exit 2; }
-if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" == 1 && "$mode" == remote-client && "$server_url" == https://replace-with-your-server ]]; then
+if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" == 1 && "$mode" == remote-client && "$server_url" == https://replace-with-your-server:8765 ]]; then
   echo 'Noninteractive remote-client installation requires LLM_GLUE_SERVER_URL.' >&2
   exit 2
 fi
@@ -110,6 +145,8 @@ if [[ "$mode" == central-llama && "$litellm_url" == http://replace-with-your-lit
   exit 2
 fi
 [[ "$embed_inference_api_key" == 0 || "$embed_inference_api_key" == 1 ]] || { echo 'LLM_GLUE_EMBED_INFERENCE_API_KEY must be 0 or 1.' >&2; exit 2; }
+[[ "$generate_api_keys" == 0 || "$generate_api_keys" == 1 ]] || { echo 'LLM_GLUE_GENERATE_API_KEYS must be 0 or 1.' >&2; exit 2; }
+[[ "$allow_invalid_server_certificate" == 0 || "$allow_invalid_server_certificate" == 1 ]] || { echo 'LLM_GLUE_ALLOW_INVALID_SERVER_CERTIFICATE must be 0 or 1.' >&2; exit 2; }
 if [[ "$mode" == central-llama && "$embed_inference_api_key" == 1 && -z "$inference_api_key" ]]; then
   echo 'central-llama requires LLM_GLUE_INFERENCE_API_KEY by default. Set LLM_GLUE_EMBED_INFERENCE_API_KEY=0 only when every OpenCode process receives that environment variable separately.' >&2
   exit 2
@@ -138,19 +175,21 @@ if [[ "$mode" == remote-client ]]; then
   {
     printf '%s\n' '[roles]' 'agent = false' 'server = false' 'client = true' '' '[client]' "source = \"$(toml_escape "$server_url")\""
     if [[ -n "$server_token" ]]; then printf 'token = "%s"\n' "$(toml_escape "$server_token")"; else printf '%s\n' 'token_environment = "LLM_GLUE_READ_TOKEN"'; fi
+    if [[ -n "$trusted_server_public_key_sha256" ]]; then printf 'trusted_server_public_key_sha256 = "%s"\n' "$(toml_escape "$trusted_server_public_key_sha256")"; else printf 'allow_invalid_server_certificate = %s\n' "$([[ "$allow_invalid_server_certificate" == 1 ]] && echo true || echo false)"; fi
     printf '%s\n' '' '[[client.targets]]' 'type = "opencode"' "path = \"$(toml_escape "$opencode_path")\""
   } > "$candidate"
 elif [[ "$mode" == standalone-ollama ]]; then
   state_path="state"; log_path="logs/llm-glue.log"
   if [[ "$install_service" == 1 ]]; then state_path="/var/lib/llm-glue"; log_path="/var/log/llm-glue/llm-glue.log"; fi
-  printf '%s\n' '[roles]' 'agent = true' 'server = true' 'client = true' '' '[[agent.providers]]' 'name = "local-ollama"' 'type = "ollama"' "url = \"$(toml_escape "$ollama_url")\"" '' '[server]' 'listen = "http://127.0.0.1:8765"' "state_directory = \"$state_path\"" '' '[client]' 'source = "http://127.0.0.1:8765"' '' '[[client.targets]]' 'type = "opencode"' "path = \"$(toml_escape "$opencode_path")\"" '' '[logging]' "file = \"$log_path\"" > "$candidate"
+  printf '%s\n' '[roles]' 'agent = true' 'server = true' 'client = true' '' '[[agent.providers]]' 'name = "local-ollama"' 'type = "ollama"' "url = \"$(toml_escape "$ollama_url")\"" '' '[server]' 'listen = "https://127.0.0.1:8765"' 'tls_auto_generate = true' 'tls_server_names = ["localhost"]' "state_directory = \"$state_path\"" '' '[client]' '' '[[client.targets]]' 'type = "opencode"' "path = \"$(toml_escape "$opencode_path")\"" '' '[logging]' "file = \"$log_path\"" > "$candidate"
 else
   [[ "$listen_url" =~ :([0-9]+)(/.*)?$ ]] || { echo 'LLM_GLUE_LISTEN_URL must include an explicit port' >&2; exit 2; }
-  local_source="http://127.0.0.1:${BASH_REMATCH[1]}"
   {
     printf '%s\n' '[roles]' 'agent = true' 'server = true' 'client = true' '' '[[agent.providers]]' 'name = "local-llama"' 'type = "llama.cpp"' "url = \"$(toml_escape "$llama_url")\"" "model_directories = [\"$(toml_escape "$model_directory")\"]" 'inspect_gguf = true' 'hash_model_files = false' 'probe_mode = "loaded-only"' '' '[server]' "listen = \"$(toml_escape "$listen_url")\"" "opencode_inference_url = \"$(toml_escape "$litellm_url")\""
     if [[ "$embed_inference_api_key" == 1 ]]; then printf 'embed_opencode_inference_api_key = true\nopencode_inference_api_key = "%s"\n' "$(toml_escape "$inference_api_key")"; else printf '%s\n' 'embed_opencode_inference_api_key = false'; fi
-    printf '%s\n' "read_token = \"$(toml_escape "$read_token")\"" "write_token = \"$(toml_escape "$write_token")\"" 'acknowledge_insecure_remote_http = true' 'state_directory = "/var/lib/llm-glue"' '' '[client]' "source = \"$local_source\"" "token = \"$(toml_escape "$read_token")\"" '' '[[client.targets]]' 'type = "litellm"' "path = \"$(toml_escape "$litellm_generated")\"" "primary_config_path = \"$(toml_escape "$litellm_primary")\"" "service_name = \"$(toml_escape "$litellm_service")\"" "health_url = \"$(toml_escape "$litellm_health")\"" '' '[logging]' 'file = "/var/log/llm-glue/llm-glue.log"'
+    printf '%s\n' 'tls_auto_generate = true'
+    printf 'tls_server_names = '; toml_string_array "$tls_server_names"; printf '\n'
+    printf '%s\n' "read_token = \"$(toml_escape "$read_token")\"" "write_token = \"$(toml_escape "$write_token")\"" 'state_directory = "/var/lib/llm-glue"' '' '[client]' "token = \"$(toml_escape "$read_token")\"" '' '[[client.targets]]' 'type = "litellm"' "path = \"$(toml_escape "$litellm_generated")\"" "primary_config_path = \"$(toml_escape "$litellm_primary")\"" "service_name = \"$(toml_escape "$litellm_service")\"" "health_url = \"$(toml_escape "$litellm_health")\"" '' '[logging]' 'file = "/var/log/llm-glue/llm-glue.log"'
   } > "$candidate"
 fi
 chmod 0600 "$candidate"

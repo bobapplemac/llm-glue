@@ -94,9 +94,9 @@ public sealed class DoctorTests
         var root = Path.Combine(Path.GetTempPath(), $"llm-glue-doctor-{Guid.NewGuid():N}");
         return new GlueOptions(
             new RoleOptions(providers.Count > 0, true, clientTokenEnvironment is not null),
-            new AgentOptions(providers, [], null, null, null, 30, 120),
-            new ServerOptions(new Uri("http://127.0.0.1:8765"), null, true, null, null, "llm-glue", [], "test-server", null, null, null, null, false, [], "state", 5),
-            new ClientOptions(null, clientTokenEnvironment, null, 30, []),
+            new AgentOptions(providers, [], null, null, null, false, null, 30, 120),
+            new ServerOptions(new Uri("http://127.0.0.1:8765"), null, true, null, null, "llm-glue", [], "test-server", null, null, null, null, false, false, null, null, null, null, [], [], "state", 5),
+            new ClientOptions(null, clientTokenEnvironment, null, false, null, 30, []),
             new LoggingOptions("Information", "logs/llm-glue.log", 10, 7),
             Path.Combine(root, "llm-glue.conf"),
             root);

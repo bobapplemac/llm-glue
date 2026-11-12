@@ -84,7 +84,7 @@ All three capabilities are optional and composable, including `agent,server,clie
 - Supporting vLLM, additional cloud APIs or other coding clients beyond extension points and documented future adapters.
 - A web management dashboard, multi-user administrative UI, distributed databases or a generalized job scheduler.
 - Automatically downloading untrusted code, executing model-card instructions or changing benchmark model sampling without evidence.
-- Mandatory TLS termination inside LLM Glue; the embedded HTTP server is plain HTTP, intended for loopback or private protected networks and optional user-provided reverse proxy.
+- Operating-system certificate-store integration or mandatory public-PKI trust. Native Kestrel TLS uses explicit certificate files; self-signed trust is configured per Agent/Client connection.
 
 ## 4. Core architecture
 
@@ -223,10 +223,11 @@ url = "http://127.0.0.1:8081"
 model_directories = ["/mnt/local-nvme-01/AI/models/gguf"]
 
 [server]
-listen = "http://127.0.0.1:8765"
+listen = "https://127.0.0.1:8765"
+tls_auto_generate = true
+tls_server_names = ["localhost"]
 
 [client]
-source = "http://127.0.0.1:8765"
 
 [[client.targets]]
 type = "litellm"
@@ -258,6 +259,7 @@ Ship self-contained, single-file publishes for `linux-x64` and `win-x64` where .
 - Repository root includes `install.sh` and `install.ps1`, designed for `curl ... | bash` and `irm ... | iex` usage, but documentation must explicitly explain the trust implications and provide a safer download/inspect/run alternative.
 - Choose appropriate OS/architecture, fetch the latest stable GitHub Release with pinned repository identity, verify release assets via published SHA-256 checksums and preferably cryptographic release provenance/signature, and reject failed verification.
 - Offer a sensible writable install directory; allow override. Ask which roles to enable and whether to register a service. Prompt for required initial server URL/token and target/provider paths only when necessary.
+- Server installation can generate independent read/write API keys using 24 cryptographically random bytes per key. Generated secrets are written only to the protected sidecar and are never logged.
 - Elevate via `sudo`/UAC only for the operations that require elevation; avoid executing arbitrary network-fetched content as root/admin before validation. Fail with clear instructions when noninteractive elevation is impossible.
 - Never silently overwrite existing configuration, run a destructive migration or erase stored credentials. Re-runs are idempotent/upgrades with backup.
 
@@ -304,7 +306,8 @@ Ship self-contained, single-file publishes for `linux-x64` and `win-x64` where .
 
 ## 9. Networking, security and resilience
 
-- Embedded Kestrel web server is HTTP-only; no native HTTPS feature for v1. Default to loopback binding. Remote HTTP access is explicitly enabled only on a trusted encrypted private network (e.g. NetBird), or placed behind a user-provided HTTPS reverse proxy. Refuse insecure remote exposure without an explicit operator acknowledgment and clearly warn that API tokens are not protected by bare HTTP transport.
+- Embedded Kestrel defaults to HTTPS on port 8765 using file-based certificate material only. Support PFX/P12 with an optional password and PEM/CRT plus a separate private-key file; do not require or select from an operating-system certificate store. When enabled, automatic generation creates a 30-year self-signed PEM certificate and key with configured SNI DNS names. Exact and wildcard SNI allowlists refuse unmatched handshakes. Plain remote HTTP remains available only with explicit acknowledgement.
+- Agent submission and Client artifact retrieval validate the platform trust chain by default. Operators may instead pin the SHA-256 SubjectPublicKeyInfo identifier of a self-signed Server certificate, or explicitly accept any invalid certificate when encryption without server authentication is the intended tradeoff. Pinning and accept-any are mutually exclusive and scoped only to the configured LLM Glue Server connection.
 - Separate read-only discovery credentials from artifact download and Agent inventory publication permissions. Prepare an authorization boundary for v2 management, but do not expose remote execution endpoints in v1.
 - **Approved v1 authentication policy:** API bearer-token authentication is **mandatory for non-loopback connections**, including remote Agent submission and remote Client artifact download. Authentication is optional only for loopback-only deployments. Determine endpoint permissions by role: remote read operations must be authenticated; inventory submissions need separate write authorization. Reject missing/invalid tokens with a non-leaking response, support token rotation, and never log tokens. Prevent proxy/header misconfiguration from accidentally treating non-loopback requests as loopback. A reverse proxy does not remove the server's remote authentication requirement by default.
 - Keep API token material in one sidecar file only if file permissions can protect it; prefer references to environment variables or OS credential stores when appropriate. Password encryption at rest is not intrinsically useful if the decryption key is shipped beside the config. Document the threat model before selecting optional encryption.

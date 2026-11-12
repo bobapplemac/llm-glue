@@ -4,6 +4,14 @@ Evidence date: 2026-11-11. “Live” means executed in the current Windows test
 environment; “source” means inspected official documentation or the installed
 release source. Live production qualification is tracked separately.
 
+Native .NET 10 Kestrel HTTPS is live-qualified on Windows with an auto-generated
+30-year PEM certificate/key. A permitted `localhost` SNI handshake returned the
+health/status API, a matching SubjectPublicKeyInfo SHA-256 pin succeeded, a wrong
+pin failed, and an IP handshake outside the configured SNI list was refused.
+The self-contained Linux build also passed live Kestrel HTTPS health and pinned
+status retrieval under WSL. Password-protected PFX loading is fixture-qualified;
+Linux systemd and cross-machine remote-Agent qualification remain pending.
+
 | Integration | Version | Evidence | Result |
 |---|---:|---|---|
 | OpenCode | 2.2.7 | Live Windows executable, two native Linux accounts, official schema/docs | System config wins conflicts for both accounts; nonconflicting user/project values survive; effective models available at `/api/model`; source arrays are not effective config; watched files apply without explicit reload in this test. |

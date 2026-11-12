@@ -55,7 +55,11 @@ public static class ServiceManager
             var unitPath = "/etc/systemd/system/llm-glue.service";
             var writable = options.Client.Targets.Select(x => Path.GetDirectoryName(Resolve(options, x.Path)))
                 .Where(x => x is not null).Cast<string>().ToList();
-            if (options.Roles.Server) writable.Add(Resolve(options, options.Server.StateDirectory));
+            if (options.Roles.Server)
+            {
+                writable.Add(Resolve(options, options.Server.StateDirectory));
+                writable.AddRange(TlsWritableDirectories(options));
+            }
             writable.Add(Path.GetDirectoryName(Resolve(options, options.Logging.File))!);
             var unit = new StringBuilder("[Unit]\nDescription=LLM Glue model discovery and configuration synchronization\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=notify\n")
                 .Append("ExecStart=\"").Append(EscapeSystemd(executable)).Append("\" run --config \"").Append(EscapeSystemd(options.ConfigPath)).Append("\"\n")
@@ -133,9 +137,15 @@ public static class ServiceManager
         var executablePath = Path.GetFullPath(executable);
         await RunAsync("icacls.exe", [executablePath, "/grant", "*S-1-5-19:(RX)"], cancellationToken);
         await RunAsync("icacls.exe", [options.ConfigPath, "/grant", "*S-1-5-19:(R)"], cancellationToken);
+        foreach (var tlsFile in TlsFiles(options).Where(File.Exists))
+            await RunAsync("icacls.exe", [tlsFile, "/grant", "*S-1-5-19:(R)"], cancellationToken);
         var directories = options.Client.Targets.Select(x => Path.GetDirectoryName(Resolve(options, x.Path)))
             .Where(x => x is not null).Cast<string>().ToList();
-        if (options.Roles.Server) directories.Add(Resolve(options, options.Server.StateDirectory));
+        if (options.Roles.Server)
+        {
+            directories.Add(Resolve(options, options.Server.StateDirectory));
+            directories.AddRange(TlsWritableDirectories(options));
+        }
         directories.Add(Path.GetDirectoryName(Resolve(options, options.Logging.File))!);
         foreach (var directory in directories.Distinct(StringComparer.OrdinalIgnoreCase))
             Directory.CreateDirectory(directory);
@@ -156,6 +166,13 @@ public static class ServiceManager
         File.SetUnixFileMode(options.ConfigPath, mode);
         await RunAsync("runuser", ["-u", LinuxUser, "--", "test", "-x", Path.GetFullPath(executable)], cancellationToken);
         await RunAsync("runuser", ["-u", LinuxUser, "--", "test", "-r", options.ConfigPath], cancellationToken);
+        foreach (var tlsFile in TlsFiles(options).Where(File.Exists))
+        {
+            await RunAsync("chgrp", [LinuxUser, tlsFile], cancellationToken);
+            var tlsMode = File.GetUnixFileMode(tlsFile) | UnixFileMode.GroupRead;
+            tlsMode &= ~(UnixFileMode.GroupWrite | UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute);
+            File.SetUnixFileMode(tlsFile, tlsMode);
+        }
         foreach (var directory in writableDirectories)
         {
             var created = !Directory.Exists(directory);
@@ -169,5 +186,17 @@ public static class ServiceManager
             }
             await RunAsync("runuser", ["-u", LinuxUser, "--", "test", "-w", directory], cancellationToken);
         }
+    }
+
+    private static IEnumerable<string> TlsFiles(GlueOptions options)
+    {
+        if (options.Server.TlsCertificatePath is not null) yield return Resolve(options, options.Server.TlsCertificatePath);
+        if (options.Server.TlsPrivateKeyPath is not null) yield return Resolve(options, options.Server.TlsPrivateKeyPath);
+    }
+
+    private static IEnumerable<string> TlsWritableDirectories(GlueOptions options)
+    {
+        if (!options.Server.TlsAutoGenerate) yield break;
+        foreach (var file in TlsFiles(options)) yield return Path.GetDirectoryName(file)!;
     }
 }
