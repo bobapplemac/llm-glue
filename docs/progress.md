@@ -112,13 +112,26 @@
 - Client conditional artifact polling remains independently configurable and now
   also defaults to 60 seconds for a consistent low-churn synchronization cadence.
 
-Last updated: 2026-11-11
+Last updated: 2026-11-12
 
 The requirement-level gate audit is maintained in `docs/completion-audit.md`.
 
 ## Current status
 
-- **Official release:** r5 is published from commit
+- **Official release:** r6 is published from commit
+  `8f8d0635491efbee436b3b17d0b27cd1bc281516`. The guarded publisher passed all
+  165 tests, verified generated-reference drift, built both self-contained RIDs,
+  and published exact-commit metadata with FileVersion `1.6.0.0`. GitHub's asset
+  digests match the local checksums: linux-x64
+  `91f8df592af4c6a60cdce4d1bfdfef4501a652b5ced82a579f34adfc1d10629c`
+  and win-x64
+  `01be7ca5cba71bf4bbc30494a36c8f46778d0918e16ab813f435fd1a17dfd8d5`.
+  Both packaged binaries report `LLM Glue r6`. This release contains the
+  post-r5 native HTTPS, trust, certificate lifecycle, SNI, installer, and API-key
+  provisioning work described above. Live installation/update qualification
+  remains separate from publication evidence.
+
+- **Previous official release:** r5 is published from commit
   `167131de6accbdd12deb8b08c9c2fa137372c21a`. The guarded publisher passed all
   148 tests, verified generated reference drift, built both self-contained RIDs,
   and published exact-commit metadata with FileVersion `1.5.0.0`. GitHub's asset

@@ -96,6 +96,21 @@ installation, single-token remote-client provisioning, 60-second polling,
 concise OpenCode namespaces, hostname-scoped LiteLLM aliases, and generated
 operator references.
 
+Official `r6` was published from
+`8f8d0635491efbee436b3b17d0b27cd1bc281516` on 2026-11-12 after explicit
+authorization. The guarded PowerShell publisher passed all 165 tests, verified
+the generated CLI/TOML references, and built both self-contained RIDs. The
+manifest records FileVersion `1.6.0.0` and the exact commit. The published
+SHA-256 values are
+`91f8df592af4c6a60cdce4d1bfdfef4501a652b5ced82a579f34adfc1d10629c`
+for linux-x64 and
+`01be7ca5cba71bf4bbc30494a36c8f46778d0918e16ab813f435fd1a17dfd8d5`
+for win-x64; GitHub's asset digests match. This release makes native self-signed
+HTTPS the default, adds file-only PEM/full-chain and password-protected PFX TLS,
+SNI policy, Agent/Client trust controls, API-key generation, explicit
+validate/reload/renew/regenerate commands, zero-restart activation, and automatic
+398-day same-key renewal 90 days before expiry.
+
 Both publishers require exactly one remote named `origin`, an `origin/<branch>`
 upstream, and the pinned raw remote URL `github.com/bobapplemac/llm-glue`. This
 prevents an otherwise clean checkout from publishing the project identity from an

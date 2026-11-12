@@ -3,7 +3,7 @@
 Official release assets are self-contained single files for `win-x64` and
 `linux-x64`. The Linux executable uses invariant globalization and does not
 require ICU; it was executed and service-qualified on Debian 13.5. Normal OS
-facilities such as glibc and systemd remain platform dependencies. Official `r5`
+facilities such as glibc and systemd remain platform dependencies. Official `r6`
 assets are available from GitHub Releases; ordinary development builds continue
 to identify as `r0` outside the guarded release path.
 
