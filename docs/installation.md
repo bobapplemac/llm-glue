@@ -142,6 +142,16 @@ Replacement of a non-self-signed certificate requires `--force`. Regeneration
 normally changes the public-key SHA-256 identifier, so update every pinned Agent
 and Client afterward.
 
+To extend an existing RSA self-signed certificate for another 30 years while
+retaining its subject, private key, and public-key SHA-256 pin, use:
+
+```text
+llm-glue tls renew --config /etc/llm-glue/llm-glue.conf
+```
+
+Renewal refuses publicly issued certificates; install those renewed files with
+the issuing tool and call `tls reload`.
+
 Remote Clients and Agent-only hosts should preferably copy the identifier from
 Server `doctor` output:
 

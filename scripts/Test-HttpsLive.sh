@@ -30,6 +30,9 @@ printf '%s\n' '[roles]' 'agent=false' 'server=false' 'client=true' '[client]' \
 "$binary" status --config "$client" >/dev/null
 "$binary" tls validate --config "$server" >/dev/null
 "$binary" tls reload --config "$server" >/dev/null
+"$binary" tls renew --config "$server" >/dev/null
+renewed_pin="$($binary doctor --config "$server" | sed -n 's/^Server TLS public-key SHA-256: //p')"
+[[ "$renewed_pin" == "$pin" ]] || { echo 'TLS renewal changed the public-key pin' >&2; exit 1; }
 "$binary" tls regenerate --config "$server" >/dev/null
 replacement_pin="$($binary doctor --config "$server" | sed -n 's/^Server TLS public-key SHA-256: //p')"
 [[ "$replacement_pin" =~ ^[0-9a-f]{64}$ && "$replacement_pin" != "$pin" ]] || { echo 'TLS regeneration did not rotate the public key' >&2; exit 1; }

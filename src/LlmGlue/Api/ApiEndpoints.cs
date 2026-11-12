@@ -31,12 +31,13 @@ public static class ApiEndpoints
                 return Results.Conflict(new { error = "stale_inventory" });
             return Results.Accepted(value: new { revision = canonical.ContentHash });
         });
-        api.MapPost("/tls/reload", (HttpContext context, IServiceProvider services) => TlsOperation(context, services, regenerate: false, force: false));
-        api.MapPost("/tls/regenerate", (bool force, HttpContext context, IServiceProvider services) => TlsOperation(context, services, regenerate: true, force));
+        api.MapPost("/tls/reload", (HttpContext context, IServiceProvider services) => TlsOperation(context, services, "reloaded", force: false));
+        api.MapPost("/tls/renew", (HttpContext context, IServiceProvider services) => TlsOperation(context, services, "renewed", force: false));
+        api.MapPost("/tls/regenerate", (bool force, HttpContext context, IServiceProvider services) => TlsOperation(context, services, "regenerated", force));
         return endpoints;
     }
 
-    private static IResult TlsOperation(HttpContext context, IServiceProvider services, bool regenerate, bool force)
+    private static IResult TlsOperation(HttpContext context, IServiceProvider services, string operation, bool force)
     {
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("LlmGlue.TlsManagement");
         if (context.Connection.RemoteIpAddress is not { } address || !IPAddress.IsLoopback(address))
@@ -52,10 +53,15 @@ public static class ApiEndpoints
         if (tls is null) return Results.BadRequest(new { error = "https_not_enabled" });
         try
         {
-            var result = regenerate ? tls.Regenerate(force) : tls.Reload();
+            var result = operation switch
+            {
+                "regenerated" => tls.Regenerate(force),
+                "renewed" => tls.Renew(),
+                _ => tls.Reload()
+            };
             logger.LogInformation(
                 "TLS certificate {Operation}; changed={Changed}; certificate SHA-256 {PreviousCertificateSha256} -> {CertificateSha256}; public-key SHA-256 {PreviousPublicKeySha256} -> {PublicKeySha256}",
-                regenerate ? "regenerated" : "reloaded", result.Changed, result.PreviousCertificateSha256, result.CertificateSha256,
+                operation, result.Changed, result.PreviousCertificateSha256, result.CertificateSha256,
                 result.PreviousPublicKeySha256, result.PublicKeySha256);
             return Results.Ok(result);
         }

@@ -46,8 +46,10 @@ the certificate itself is not installed in a certificate store.
 
 Certificate changes are explicit rather than watched automatically. `tls
 validate` checks files without mutating the running process; authenticated local
-`tls reload` swaps a validated certificate context for new TLS connections; and
-`tls regenerate` creates and adopts a new self-signed certificate. Failed loads
+`tls reload` swaps a validated certificate context for new TLS connections;
+`tls renew` issues a fresh 30-year RSA self-signed certificate with the existing
+subject/private key and therefore the same SPKI pin; and `tls regenerate` creates
+and adopts a new self-signed certificate and key. Failed loads
 leave the prior in-memory certificate active. Retired contexts remain alive until
 shutdown so concurrent handshakes cannot observe disposed key material. External
 automation such as ACME should install files, validate them, then call reload.

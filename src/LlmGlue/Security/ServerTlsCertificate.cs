@@ -58,6 +58,8 @@ public sealed class ReloadableServerTlsCertificate : IDisposable
 
     public ServerTlsReloadResult Regenerate(bool force) => Swap(ServerTlsCertificateManager.RegenerateSelfSigned(options, force));
 
+    public ServerTlsReloadResult Renew() => Swap(ServerTlsCertificateManager.RenewSelfSigned(options));
+
     private ServerTlsReloadResult Swap(ServerTlsCertificate replacement)
     {
         lock (sync)
@@ -152,6 +154,32 @@ public static class ServerTlsCertificateManager
         }
     }
 
+    public static ServerTlsCertificate RenewSelfSigned(GlueOptions options)
+    {
+        var paths = ResolveMaterial(options);
+        var id = Guid.NewGuid().ToString("N");
+        var candidateCertificate = CandidatePath(paths.Certificate, id);
+        try
+        {
+            using var existing = LoadExisting(options);
+            if (!existing.Certificate.SubjectName.RawData.AsSpan().SequenceEqual(existing.Certificate.IssuerName.RawData))
+                throw new ConfigurationException("TLS renewal applies only to a self-signed certificate; install a renewed public certificate and use tls reload instead.");
+            using var key = existing.Certificate.GetRSAPrivateKey()
+                ?? throw new ConfigurationException("TLS renewal currently requires an RSA self-signed certificate.");
+            using var certificate = CreateSelfSigned(options, key, existing.Certificate.SubjectName);
+            if (paths.Pfx) WriteAtomic(candidateCertificate, certificate.Export(X509ContentType.Pkcs12, paths.Password));
+            else WriteAtomic(candidateCertificate, System.Text.Encoding.ASCII.GetBytes(certificate.ExportCertificatePem()));
+            Restrict(candidateCertificate);
+            using (LoadMaterial(new MaterialPaths(candidateCertificate, paths.PrivateKey, paths.Pfx, paths.Password))) { }
+            ReplaceMaterial([(candidateCertificate, paths.Certificate)], id);
+            return LoadMaterial(paths);
+        }
+        finally
+        {
+            if (File.Exists(candidateCertificate)) File.Delete(candidateCertificate);
+        }
+    }
+
     public static bool MatchesServerName(IReadOnlyList<string> patterns, string? serverName)
     {
         if (patterns.Count == 0) return true;
@@ -190,7 +218,7 @@ public static class ServerTlsCertificateManager
         {
             if (paths.Pfx)
             {
-                var collection = X509CertificateLoader.LoadPkcs12CollectionFromFile(paths.Certificate, paths.Password, X509KeyStorageFlags.DefaultKeySet);
+                var collection = X509CertificateLoader.LoadPkcs12CollectionFromFile(paths.Certificate, paths.Password, X509KeyStorageFlags.DefaultKeySet | X509KeyStorageFlags.Exportable);
                 certificate = collection.Cast<X509Certificate2>().FirstOrDefault(item => item.HasPrivateKey)
                     ?? throw new CryptographicException("The PFX/P12 file does not contain a certificate with a private key.");
                 collection.Remove(certificate);
@@ -199,7 +227,7 @@ public static class ServerTlsCertificateManager
             else
             {
                 using var pem = X509Certificate2.CreateFromPemFile(paths.Certificate, paths.PrivateKey!);
-                certificate = X509CertificateLoader.LoadPkcs12(pem.Export(X509ContentType.Pkcs12), null, X509KeyStorageFlags.DefaultKeySet);
+                certificate = X509CertificateLoader.LoadPkcs12(pem.Export(X509ContentType.Pkcs12), null, X509KeyStorageFlags.DefaultKeySet | X509KeyStorageFlags.Exportable);
                 var collection = new X509Certificate2Collection();
                 collection.ImportFromPemFile(paths.Certificate);
                 foreach (var item in collection)
@@ -255,7 +283,22 @@ public static class ServerTlsCertificateManager
         using var key = RSA.Create(3072);
         var names = SubjectNames(options).ToArray();
         var commonName = names.FirstOrDefault(name => name != "*" && !name.StartsWith("*.", StringComparison.Ordinal)) ?? "localhost";
-        var request = new CertificateRequest(new X500DistinguishedName($"CN={commonName}"), key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var certificate = CreateSelfSigned(options, key, new X500DistinguishedName($"CN={commonName}"));
+
+        if (IsPfx(certificatePath)) WriteAtomic(certificatePath, certificate.Export(X509ContentType.Pkcs12, password));
+        else
+        {
+            WriteAtomic(certificatePath, System.Text.Encoding.ASCII.GetBytes(certificate.ExportCertificatePem()));
+            WriteAtomic(keyPath!, System.Text.Encoding.ASCII.GetBytes(key.ExportPkcs8PrivateKeyPem()));
+        }
+        Restrict(certificatePath);
+        if (keyPath is not null) Restrict(keyPath);
+    }
+
+    private static X509Certificate2 CreateSelfSigned(GlueOptions options, RSA key, X500DistinguishedName subject)
+    {
+        var names = SubjectNames(options).ToArray();
+        var request = new CertificateRequest(subject, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
         request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment, true));
         request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension([new Oid("1.3.6.1.5.5.7.3.1")], true));
@@ -268,16 +311,7 @@ public static class ServerTlsCertificateManager
         san.AddIpAddress(IPAddress.Loopback);
         san.AddIpAddress(IPAddress.IPv6Loopback);
         request.CertificateExtensions.Add(san.Build());
-        using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddYears(30));
-
-        if (IsPfx(certificatePath)) WriteAtomic(certificatePath, certificate.Export(X509ContentType.Pkcs12, password));
-        else
-        {
-            WriteAtomic(certificatePath, System.Text.Encoding.ASCII.GetBytes(certificate.ExportCertificatePem()));
-            WriteAtomic(keyPath!, System.Text.Encoding.ASCII.GetBytes(key.ExportPkcs8PrivateKeyPem()));
-        }
-        Restrict(certificatePath);
-        if (keyPath is not null) Restrict(keyPath);
+        return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddYears(30));
     }
 
     private static void ReplaceMaterial(IReadOnlyList<(string Candidate, string Destination)> files, string id)

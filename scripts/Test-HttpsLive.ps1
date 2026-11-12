@@ -34,6 +34,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'TLS validation failed.' }
     & $Binary tls reload --config $server *> $null
     if ($LASTEXITCODE -ne 0) { throw 'TLS reload failed.' }
+    & $Binary tls renew --config $server *> $null
+    if ($LASTEXITCODE -ne 0) { throw 'TLS renewal failed.' }
+    $renewedDoctor = & $Binary doctor --config $server
+    $renewedPin = (($renewedDoctor | Select-String '^Server TLS public-key SHA-256: ([0-9a-f]{64})$').Matches.Groups[1].Value)
+    if ($renewedPin -ne $pin) { throw 'TLS renewal changed the public-key pin.' }
     & $Binary tls regenerate --config $server *> $null
     if ($LASTEXITCODE -ne 0) { throw 'TLS regeneration failed.' }
     $doctor = & $Binary doctor --config $server

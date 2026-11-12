@@ -110,6 +110,9 @@ public static class CliCommands
     public static Task<int> ReloadTlsAsync(GlueOptions options, CancellationToken cancellationToken) =>
         InvokeTlsOperationAsync(options, "api/v1/tls/reload", cancellationToken);
 
+    public static Task<int> RenewTlsAsync(GlueOptions options, CancellationToken cancellationToken) =>
+        InvokeTlsOperationAsync(options, "api/v1/tls/renew", cancellationToken);
+
     public static Task<int> RegenerateTlsAsync(GlueOptions options, bool force, CancellationToken cancellationToken) =>
         InvokeTlsOperationAsync(options, $"api/v1/tls/regenerate?force={force.ToString().ToLowerInvariant()}", cancellationToken);
 
@@ -132,7 +135,7 @@ public static class CliCommands
         }
         var result = JsonSerializer.Deserialize<ServerTlsReloadResult>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
             ?? throw new InvalidOperationException("Server returned an empty TLS operation result.");
-        Console.WriteLine(result.Changed ? "TLS certificate reloaded." : "TLS certificate was already current.");
+        Console.WriteLine(result.Changed ? "TLS certificate activated." : "TLS certificate was already current.");
         Console.WriteLine($"Certificate SHA-256: {result.CertificateSha256}");
         Console.WriteLine($"Public-key SHA-256: {result.PublicKeySha256}");
         if (!string.Equals(result.PreviousPublicKeySha256, result.PublicKeySha256, StringComparison.Ordinal))

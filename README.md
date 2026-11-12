@@ -96,8 +96,9 @@ New Servers default to native Kestrel HTTPS on port 8765 and can create a
 PEM/CRT certificates are supported; certificate-store configuration is not.
 Remote Agents and Clients can use normal platform trust, pin the Server public
 key's SHA-256 identifier, or explicitly accept any invalid certificate.
-Certificate validation, guarded self-signed regeneration, and explicit hot
-reload are available through `llm-glue tls`; certificate files are not watched.
+Certificate validation, same-key self-signed renewal, guarded regeneration, and
+explicit hot reload are available through `llm-glue tls`; certificate files are
+not watched.
 
 OpenCode destination scope is explicit: configure the system file for a global
 catalog, or repeat `[[client.targets]]` with one path per selected user. Existing

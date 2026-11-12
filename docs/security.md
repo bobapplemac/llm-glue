@@ -12,8 +12,9 @@ is inventory submission and read-only catalog/artifact retrieval.
   trusting it machine-wide. `allow_invalid_server_certificate = true` provides
   encryption without server authentication and is vulnerable to an active
   man-in-the-middle; it is mutually exclusive with pinning.
-- TLS reload and self-signed regeneration are local-only POST operations. When a
-  Server write token is configured they require it even on loopback. Candidate
+- TLS reload, same-key self-signed renewal, and regeneration are local-only POST
+  operations. When a Server write token is configured they require it even on
+  loopback. Candidate
   leaf/key/chain material is fully loaded before the active context changes; a
   failed operation retains the old certificate. There is no certificate watcher.
 - Proxy headers never convert a remote peer into loopback. The unauthenticated

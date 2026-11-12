@@ -200,6 +200,8 @@ TLS connection. An authenticated local reload validates the leaf, key, validity,
 Server Authentication EKU, and PEM/PFX chain before swapping that reference;
 failed validation retains the prior context. Existing TLS connections continue
 normally, while new connections receive the replacement certificate.
+Self-signed renewal reissues from the existing RSA private key and subject so the
+SPKI pin remains stable; regeneration deliberately creates a new key and pin.
 An HTTPS listener pinned to a concrete non-loopback IP also binds a loopback-only
 management endpoint on the same port so health, update, and TLS lifecycle commands
 do not depend on routing through the external interface.

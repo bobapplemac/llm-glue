@@ -46,7 +46,15 @@ public sealed class TlsTests
             """);
         try
         {
-            using var generated = ServerTlsCertificateManager.LoadOrCreate(TomlConfigLoader.Load(generatedConfig));
+            var generatedOptions = TomlConfigLoader.Load(generatedConfig);
+            using var generated = ServerTlsCertificateManager.LoadOrCreate(generatedOptions);
+            var originalPin = generated.PublicKeySha256;
+            using (var holder = new ReloadableServerTlsCertificate(generatedOptions))
+            {
+                var renewed = holder.Renew();
+                Assert.True(renewed.Changed);
+                Assert.Equal(originalPin, renewed.PublicKeySha256);
+            }
             var config = Path.Combine(directory, "pfx.conf");
             File.WriteAllText(config, $$"""
                 [roles]
@@ -138,6 +146,31 @@ public sealed class TlsTests
     }
 
     [Fact]
+    public void RenewsSelfSignedCertificateWithoutChangingPublicKeyPinOrPemKey()
+    {
+        var directory = CreateDirectory();
+        var config = Path.Combine(directory, "llm-glue.conf");
+        File.WriteAllText(config, "[roles]\nagent=false\nserver=true\nclient=false\n");
+        try
+        {
+            var options = TomlConfigLoader.Load(config);
+            using var holder = new ReloadableServerTlsCertificate(options);
+            var originalPin = holder.Current.PublicKeySha256;
+            var originalCertificate = holder.Current.CertificateSha256;
+            var originalSubject = holder.Current.Certificate.Subject;
+            var key = File.ReadAllBytes(holder.Current.PrivateKeyPath!);
+            var result = holder.Renew();
+            Assert.True(result.Changed);
+            Assert.Equal(originalPin, result.PublicKeySha256);
+            Assert.Equal(originalPin, result.PreviousPublicKeySha256);
+            Assert.NotEqual(originalCertificate, result.CertificateSha256);
+            Assert.Equal(originalSubject, holder.Current.Certificate.Subject);
+            Assert.Equal(key, File.ReadAllBytes(holder.Current.PrivateKeyPath!));
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
     public void FailedReloadKeepsPreviouslyActiveCertificate()
     {
         var directory = CreateDirectory();
@@ -194,6 +227,7 @@ public sealed class TlsTests
             using var loaded = ServerTlsCertificateManager.LoadExisting(TomlConfigLoader.Load(config));
             Assert.Single(loaded.Chain);
             Assert.NotNull(loaded.CertificateContext);
+            Assert.Contains("only to a self-signed", Assert.Throws<ConfigurationException>(() => ServerTlsCertificateManager.RenewSelfSigned(TomlConfigLoader.Load(config))).Message);
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

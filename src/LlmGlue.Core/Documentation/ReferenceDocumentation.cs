@@ -124,6 +124,7 @@ public static class ReferenceDocumentation
         C("doctor", "Check configured secret sources, providers, and target paths."),
         C("tls validate", "Load and validate the configured certificate, private key, validity, Server Authentication usage, and chain without changing the running Server."),
         C("tls reload", "Ask the local running Server to validate and adopt the certificate files for new TLS connections without restarting."),
+        C("tls renew", "Issue and immediately adopt a fresh 30-year self-signed certificate using the existing RSA private key, preserving the public-key pin."),
         C("tls regenerate", "Ask the local running Server to transactionally replace its current certificate with a new 30-year self-signed certificate and adopt it immediately.",
             new CliParameter("--force", "Allow replacement when the current certificate is not self-signed.")),
         C("config validate", "Parse and validate the selected TOML configuration."),

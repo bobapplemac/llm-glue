@@ -83,6 +83,7 @@ if (args.FirstOrDefault() == "service")
 if (args.FirstOrDefault() == "doctor") { Environment.ExitCode = await CliCommands.DoctorAsync(options, CancellationToken.None); return; }
 if (args.Take(2).SequenceEqual(["tls", "validate"])) { Environment.ExitCode = CliCommands.ValidateTls(options); return; }
 if (args.Take(2).SequenceEqual(["tls", "reload"])) { Environment.ExitCode = await CliCommands.ReloadTlsAsync(options, CancellationToken.None); return; }
+if (args.Take(2).SequenceEqual(["tls", "renew"])) { Environment.ExitCode = await CliCommands.RenewTlsAsync(options, CancellationToken.None); return; }
 if (args.Take(2).SequenceEqual(["tls", "regenerate"])) { Environment.ExitCode = await CliCommands.RegenerateTlsAsync(options, args.Contains("--force", StringComparer.Ordinal), CancellationToken.None); return; }
 if (args.FirstOrDefault() == "discover") { Environment.ExitCode = await CliCommands.DiscoverAsync(options, CancellationToken.None); return; }
 if (args.Take(2).SequenceEqual(["config", "preview"])) { Environment.ExitCode = await CliCommands.PreviewAsync(options, args.ElementAtOrDefault(2) ?? "opencode", CancellationToken.None); return; }
