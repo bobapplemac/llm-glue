@@ -41,11 +41,13 @@ public static class TomlConfigLoader
             PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");
-        CheckKeys(server, "server", "listen", "opencode_inference_url", "embed_opencode_inference_api_key", "opencode_inference_api_key_environment", "opencode_inference_api_key", "opencode_namespace", "opencode_namespace_overrides", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
+        CheckKeys(server, "server", "listen", "opencode_inference_url", "embed_opencode_inference_api_key", "opencode_inference_api_key_environment", "opencode_inference_api_key", "opencode_namespace", "opencode_namespace_overrides", "litellm_namespace", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
         var openCodeInferenceUrl = OptionalString(server, "opencode_inference_url");
         var openCodeNamespace = String(server, "opencode_namespace", "llm-glue");
         ValidateOpenCodeNamespace(openCodeNamespace, "server.opencode_namespace");
         var openCodeNamespaceOverrides = TableArray(server, "opencode_namespace_overrides").Select(ReadOpenCodeNamespaceOverride).ToArray();
+        var liteLlmNamespace = OptionalString(server, "litellm_namespace") ?? NormalizeNamespace(Environment.MachineName);
+        ValidateNamespace(liteLlmNamespace, "server.litellm_namespace");
         var serverOptions = new ServerOptions(
             AbsoluteUri(String(server, "listen", "http://127.0.0.1:8765"), "server.listen"),
             openCodeInferenceUrl is null ? null : HttpUri(openCodeInferenceUrl, "server.opencode_inference_url"),
@@ -54,6 +56,7 @@ public static class TomlConfigLoader
             OptionalString(server, "opencode_inference_api_key"),
             openCodeNamespace,
             openCodeNamespaceOverrides,
+            liteLlmNamespace,
             OptionalString(server, "read_token_environment"), OptionalString(server, "write_token_environment"),
             OptionalString(server, "read_token"), OptionalString(server, "write_token"),
             Bool(server, "acknowledge_insecure_remote_http", false),
@@ -119,10 +122,23 @@ public static class TomlConfigLoader
 
     private static void ValidateOpenCodeNamespace(string value, string field)
     {
-        if (value.Length > 64 || value[0] == '-' || value[^1] == '-' || value.Any(character => !(char.IsAsciiLetterOrDigit(character) || character == '-')))
-            throw new ConfigurationException($"'{field}' must contain only ASCII letters, digits, and interior hyphens, with a maximum length of 64.");
+        ValidateNamespace(value, field);
         if (value.Equals("opencode", StringComparison.OrdinalIgnoreCase) || value.Equals("ollama", StringComparison.OrdinalIgnoreCase))
             throw new ConfigurationException($"'{field}' cannot use the reserved built-in OpenCode provider namespace '{value}'.");
+    }
+
+    private static void ValidateNamespace(string value, string field)
+    {
+        if (value.Length > 64 || value[0] == '-' || value[^1] == '-' || value.Any(character => !(char.IsAsciiLetterOrDigit(character) || character == '-')))
+            throw new ConfigurationException($"'{field}' must contain only ASCII letters, digits, and interior hyphens, with a maximum length of 64.");
+    }
+
+    private static string NormalizeNamespace(string value)
+    {
+        var normalized = new string(value.ToLowerInvariant().Select(character => char.IsAsciiLetterOrDigit(character) ? character : '-').ToArray());
+        while (normalized.Contains("--", StringComparison.Ordinal)) normalized = normalized.Replace("--", "-", StringComparison.Ordinal);
+        normalized = normalized.Trim('-');
+        return normalized.Length == 0 ? "llm-glue" : normalized[..Math.Min(normalized.Length, 64)].TrimEnd('-');
     }
 
     private static void ValidateOpenCodeInferenceSecret(ServerOptions server)

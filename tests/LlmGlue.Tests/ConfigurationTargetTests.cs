@@ -475,7 +475,7 @@ public sealed class ConfigurationTargetTests
             var artifact = await new LiteLlmGenerator().GenerateAsync(GenerationTests.Snapshot(), TestContext.Current.CancellationToken);
             await new LiteLlmTarget(generated, primary, new AtomicFileInstaller(), new NoOpTargetActivator()).ApplyAsync(artifact, TestContext.Current.CancellationToken);
             Assert.Equal(primaryText, await File.ReadAllTextAsync(primary, TestContext.Current.CancellationToken));
-            Assert.Contains("llama-cpp-lab-qwen-model", await File.ReadAllTextAsync(generated, TestContext.Current.CancellationToken));
+            Assert.Contains("llm-glue-qwen-model", await File.ReadAllTextAsync(generated, TestContext.Current.CancellationToken));
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -492,7 +492,7 @@ public sealed class ConfigurationTargetTests
             await File.WriteAllTextAsync(primary, "model_list: []\n", TestContext.Current.CancellationToken);
             var target = new LiteLlmTarget(generated, primary, new AtomicFileInstaller(), new NoOpTargetActivator());
             Assert.Contains("does not include", (await Assert.ThrowsAsync<InvalidOperationException>(() => target.ApplyAsync(artifact, TestContext.Current.CancellationToken))).Message);
-            await File.WriteAllTextAsync(primary, "include: [llm-glue-models.yaml]\nmodel_list:\n  - model_name: llama-cpp-lab-qwen-model\n", TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(primary, "include: [llm-glue-models.yaml]\nmodel_list:\n  - model_name: llm-glue-qwen-model\n", TestContext.Current.CancellationToken);
             Assert.Contains("alias collision", (await Assert.ThrowsAsync<InvalidOperationException>(() => target.ApplyAsync(artifact, TestContext.Current.CancellationToken))).Message);
         }
         finally { Directory.Delete(directory, true); }

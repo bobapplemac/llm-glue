@@ -114,6 +114,12 @@ LiteLLM aliases as internal `modelID` values. Golden and reconciliation tests
 cover this shape; live OpenCode/Paseo qualification of the concise visible key
 remains required before the next release.
 
+Post-r4 LiteLLM aliases also replace provider/instance provenance with the
+configurable normalized Server hostname, for example
+`labhost03-bench-01-01`. OpenCode references the same alias as its internal
+`modelID`. Automated golden and cross-generator tests pass; the renamed alias
+still requires end-to-end labhost03 qualification before release.
+
 Reproduce with Python 3.10+ and `litellm[proxy]==1.109.0` installed by running
 `make test-litellm PYTHON=/path/to/venv/bin/python`. Add
 `OPENCODE=/path/to/opencode` to include the OpenCode 2.2.7 path. The harness binds

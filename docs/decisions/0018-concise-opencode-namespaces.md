@@ -20,7 +20,7 @@ need to expose that routing detail.
   source to the rule's namespace. The instance ID is the Agent provider's
   configured name.
 - OpenCode model keys remain the source model IDs. The internal `modelID` remains
-  the stable LiteLLM alias for central routing.
+  the stable, Server-scoped LiteLLM alias defined by ADR 0019 for central routing.
 - A namespace with duplicate model IDs fails generation. A direct-routing
   namespace spanning multiple endpoints also fails because one OpenCode provider
   has only one base URL. Both diagnostics require an explicit namespace split;

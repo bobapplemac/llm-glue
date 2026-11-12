@@ -110,7 +110,9 @@ retain diagnostic visibility while omitting matches from generated catalogs.
 OpenCode models appear under the concise `llm-glue` provider namespace by
 default. Servers can change `opencode_namespace` or use ordered
 `[[server.opencode_namespace_overrides]]` rules to place selected provider
-instances in separate namespaces; internal LiteLLM aliases remain stable.
+instances in separate namespaces. LiteLLM route aliases use the normalized
+Server hostname by default and can be pinned with `server.litellm_namespace`;
+that internal route name does not change OpenCode's visible namespace.
 
 ## Security
 

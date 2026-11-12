@@ -129,7 +129,7 @@ else
 static void AddServer(IServiceCollection services, GlueOptions options)
 {
     services.AddSingleton<IConfigurationGenerator>(_ => CreateOpenCodeGenerator(options));
-    services.AddSingleton<IConfigurationGenerator>(_ => new LiteLlmGenerator());
+    services.AddSingleton<IConfigurationGenerator>(_ => new LiteLlmGenerator(liteLlmNamespace: options.Server.LiteLlmNamespace));
     services.AddSingleton(new ArtifactStore(options.Server.ArtifactRetention));
     services.AddSingleton(new CatalogStateRepository(ResolveConfigPath(options, options.Server.StateDirectory), options.Server.ArtifactRetention));
     services.AddSingleton(provider => new ApiState(
@@ -150,7 +150,8 @@ static OpenCodeGenerator CreateOpenCodeGenerator(GlueOptions options) => new(
         : null,
     options.Server.EmbedOpenCodeInferenceApiKey,
     options.Server.OpenCodeNamespace,
-    options.Server.OpenCodeNamespaceOverrides);
+    options.Server.OpenCodeNamespaceOverrides,
+    options.Server.LiteLlmNamespace);
 
 static void AddAgent(IServiceCollection services, GlueOptions options)
 {

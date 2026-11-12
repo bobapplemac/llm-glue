@@ -1,5 +1,22 @@
 # Progress
 
+## Post-r4 Server-scoped LiteLLM aliases
+
+- LiteLLM aliases now use `server.litellm_namespace` plus the model ID instead of
+  repeating provider and instance provenance. The namespace defaults to the
+  normalized local hostname, producing names such as
+  `labhost03-bench-01-01`, and can be pinned for route stability across host moves.
+- Central OpenCode generation uses the exact same alias as its internal
+  `modelID`; its visible provider/model identity remains independently concise as
+  `llm-glue/bench-01-01`. Direct Ollama presentation is unchanged.
+- Duplicate normalized aliases inside one Server-scoped LiteLLM namespace fail closed
+  instead of receiving suffixes. This prevents route names from changing when
+  another source appears.
+- Build succeeds with zero warnings. All 145 automated tests pass, covering hostname-default
+  normalization, explicit namespace propagation across both generators, golden
+  output, and collision rejection. Live labhost03 end-to-end qualification is
+  still required before release.
+
 ## Post-r4 concise OpenCode namespaces
 
 - OpenCode artifacts now aggregate every published provider/instance source into
@@ -15,7 +32,7 @@
 - Existing source-scoped ownership removes the prior verbose managed provider on
   the next apply. Operator providers remain untouched; multiple LLM Glue
   controllers targeting one file must configure distinct namespaces.
-- Build succeeds with zero warnings. All 142 automated tests pass, including
+- Build succeeds with zero warnings. The namespace feature's automated coverage includes
   default aggregation, explicit source splitting, duplicate-ID rejection,
   configuration validation, and existing ownership migration.
 

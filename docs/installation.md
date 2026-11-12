@@ -162,6 +162,22 @@ keys do not collide. Upgrading replaces the previously owned verbose provider
 key on the next successful synchronization; saved model selections may need to
 be reselected once.
 
+LiteLLM aliases use a separate Server-specific namespace. By default LLM Glue
+normalizes the machine hostname to lowercase ASCII letters, digits, and hyphens;
+on labhost03 a model `bench-01-01` therefore becomes the LiteLLM alias
+`labhost03-bench-01-01`. Pin it explicitly when the hostname may change:
+
+```toml
+[server]
+litellm_namespace = "labhost03"
+```
+
+Central OpenCode entries reference that exact alias internally as `modelID`, but
+users still select `llm-glue/bench-01-01`. Direct Ollama models also remain under
+the single visible OpenCode namespace and do not use a LiteLLM alias. Model IDs
+must normalize to unique aliases within one LiteLLM namespace; collisions fail
+publication.
+
 Without `--config`, lookup order is executable-adjacent `llm-glue.conf`, then
 `llm-glue.toml`, followed by the same filenames in `/etc/llm-glue` on Linux or
 `%ProgramData%\LLMGlue` on Windows. `/etc/llm-glue.conf` and

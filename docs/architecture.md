@@ -112,6 +112,13 @@ instance ID is the configured `[[agent.providers]].name`. Collision-safe LiteLLM
 aliases remain as the internal `modelID`. Duplicate model IDs within a namespace,
 or multiple direct endpoints assigned to one namespace, fail publication with an
 actionable split requirement rather than receiving an unstable automatic suffix.
+LiteLLM route identity is separately Server-scoped. `litellm_namespace` defaults
+to a lowercase, hyphen-normalized local hostname, so labhost03 normally publishes
+`labhost03-model-id`. The same alias is written to LiteLLM and used as central
+OpenCode's internal `modelID`; it does not alter the visible `llm-glue/model-id`.
+Operators can pin the namespace when a hostname is ephemeral or when moving a
+configuration without changing existing routes. Duplicate normalized aliases
+within one LiteLLM namespace fail generation instead of acquiring unstable suffixes.
 Each OpenCode target also defaults to an owned `provider.use` deny policy for the
 built-in `opencode` provider. Ownership schema v3 distinguishes that managed
 statement from identical or unrelated operator policies and migrates v1/v2 state.
@@ -121,7 +128,8 @@ See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md),
 [ADR 0009](decisions/0009-live-router-paths-probes-and-source-ownership.md), and
 [ADR 0010](decisions/0010-explicit-opencode-target-scope.md), and
 [ADR 0013](decisions/0013-owned-opencode-catalog-policy.md), and
-[ADR 0018](decisions/0018-concise-opencode-namespaces.md).
+[ADR 0018](decisions/0018-concise-opencode-namespaces.md), and
+[ADR 0019](decisions/0019-server-scoped-litellm-aliases.md).
 
 ## Network and persistence
 

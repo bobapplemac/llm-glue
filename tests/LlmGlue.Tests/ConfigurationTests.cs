@@ -25,6 +25,7 @@ public sealed class ConfigurationTests
             opencode_inference_url = "https://litellm.example.test"
             opencode_inference_api_key = "test-key"
             opencode_namespace = "models"
+            litellm_namespace = "test-server"
 
             [[server.opencode_namespace_overrides]]
             namespace = "lab"
@@ -58,10 +59,32 @@ public sealed class ConfigurationTests
             Assert.True(options.Server.EmbedOpenCodeInferenceApiKey);
             Assert.Equal("test-key", options.Server.OpenCodeInferenceApiKey);
             Assert.Equal("models", options.Server.OpenCodeNamespace);
+            Assert.Equal("test-server", options.Server.LiteLlmNamespace);
             var namespaceOverride = Assert.Single(options.Server.OpenCodeNamespaceOverrides);
             Assert.Equal("lab", namespaceOverride.Namespace);
             Assert.Equal("llama.cpp", namespaceOverride.ProviderId);
             Assert.Equal("local-llama", namespaceOverride.InstanceId);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void DefaultsLiteLlmNamespaceFromNormalizedMachineHostname()
+    {
+        var path = WriteTemp("""
+            [roles]
+            agent = false
+            server = true
+            client = false
+            [server]
+            listen = "http://127.0.0.1:8765"
+            """);
+        try
+        {
+            var expected = System.Text.RegularExpressions.Regex.Replace(Environment.MachineName.ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
+            if (expected.Length == 0) expected = "llm-glue";
+            if (expected.Length > 64) expected = expected[..64].TrimEnd('-');
+            Assert.Equal(expected, TomlConfigLoader.Load(path).Server.LiteLlmNamespace);
         }
         finally { File.Delete(path); }
     }

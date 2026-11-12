@@ -12,7 +12,8 @@ public sealed class OpenCodeGenerator(
     string? inferenceApiKey = null,
     bool embedInferenceApiKey = true,
     string defaultNamespace = "llm-glue",
-    IReadOnlyList<OpenCodeNamespaceOverrideOptions>? namespaceOverrides = null) : IConfigurationGenerator
+    IReadOnlyList<OpenCodeNamespaceOverrideOptions>? namespaceOverrides = null,
+    string liteLlmNamespace = "llm-glue") : IConfigurationGenerator
 {
     public const string InferenceApiKeyEnvironment = "LLM_GLUE_INFERENCE_API_KEY";
     public string TargetType => "opencode";
@@ -87,7 +88,7 @@ public sealed class OpenCodeGenerator(
             capabilities["reasoning"] = Reasoning(deployment.Capabilities.Reasoning);
         var model = new JsonObject
         {
-            ["modelID"] = inferenceBaseUrl is null ? deployment.Identity.Route : LiteLlmGenerator.Alias(deployment),
+            ["modelID"] = inferenceBaseUrl is null ? deployment.Identity.Route : LiteLlmGenerator.Alias(deployment, liteLlmNamespace),
             ["name"] = deployment.Identity.DisplayName,
             ["capabilities"] = capabilities
         };

@@ -25,6 +25,9 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
   default. Namespace overrides use exact provider/instance identity and first
   match wins. Never invent unstable suffixes: duplicate model IDs or multiple
   direct endpoints in one namespace must fail with an actionable split request.
+- LiteLLM aliases use the configurable Server-scoped namespace, defaulting to a
+  normalized machine hostname. Central OpenCode `modelID` must use the exact same
+  alias while its visible provider remains governed by the OpenCode namespace.
 - Generated artifacts must be deterministic. LiteLLM YAML remains credential-free;
   authenticated OpenCode artifacts embed the configured inference key by default
   under ADR 0017. Never put real credentials in fixtures, logs, diagnostics, or

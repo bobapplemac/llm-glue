@@ -10,7 +10,7 @@
       },
       "models": {
         "qwen-model": {
-          "modelID": "llama-cpp-lab-qwen-model",
+          "modelID": "llm-glue-qwen-model",
           "name": "Qwen Test",
           "capabilities": {
             "tools": true,

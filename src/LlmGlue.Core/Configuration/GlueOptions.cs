@@ -47,6 +47,7 @@ public sealed record ServerOptions(
     string? OpenCodeInferenceApiKey,
     string OpenCodeNamespace,
     IReadOnlyList<OpenCodeNamespaceOverrideOptions> OpenCodeNamespaceOverrides,
+    string LiteLlmNamespace,
     string? ReadTokenEnvironment,
     string? WriteTokenEnvironment,
     string? ReadToken,

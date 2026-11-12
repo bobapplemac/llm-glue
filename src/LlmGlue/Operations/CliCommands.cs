@@ -60,6 +60,7 @@ public static class CliCommands
         Console.WriteLine($"Server: {options.Server.Listen}");
         Console.WriteLine($"OpenCode inference route: {(options.Server.OpenCodeInferenceUrl is null ? "direct provider endpoints" : options.Server.OpenCodeInferenceUrl)}");
         Console.WriteLine($"OpenCode namespace: {options.Server.OpenCodeNamespace} ({options.Server.OpenCodeNamespaceOverrides.Count} override(s))");
+        Console.WriteLine($"LiteLLM namespace: {options.Server.LiteLlmNamespace}");
         if (options.Server.OpenCodeInferenceUrl is not null)
         {
             Console.WriteLine($"OpenCode inference credential delivery: {(options.Server.EmbedOpenCodeInferenceApiKey ? "embedded in authenticated artifact" : $"client environment ({OpenCodeGenerator.InferenceApiKeyEnvironment})")}");
@@ -127,7 +128,7 @@ public static class CliCommands
         IConfigurationGenerator generator = target switch
         {
             "opencode" => CreateOpenCodeGenerator(options),
-            "litellm" => new LiteLlmGenerator(),
+            "litellm" => new LiteLlmGenerator(liteLlmNamespace: options.Server.LiteLlmNamespace),
             _ => throw new ConfigurationException("config preview target must be opencode or litellm.")
         };
         var artifact = await generator.GenerateAsync(await DiscoverSnapshotAsync(options, cancellationToken), cancellationToken);
@@ -143,7 +144,7 @@ public static class CliCommands
         if (options.Server.EmbedOpenCodeInferenceApiKey && options.Server.OpenCodeInferenceUrl is not null && string.IsNullOrEmpty(key))
             throw new ConfigurationException("OpenCode inference API key source is configured but unavailable.");
         return new OpenCodeGenerator(options.Server.OpenCodeInferenceUrl, key, options.Server.EmbedOpenCodeInferenceApiKey,
-            options.Server.OpenCodeNamespace, options.Server.OpenCodeNamespaceOverrides);
+            options.Server.OpenCodeNamespace, options.Server.OpenCodeNamespaceOverrides, options.Server.LiteLlmNamespace);
     }
 
     public static async Task<int> SyncOnceAsync(GlueOptions options, CancellationToken cancellationToken)
