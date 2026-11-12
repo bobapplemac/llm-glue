@@ -93,9 +93,9 @@ within seconds and no later than the configured client polling interval.
 New Server configurations default to `https://127.0.0.1:8765` and
 `tls_auto_generate = true`. On first start, LLM Glue creates
 `state/tls/server.crt` and `state/tls/server.key` relative to the sidecar. The
-self-signed RSA certificate is valid for 30 years. Existing files are never
-regenerated or overwritten automatically. `llm-glue doctor` prints the public
-key SHA-256 identifier for client provisioning.
+self-signed RSA certificate is valid for 398 days. Existing files are never
+replaced merely because they exist. `llm-glue doctor` prints the public-key
+SHA-256 identifier for client provisioning.
 
 To supply PEM/CRT files:
 
@@ -132,7 +132,7 @@ An external deploy hook must leave the replacement files readable by the
 not prove that the running service can open them.
 
 To replace the current self-signed material and immediately adopt a fresh
-30-year certificate:
+certificate and key using the configured validity:
 
 ```text
 llm-glue tls regenerate --config /etc/llm-glue/llm-glue.conf
@@ -142,8 +142,8 @@ Replacement of a non-self-signed certificate requires `--force`. Regeneration
 normally changes the public-key SHA-256 identifier, so update every pinned Agent
 and Client afterward.
 
-To extend an existing RSA self-signed certificate for another 30 years while
-retaining its subject, private key, and public-key SHA-256 pin, use:
+To extend an existing RSA self-signed certificate for the configured validity
+while retaining its subject, private key, and public-key SHA-256 pin, use:
 
 ```text
 llm-glue tls renew --config /etc/llm-glue/llm-glue.conf
@@ -151,6 +151,17 @@ llm-glue tls renew --config /etc/llm-glue/llm-glue.conf
 
 Renewal refuses publicly issued certificates; install those renewed files with
 the issuing tool and call `tls reload`.
+
+Automatic same-key renewal is enabled by default. The Server checks immediately
+at startup and then daily, renewing when 90 days remain. These settings control
+the policy:
+
+```toml
+[server]
+tls_auto_renew = true
+tls_renew_before_days = 90
+tls_self_signed_validity_days = 398
+```
 
 Remote Clients and Agent-only hosts should preferably copy the identifier from
 Server `doctor` output:

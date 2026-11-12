@@ -311,7 +311,9 @@ public static class ServerTlsCertificateManager
         san.AddIpAddress(IPAddress.Loopback);
         san.AddIpAddress(IPAddress.IPv6Loopback);
         request.CertificateExtensions.Add(san.Build());
-        return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddYears(30));
+        return request.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddMinutes(-5),
+            DateTimeOffset.UtcNow.AddDays(options.Server.TlsSelfSignedValidityDays));
     }
 
     private static void ReplaceMaterial(IReadOnlyList<(string Candidate, string Destination)> files, string id)

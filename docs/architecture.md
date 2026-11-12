@@ -187,7 +187,7 @@ generated artifacts.
 Relative data paths resolve against the selected config directory.
 
 HTTPS certificate ownership is file-only. Kestrel loads PFX/P12 or PEM/CRT plus
-key files; automatic mode creates a 30-year self-signed PEM pair under the Server
+key files; automatic mode creates a 398-day self-signed PEM pair under the Server
 state directory with fail-closed partial-material detection. Configured
 exact/wildcard SNI names become certificate SANs and reject unmatched handshakes;
 `localhost` remains reserved for local management. Outbound Agent/Client Server
@@ -202,6 +202,7 @@ failed validation retains the prior context. Existing TLS connections continue
 normally, while new connections receive the replacement certificate.
 Self-signed renewal reissues from the existing RSA private key and subject so the
 SPKI pin remains stable; regeneration deliberately creates a new key and pin.
+The Server checks at startup and daily, renewing by default when 90 days remain.
 An HTTPS listener pinned to a concrete non-loopback IP also binds a loopback-only
 management endpoint on the same port so health, update, and TLS lifecycle commands
 do not depend on routing through the external interface.

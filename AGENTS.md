@@ -42,7 +42,9 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
 - Certificate activation is explicit: validate complete leaf/key/chain material,
   retain the active context on failure, and use the local-only write-authorized
   reload/renewal/regeneration boundary. Renewal must preserve the private key and
-  SPKI pin. Do not add an automatic certificate file watcher.
+  SPKI pin. The default self-signed lifecycle is 398 days with a startup/daily
+  same-key renewal check at 90 days remaining. Do not add an automatic certificate
+  file watcher or attempt to renew publicly issued certificates.
 - Agent model exclusions are a pre-export boundary; excluded inventory must not
   be submitted upstream. Server exclusions retain diagnostic visibility while
   filtering generated artifacts. Exact and wildcard semantics must not be

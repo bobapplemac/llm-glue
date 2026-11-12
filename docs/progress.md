@@ -4,7 +4,8 @@
 
 - Kestrel now supports file-only PFX/P12 or PEM/CRT-plus-key TLS and defaults to
   HTTPS on port 8765. Automatic mode creates a non-overwriting 3072-bit RSA,
-  SHA-256, Server Authentication PEM pair valid for 30 years.
+  SHA-256, Server Authentication PEM pair valid for 398 days and renews with the
+  same key when 90 days remain.
 - Exact/wildcard SNI names restrict external handshakes and populate generated
   SANs; `localhost` remains reserved for local management.
   Agent and Client Server connections support normal platform validation, an
@@ -15,10 +16,10 @@
   can instead receive a public-key pin.
 - Windows live-process qualification passed HTTPS health/status, correct-pin
   acceptance, wrong-pin rejection, and unmatched-SNI refusal. PFX and PEM paths,
-  30-year validity, configuration validation, and pin logic have automated
+  398-day validity, configuration validation, and pin logic have automated
   coverage. The self-contained Linux build passed live HTTPS health and pinned
   status retrieval under WSL; systemd qualification remains pending.
-- Release builds complete with zero warnings/errors and all 162 automated tests
+- Release builds complete with zero warnings/errors and all 165 automated tests
   pass. Both self-contained RIDs and the PowerShell/Bash mocked bootstrap
   matrices pass, including random 24-byte API keys and generated TLS settings.
 - Explicit `tls validate`, `tls reload`, same-key `tls renew`, and guarded

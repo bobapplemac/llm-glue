@@ -54,13 +54,13 @@ No command-specific parameters.
 
 ## `tls renew`
 
-Issue and immediately adopt a fresh 30-year self-signed certificate using the existing RSA private key, preserving the public-key pin.
+Issue and immediately adopt a fresh self-signed certificate using the existing RSA private key and configured validity, preserving the public-key pin.
 
 No command-specific parameters.
 
 ## `tls regenerate`
 
-Ask the local running Server to transactionally replace its current certificate with a new 30-year self-signed certificate and adopt it immediately.
+Ask the local running Server to transactionally replace its current certificate with a new self-signed certificate and key using the configured validity, then adopt it immediately.
 
 | Parameter | Description |
 |---|---|

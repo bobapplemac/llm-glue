@@ -4,8 +4,9 @@ LLM Glue has no remote execution or model-management API in v1. Its remote surfa
 is inventory submission and read-only catalog/artifact retrieval.
 
 - Kestrel defaults to loopback HTTPS on port 8765. It loads only file-based
-  PFX/P12 or PEM/CRT-plus-key material and can create a 30-year self-signed PEM
-  pair. Remote plain HTTP requires explicit acknowledgement; non-loopback access
+  PFX/P12 or PEM/CRT-plus-key material and can create a 398-day self-signed PEM
+  pair with same-key renewal 90 days before expiry. Remote plain HTTP requires
+  explicit acknowledgement; non-loopback access
   still requires separate read and write bearer credentials.
 - Platform certificate validation is the outbound default. A SHA-256
   SubjectPublicKeyInfo pin authenticates a configured self-signed Server without

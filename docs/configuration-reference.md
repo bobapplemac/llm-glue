@@ -66,12 +66,15 @@ This file is generated from the same setting catalog used to reject unknown TOML
 | `server.read_token` | `secret string` | `none` | Literal artifact/API read token. |
 | `server.write_token` | `secret string` | `none` | Literal Agent inventory write token. |
 | `server.acknowledge_insecure_remote_http` | `boolean` | `false` | Required acknowledgement for a non-loopback plaintext HTTP listener. |
-| `server.tls_auto_generate` | `boolean` | `true for HTTPS` | Create a 30-year self-signed PEM certificate/key when the configured files are absent. |
+| `server.tls_auto_generate` | `boolean` | `true for HTTPS` | Create a self-signed PEM certificate/key when the configured files are absent. |
 | `server.tls_certificate_path` | `path` | `state/tls/server.crt when auto-generated` | PFX, PEM, or CRT server certificate file. |
 | `server.tls_private_key_path` | `path` | `state/tls/server.key when auto-generated` | PEM private-key file; required for PEM/CRT certificates and forbidden for PFX. |
 | `server.tls_certificate_password_environment` | `string` | `none` | Environment variable containing a PFX password. |
 | `server.tls_certificate_password` | `secret string` | `none` | Literal PFX password; mutually exclusive with the environment setting. |
 | `server.tls_server_names` | `array of DNS patterns` | `[]` | Exact, *.suffix, or * SNI names; unmatched TLS handshakes are refused, localhost remains available for local management, and names become auto-certificate SANs. |
+| `server.tls_auto_renew` | `boolean` | `true` | Check self-signed certificate lifetime at startup and daily, renewing with the same key when the threshold is reached. |
+| `server.tls_renew_before_days` | `integer 1..3600` | `90` | Renew an eligible self-signed certificate when no more than this many validity days remain. |
+| `server.tls_self_signed_validity_days` | `integer 1..3600` | `398` | Validity period for generated and renewed self-signed certificates; must exceed tls_renew_before_days. |
 | `[[server.exclusions]]` | `array of tables` | `[]` | Publication-only exact/wildcard exclusion rules. |
 | `server.state_directory` | `path` | `state` | Durable catalog and artifact history directory. |
 | `server.artifact_retention` | `integer 1..3600` | `5` | Number of validated catalog/artifact states retained. |

@@ -5,7 +5,7 @@ environment; “source” means inspected official documentation or the installe
 release source. Live production qualification is tracked separately.
 
 Native .NET 10 Kestrel HTTPS is live-qualified on Windows with an auto-generated
-30-year PEM certificate/key. A permitted `localhost` SNI handshake returned the
+398-day PEM certificate/key. A permitted `localhost` SNI handshake returned the
 health/status API, a matching SubjectPublicKeyInfo SHA-256 pin succeeded, a wrong
 pin failed, and an IP handshake outside the configured SNI list was refused.
 The self-contained Linux build also passed live Kestrel HTTPS health and pinned

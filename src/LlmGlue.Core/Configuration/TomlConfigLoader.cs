@@ -72,8 +72,11 @@ public static class TomlConfigLoader
             StringArray(server, "tls_server_names").ToArray(),
             TableArray(server, "exclusions").Select(ReadExclusion).ToArray(),
             String(server, "state_directory", "state"),
-            PositiveInt(server, "artifact_retention", 5));
-        ValidateListen(serverOptions);
+            PositiveInt(server, "artifact_retention", 5),
+            Bool(server, "tls_auto_renew", true),
+            PositiveInt(server, "tls_renew_before_days", 90),
+            PositiveInt(server, "tls_self_signed_validity_days", 398));
+        ValidateListen(serverOptions, server);
 
         var client = OptionalTable(root, "client");
         CheckKeys(client, "client");
@@ -251,7 +254,7 @@ public static class TomlConfigLoader
         return new TargetOptions(type, RequiredString(table, "path"), primary, service, health is null ? null : HttpUri(health, "target.health_url"), denyBuiltInOpenCodeProvider);
     }
 
-    private static void ValidateListen(ServerOptions server)
+    private static void ValidateListen(ServerOptions server, TomlTable source)
     {
         if (server.Listen.Scheme != Uri.UriSchemeHttp && server.Listen.Scheme != Uri.UriSchemeHttps) throw new ConfigurationException("server.listen must use http or https.");
         if (!string.IsNullOrEmpty(server.Listen.UserInfo)) throw new ConfigurationException("server.listen cannot contain user information.");
@@ -262,7 +265,8 @@ public static class TomlConfigLoader
             throw new ConfigurationException("Non-loopback plain HTTP requires acknowledge_insecure_remote_http = true.");
         var hasTlsSettings = server.TlsCertificatePath is not null || server.TlsPrivateKeyPath is not null
             || server.TlsCertificatePasswordEnvironment is not null || server.TlsCertificatePassword is not null
-            || server.TlsServerNames.Count != 0;
+            || server.TlsServerNames.Count != 0 || source.ContainsKey("tls_auto_renew")
+            || source.ContainsKey("tls_renew_before_days") || source.ContainsKey("tls_self_signed_validity_days");
         if (server.Listen.Scheme == Uri.UriSchemeHttp && (server.TlsAutoGenerate || hasTlsSettings))
             throw new ConfigurationException("TLS settings require an https server.listen URI.");
         if (server.Listen.Scheme != Uri.UriSchemeHttps) return;
@@ -278,6 +282,8 @@ public static class TomlConfigLoader
         if (server.TlsServerNames.Distinct(StringComparer.OrdinalIgnoreCase).Count() != server.TlsServerNames.Count)
             throw new ConfigurationException("server.tls_server_names must be unique (case-insensitive).");
         foreach (var name in server.TlsServerNames) ValidateSniName(name);
+        if (server.TlsRenewBeforeDays >= server.TlsSelfSignedValidityDays)
+            throw new ConfigurationException("server.tls_renew_before_days must be less than tls_self_signed_validity_days.");
     }
 
     private static void ValidateTlsClientPolicy(string scope, bool allowInvalid, string? pin)

@@ -16,7 +16,7 @@ encryption more than public PKI trust.
 Kestrel supports only file-based certificates: PFX/P12 with an optional password,
 or PEM/CRT plus a private-key file. The default HTTPS listener automatically
 creates a 3072-bit RSA, SHA-256, Server Authentication certificate and PKCS#8 key
-with a 30-year lifetime. Generated material is stored under the configured state
+with a 398-day lifetime. Generated material is stored under the configured state
 directory with owner-only Unix modes. Existing or partial material is never
 silently replaced.
 
@@ -47,9 +47,11 @@ the certificate itself is not installed in a certificate store.
 Certificate changes are explicit rather than watched automatically. `tls
 validate` checks files without mutating the running process; authenticated local
 `tls reload` swaps a validated certificate context for new TLS connections;
-`tls renew` issues a fresh 30-year RSA self-signed certificate with the existing
+`tls renew` issues a fresh configurable-lifetime RSA self-signed certificate with the existing
 subject/private key and therefore the same SPKI pin; and `tls regenerate` creates
 and adopts a new self-signed certificate and key. Failed loads
 leave the prior in-memory certificate active. Retired contexts remain alive until
 shutdown so concurrent handshakes cannot observe disposed key material. External
 automation such as ACME should install files, validate them, then call reload.
+Automatic lifecycle management checks at startup and daily, invoking same-key
+renewal by default when no more than 90 days remain.

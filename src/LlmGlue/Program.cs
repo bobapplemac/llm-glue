@@ -145,7 +145,14 @@ if (options.Roles.Server)
             else server.ListenAnyIP(options.Server.Listen.Port, ConfigureHttps);
         }
     });
-    if (serverTls is not null) builder.Services.AddSingleton(serverTls);
+    if (serverTls is not null)
+    {
+        builder.Services.AddSingleton(serverTls);
+        builder.Services.AddSingleton(TimeProvider.System);
+        if (options.Server.TlsAutoRenew)
+            builder.Services.AddSingleton<IHostedService>(provider => new TlsCertificateRenewalService(
+                serverTls, options, provider.GetRequiredService<TimeProvider>(), provider.GetRequiredService<ILogger<TlsCertificateRenewalService>>()));
+    }
     AddServer(builder.Services, options);
     builder.Services.AddWindowsService(service => service.ServiceName = "LLMGlue");
     builder.Services.AddSystemd();

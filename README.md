@@ -92,7 +92,7 @@ OpenCode artifact by default; operators can opt out and provision
 See [installation](docs/installation.md) before using the network-pipe form.
 
 New Servers default to native Kestrel HTTPS on port 8765 and can create a
-30-year self-signed PEM certificate/key automatically. File-based PFX/P12 and
+398-day self-signed PEM certificate/key automatically. File-based PFX/P12 and
 PEM/CRT certificates are supported; certificate-store configuration is not.
 Remote Agents and Clients can use normal platform trust, pin the Server public
 key's SHA-256 identifier, or explicitly accept any invalid certificate.

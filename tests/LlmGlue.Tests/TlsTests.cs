@@ -4,6 +4,8 @@ using System.Security.Cryptography.X509Certificates;
 using LlmGlue.Core.Configuration;
 using LlmGlue.Core.Security;
 using LlmGlue.Security;
+using LlmGlue.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LlmGlue.Tests;
 
@@ -20,11 +22,16 @@ public sealed class TlsTests
             var options = TomlConfigLoader.Load(config);
             Assert.Equal("https", options.Server.Listen.Scheme);
             Assert.True(options.Server.TlsAutoGenerate);
+            Assert.True(options.Server.TlsAutoRenew);
+            Assert.Equal(90, options.Server.TlsRenewBeforeDays);
+            Assert.Equal(398, options.Server.TlsSelfSignedValidityDays);
             using var tls = ServerTlsCertificateManager.LoadOrCreate(options);
             Assert.True(File.Exists(tls.CertificatePath));
             Assert.True(File.Exists(tls.PrivateKeyPath));
-            Assert.True(tls.Certificate.NotAfter.ToUniversalTime() > DateTime.UtcNow.AddYears(29));
+            Assert.InRange(tls.Certificate.NotAfter.ToUniversalTime(), DateTime.UtcNow.AddDays(397), DateTime.UtcNow.AddDays(399));
             Assert.Equal(64, tls.PublicKeySha256.Length);
+            Assert.False(TlsCertificateRenewalService.IsRenewalDue(tls.Certificate, 90, DateTimeOffset.UtcNow));
+            Assert.True(TlsCertificateRenewalService.IsRenewalDue(tls.Certificate, 399, DateTimeOffset.UtcNow));
         }
         finally { Directory.Delete(directory, recursive: true); }
     }
@@ -171,6 +178,47 @@ public sealed class TlsTests
     }
 
     [Fact]
+    public void AutomaticRenewalUsesSameKeyWhenThresholdIsReached()
+    {
+        var directory = CreateDirectory();
+        var config = Path.Combine(directory, "llm-glue.conf");
+        File.WriteAllText(config, "[roles]\nagent=false\nserver=true\nclient=false\n");
+        try
+        {
+            var options = TomlConfigLoader.Load(config);
+            using var holder = new ReloadableServerTlsCertificate(options);
+            var originalPin = holder.Current.PublicKeySha256;
+            var originalCertificate = holder.Current.CertificateSha256;
+            var clock = new FixedTimeProvider(new DateTimeOffset(holder.Current.Certificate.NotAfter.ToUniversalTime()).AddDays(-89));
+            var service = new TlsCertificateRenewalService(holder, options, clock, NullLogger<TlsCertificateRenewalService>.Instance);
+            Assert.True(service.TryRenew());
+            Assert.Equal(originalPin, holder.Current.PublicKeySha256);
+            Assert.NotEqual(originalCertificate, holder.Current.CertificateSha256);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
+    public void RejectsRenewalThresholdThatMeetsValidityPeriod()
+    {
+        var directory = CreateDirectory();
+        var config = Path.Combine(directory, "llm-glue.conf");
+        File.WriteAllText(config, "[roles]\nagent=false\nserver=true\nclient=false\n[server]\ntls_renew_before_days=398\ntls_self_signed_validity_days=398\n");
+        try { Assert.Contains("must be less", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(config)).Message); }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
+    public void RejectsAutomaticTlsRenewalSettingsOnHttpListener()
+    {
+        var directory = CreateDirectory();
+        var config = Path.Combine(directory, "llm-glue.conf");
+        File.WriteAllText(config, "[roles]\nagent=false\nserver=true\nclient=false\n[server]\nlisten=\"http://127.0.0.1:8765\"\ntls_auto_renew=false\n");
+        try { Assert.Contains("require an https", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(config)).Message); }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
     public void FailedReloadKeepsPreviouslyActiveCertificate()
     {
         var directory = CreateDirectory();
@@ -237,5 +285,10 @@ public sealed class TlsTests
         var path = Path.Combine(Path.GetTempPath(), $"llm-glue-tls-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
     }
 }

@@ -63,7 +63,10 @@ public sealed record ServerOptions(
     IReadOnlyList<string> TlsServerNames,
     IReadOnlyList<ExclusionRuleOptions> Exclusions,
     string StateDirectory,
-    int ArtifactRetention);
+    int ArtifactRetention,
+    bool TlsAutoRenew = true,
+    int TlsRenewBeforeDays = 90,
+    int TlsSelfSignedValidityDays = 398);
 
 public sealed record OpenCodeNamespaceOverrideOptions(
     string Namespace,
