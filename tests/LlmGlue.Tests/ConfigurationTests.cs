@@ -24,6 +24,12 @@ public sealed class ConfigurationTests
             listen = "http://127.0.0.1:8765"
             opencode_inference_url = "https://litellm.example.test"
             opencode_inference_api_key = "test-key"
+            opencode_namespace = "models"
+
+            [[server.opencode_namespace_overrides]]
+            namespace = "lab"
+            provider_id = "llama.cpp"
+            instance_id = "local-llama"
 
             [client]
             source = "http://127.0.0.1:8765"
@@ -51,7 +57,33 @@ public sealed class ConfigurationTests
             Assert.Equal(new Uri("https://litellm.example.test"), options.Server.OpenCodeInferenceUrl);
             Assert.True(options.Server.EmbedOpenCodeInferenceApiKey);
             Assert.Equal("test-key", options.Server.OpenCodeInferenceApiKey);
+            Assert.Equal("models", options.Server.OpenCodeNamespace);
+            var namespaceOverride = Assert.Single(options.Server.OpenCodeNamespaceOverrides);
+            Assert.Equal("lab", namespaceOverride.Namespace);
+            Assert.Equal("llama.cpp", namespaceOverride.ProviderId);
+            Assert.Equal("local-llama", namespaceOverride.InstanceId);
         }
+        finally { File.Delete(path); }
+    }
+
+    [Theory]
+    [InlineData("-models")]
+    [InlineData("models with spaces")]
+    [InlineData("models_underscore")]
+    [InlineData("opencode")]
+    [InlineData("ollama")]
+    public void RejectsInvalidOpenCodeNamespace(string value)
+    {
+        var path = WriteTemp($$"""
+            [roles]
+            agent = false
+            server = true
+            client = false
+            [server]
+            listen = "http://127.0.0.1:8765"
+            opencode_namespace = "{{value}}"
+            """);
+        try { Assert.Contains("opencode_namespace", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
         finally { File.Delete(path); }
     }
 

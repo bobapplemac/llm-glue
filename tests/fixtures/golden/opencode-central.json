@@ -1,8 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "providers": {
-    "llm-glue-llama-cpp-lab": {
-      "name": "LLM Glue lab",
+    "llm-glue": {
+      "name": "LLM Glue",
       "package": "@opencode/ai/providers/openai-compatible",
       "settings": {
         "baseURL": "https://litellm.example.test/v1",

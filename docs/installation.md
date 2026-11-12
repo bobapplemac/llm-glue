@@ -134,6 +134,34 @@ All supplied fields in a rule must match. Exact fields remain exact; only
 exclusions hide catalog publication only: diagnostics retain the deployment and
 identify the matching rule.
 
+OpenCode models aggregate under the concise `llm-glue` provider by default:
+
+```toml
+[server]
+opencode_namespace = "llm-glue"
+```
+
+To split a source into another namespace, add an ordered exact-match rule. The
+`instance_id` is the source's configured `[[agent.providers]].name`:
+
+```toml
+[[server.opencode_namespace_overrides]]
+namespace = "lab"
+provider_id = "llama.cpp"
+instance_id = "labhost03-router"
+```
+
+The first matching rule wins. Omit either selector to match all instances of a
+provider or every provider with that instance ID. Multiple rules may aggregate
+sources into the same namespace. Namespace values accept ASCII letters, digits,
+and interior hyphens; built-in `opencode` and `ollama` IDs are reserved. A namespace cannot represent multiple direct endpoints,
+and model IDs must be unique within it; split sources when validation reports a
+collision. When local and remote LLM Glue controllers write the same OpenCode
+target, give each server a distinct namespace so their source-scoped ownership
+keys do not collide. Upgrading replaces the previously owned verbose provider
+key on the next successful synchronization; saved model selections may need to
+be reselected once.
+
 Without `--config`, lookup order is executable-adjacent `llm-glue.conf`, then
 `llm-glue.toml`, followed by the same filenames in `/etc/llm-glue` on Linux or
 `%ProgramData%\LLMGlue` on Windows. `/etc/llm-glue.conf` and
@@ -206,8 +234,8 @@ OpenCode synchronization defaults to an `opencode.jsonc` document and may create
 `<opencode-target>.llm-glue-ownership.json` beside it. Existing `.json` targets
 remain supported when explicitly configured.
 Schema v3 records provider keys, native-provider disablements, and managed policy
-statements per artifact source, allowing local Ollama and remote central catalogs
-to coexist and reverse only their own changes. V1 and v2 state migrate
+statements per artifact source, allowing separately named local and remote
+catalogs to coexist and reverse only their own changes. V1 and v2 state migrate
 automatically. Keep this
 machine-generated state with the target and do not edit it. Service installation
 grants access through the configured target directory; corrupt state and

@@ -95,7 +95,7 @@ public sealed class DoctorTests
         return new GlueOptions(
             new RoleOptions(providers.Count > 0, true, clientTokenEnvironment is not null),
             new AgentOptions(providers, [], null, null, null, 30, 120),
-            new ServerOptions(new Uri("http://127.0.0.1:8765"), null, true, null, null, null, null, null, null, false, [], "state", 5),
+            new ServerOptions(new Uri("http://127.0.0.1:8765"), null, true, null, null, "llm-glue", [], null, null, null, null, false, [], "state", 5),
             new ClientOptions(null, clientTokenEnvironment, null, 30, []),
             new LoggingOptions("Information", "logs/llm-glue.log", 10, 7),
             Path.Combine(root, "llm-glue.conf"),

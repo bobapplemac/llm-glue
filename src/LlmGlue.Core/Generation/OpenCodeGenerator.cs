@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 using LlmGlue.Core.Abstractions;
+using LlmGlue.Core.Configuration;
 using LlmGlue.Core.Domain;
 
 namespace LlmGlue.Core.Generation;
@@ -9,7 +10,9 @@ namespace LlmGlue.Core.Generation;
 public sealed class OpenCodeGenerator(
     Uri? inferenceBaseUrl = null,
     string? inferenceApiKey = null,
-    bool embedInferenceApiKey = true) : IConfigurationGenerator
+    bool embedInferenceApiKey = true,
+    string defaultNamespace = "llm-glue",
+    IReadOnlyList<OpenCodeNamespaceOverrideOptions>? namespaceOverrides = null) : IConfigurationGenerator
 {
     public const string InferenceApiKeyEnvironment = "LLM_GLUE_INFERENCE_API_KEY";
     public string TargetType => "opencode";
@@ -21,31 +24,48 @@ public sealed class OpenCodeGenerator(
             throw new InvalidOperationException("An inference API key is required when embedded OpenCode credentials are enabled.");
         var providers = new JsonObject();
         var deployments = GenerationHelpers.Publishable(snapshot).ToArray();
-        foreach (var group in deployments.GroupBy(x => new { x.Identity.ProviderId, x.Identity.InstanceId, x.Identity.SourceEndpoint }).OrderBy(x => x.Key.ProviderId, StringComparer.Ordinal).ThenBy(x => x.Key.InstanceId, StringComparer.Ordinal))
+        foreach (var group in deployments.GroupBy(NamespaceFor, StringComparer.Ordinal).OrderBy(x => x.Key, StringComparer.Ordinal))
         {
+            var endpoints = group.Select(x => x.Identity.SourceEndpoint!).Distinct(StringComparer.Ordinal).ToArray();
+            if (inferenceBaseUrl is null && endpoints.Length != 1)
+                throw new InvalidOperationException($"OpenCode namespace '{group.Key}' contains multiple direct provider endpoints. Split the sources with [[server.opencode_namespace_overrides]].");
+            var duplicateModelIds = group.GroupBy(x => x.Identity.ModelId, StringComparer.Ordinal).Where(x => x.Count() > 1).Select(x => x.Key).Order(StringComparer.Ordinal).ToArray();
+            if (duplicateModelIds.Length != 0)
+                throw new InvalidOperationException($"OpenCode namespace '{group.Key}' contains duplicate model IDs: {string.Join(", ", duplicateModelIds)}. Split the sources with [[server.opencode_namespace_overrides]].");
             var models = new JsonObject();
             foreach (var deployment in group.OrderBy(x => x.Identity.ModelId, StringComparer.Ordinal))
                 models[deployment.Identity.ModelId] = CreateModel(deployment);
-            var endpoint = (inferenceBaseUrl?.AbsoluteUri ?? group.Key.SourceEndpoint!).TrimEnd('/');
+            var endpoint = (inferenceBaseUrl?.AbsoluteUri ?? endpoints[0]).TrimEnd('/');
             if (!endpoint.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)) endpoint += "/v1";
             var settings = new JsonObject { ["baseURL"] = endpoint };
             if (inferenceBaseUrl is not null)
                 settings["apiKey"] = embedInferenceApiKey ? inferenceApiKey : $"{{env:{InferenceApiKeyEnvironment}}}";
             var provider = new JsonObject
             {
-                ["name"] = $"LLM Glue {group.Key.InstanceId}",
+                ["name"] = string.Equals(group.Key, defaultNamespace, StringComparison.Ordinal) ? "LLM Glue" : group.Key,
                 ["package"] = "@opencode/ai/providers/openai-compatible",
                 ["settings"] = settings,
                 ["models"] = models
             };
             if (inferenceBaseUrl is not null && !embedInferenceApiKey) provider["env"] = new JsonArray(InferenceApiKeyEnvironment);
-            providers[GenerationHelpers.Slug("llm-glue", group.Key.ProviderId, group.Key.InstanceId)] = provider;
+            providers[group.Key] = provider;
         }
         var root = new JsonObject { ["$schema"] = "https://opencode.ai/config.json", ["providers"] = providers };
         if (inferenceBaseUrl is null && deployments.Any(x => x.Identity.ProviderId == "ollama"))
             root["disabled_providers"] = new JsonArray("ollama");
         var text = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true, TypeInfoResolver = new DefaultJsonTypeInfoResolver() }) + "\n";
         return ValueTask.FromResult(GenerationHelpers.Artifact("application/json", text));
+    }
+
+    private string NamespaceFor(ModelDeployment deployment)
+    {
+        foreach (var rule in namespaceOverrides ?? [])
+        {
+            if (rule.ProviderId is not null && !string.Equals(rule.ProviderId, deployment.Identity.ProviderId, StringComparison.Ordinal)) continue;
+            if (rule.InstanceId is not null && !string.Equals(rule.InstanceId, deployment.Identity.InstanceId, StringComparison.Ordinal)) continue;
+            return rule.Namespace;
+        }
+        return defaultNamespace;
     }
 
     private JsonObject CreateModel(ModelDeployment deployment)

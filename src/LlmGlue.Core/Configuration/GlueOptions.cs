@@ -45,6 +45,8 @@ public sealed record ServerOptions(
     bool EmbedOpenCodeInferenceApiKey,
     string? OpenCodeInferenceApiKeyEnvironment,
     string? OpenCodeInferenceApiKey,
+    string OpenCodeNamespace,
+    IReadOnlyList<OpenCodeNamespaceOverrideOptions> OpenCodeNamespaceOverrides,
     string? ReadTokenEnvironment,
     string? WriteTokenEnvironment,
     string? ReadToken,
@@ -53,6 +55,11 @@ public sealed record ServerOptions(
     IReadOnlyList<ExclusionRuleOptions> Exclusions,
     string StateDirectory,
     int ArtifactRetention);
+
+public sealed record OpenCodeNamespaceOverrideOptions(
+    string Namespace,
+    string? ProviderId,
+    string? InstanceId);
 
 public sealed record ExclusionRuleOptions(
     string? ProviderId,

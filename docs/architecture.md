@@ -103,6 +103,15 @@ artifact by default, so remote clients need only their LLM Glue read token. Set
 `embed_opencode_inference_api_key = false` to restore the
 `{env:LLM_GLUE_INFERENCE_API_KEY}` provider setting and provision that variable
 to every OpenCode process. LiteLLM YAML remains credential-free in either mode.
+OpenCode presentation is intentionally separate from the internal route identity.
+All published sources aggregate under the server's `opencode_namespace`, which
+defaults to `llm-glue`, so normal selections read `llm-glue/model`. Ordered
+`[[server.opencode_namespace_overrides]]` rules can match exact `provider_id`
+and/or `instance_id` values and split those sources into another namespace. The
+instance ID is the configured `[[agent.providers]].name`. Collision-safe LiteLLM
+aliases remain as the internal `modelID`. Duplicate model IDs within a namespace,
+or multiple direct endpoints assigned to one namespace, fail publication with an
+actionable split requirement rather than receiving an unstable automatic suffix.
 Each OpenCode target also defaults to an owned `provider.use` deny policy for the
 built-in `opencode` provider. Ownership schema v3 distinguishes that managed
 statement from identical or unrelated operator policies and migrates v1/v2 state.
@@ -111,7 +120,8 @@ See [ADR 0001](decisions/0001-configuration-ownership-and-activation.md),
 [ADR 0005](decisions/0005-central-litellm-routing.md), and
 [ADR 0009](decisions/0009-live-router-paths-probes-and-source-ownership.md), and
 [ADR 0010](decisions/0010-explicit-opencode-target-scope.md), and
-[ADR 0013](decisions/0013-owned-opencode-catalog-policy.md).
+[ADR 0013](decisions/0013-owned-opencode-catalog-policy.md), and
+[ADR 0018](decisions/0018-concise-opencode-namespaces.md).
 
 ## Network and persistence
 
@@ -151,8 +161,8 @@ up, atomically renamed, activated, verified, and rolled back on failure. A local
 lock prevents concurrent reconciliation. Offline clients keep the last-known-good
 artifact.
 
-The OpenCode target parses JSON/JSONC, removes/replaces only the reserved
-`llm-glue-*` provider namespace, and retains all other properties. The LiteLLM
+The OpenCode target parses JSON/JSONC, removes/replaces only exact provider keys
+recorded for its artifact source, and retains all other properties. The LiteLLM
 target parses both YAML documents, requires the authorized include, rejects
 operator/generated alias collisions, and restarts only a syntactically constrained
 local service identity before checking its configured health URL.

@@ -41,14 +41,19 @@ public static class TomlConfigLoader
             PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");
-        CheckKeys(server, "server", "listen", "opencode_inference_url", "embed_opencode_inference_api_key", "opencode_inference_api_key_environment", "opencode_inference_api_key", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
+        CheckKeys(server, "server", "listen", "opencode_inference_url", "embed_opencode_inference_api_key", "opencode_inference_api_key_environment", "opencode_inference_api_key", "opencode_namespace", "opencode_namespace_overrides", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
         var openCodeInferenceUrl = OptionalString(server, "opencode_inference_url");
+        var openCodeNamespace = String(server, "opencode_namespace", "llm-glue");
+        ValidateOpenCodeNamespace(openCodeNamespace, "server.opencode_namespace");
+        var openCodeNamespaceOverrides = TableArray(server, "opencode_namespace_overrides").Select(ReadOpenCodeNamespaceOverride).ToArray();
         var serverOptions = new ServerOptions(
             AbsoluteUri(String(server, "listen", "http://127.0.0.1:8765"), "server.listen"),
             openCodeInferenceUrl is null ? null : HttpUri(openCodeInferenceUrl, "server.opencode_inference_url"),
             Bool(server, "embed_opencode_inference_api_key", true),
             OptionalString(server, "opencode_inference_api_key_environment"),
             OptionalString(server, "opencode_inference_api_key"),
+            openCodeNamespace,
+            openCodeNamespaceOverrides,
             OptionalString(server, "read_token_environment"), OptionalString(server, "write_token_environment"),
             OptionalString(server, "read_token"), OptionalString(server, "write_token"),
             Bool(server, "acknowledge_insecure_remote_http", false),
@@ -97,6 +102,27 @@ public static class TomlConfigLoader
 
         return new GlueOptions(roleOptions, agentOptions, serverOptions,
             new ClientOptions(sourceUri, tokenEnvironment, token, PositiveInt(client, "poll_interval_seconds", 60), targets), loggingOptions, fullPath, baseDirectory);
+    }
+
+    private static OpenCodeNamespaceOverrideOptions ReadOpenCodeNamespaceOverride(TomlTable table)
+    {
+        CheckKeys(table, "server.opencode_namespace_overrides", "namespace", "provider_id", "instance_id");
+        var value = new OpenCodeNamespaceOverrideOptions(
+            RequiredString(table, "namespace"),
+            OptionalString(table, "provider_id"),
+            OptionalString(table, "instance_id"));
+        ValidateOpenCodeNamespace(value.Namespace, "server.opencode_namespace_overrides.namespace");
+        if (value.ProviderId is null && value.InstanceId is null)
+            throw new ConfigurationException("Each [[server.opencode_namespace_overrides]] entry must specify provider_id or instance_id.");
+        return value;
+    }
+
+    private static void ValidateOpenCodeNamespace(string value, string field)
+    {
+        if (value.Length > 64 || value[0] == '-' || value[^1] == '-' || value.Any(character => !(char.IsAsciiLetterOrDigit(character) || character == '-')))
+            throw new ConfigurationException($"'{field}' must contain only ASCII letters, digits, and interior hyphens, with a maximum length of 64.");
+        if (value.Equals("opencode", StringComparison.OrdinalIgnoreCase) || value.Equals("ollama", StringComparison.OrdinalIgnoreCase))
+            throw new ConfigurationException($"'{field}' cannot use the reserved built-in OpenCode provider namespace '{value}'.");
     }
 
     private static void ValidateOpenCodeInferenceSecret(ServerOptions server)

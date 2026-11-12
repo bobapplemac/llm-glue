@@ -59,6 +59,7 @@ public static class CliCommands
         Console.WriteLine($"Roles: agent={options.Roles.Agent}, server={options.Roles.Server}, client={options.Roles.Client}");
         Console.WriteLine($"Server: {options.Server.Listen}");
         Console.WriteLine($"OpenCode inference route: {(options.Server.OpenCodeInferenceUrl is null ? "direct provider endpoints" : options.Server.OpenCodeInferenceUrl)}");
+        Console.WriteLine($"OpenCode namespace: {options.Server.OpenCodeNamespace} ({options.Server.OpenCodeNamespaceOverrides.Count} override(s))");
         if (options.Server.OpenCodeInferenceUrl is not null)
         {
             Console.WriteLine($"OpenCode inference credential delivery: {(options.Server.EmbedOpenCodeInferenceApiKey ? "embedded in authenticated artifact" : $"client environment ({OpenCodeGenerator.InferenceApiKeyEnvironment})")}");
@@ -141,7 +142,8 @@ public static class CliCommands
             : null;
         if (options.Server.EmbedOpenCodeInferenceApiKey && options.Server.OpenCodeInferenceUrl is not null && string.IsNullOrEmpty(key))
             throw new ConfigurationException("OpenCode inference API key source is configured but unavailable.");
-        return new OpenCodeGenerator(options.Server.OpenCodeInferenceUrl, key, options.Server.EmbedOpenCodeInferenceApiKey);
+        return new OpenCodeGenerator(options.Server.OpenCodeInferenceUrl, key, options.Server.EmbedOpenCodeInferenceApiKey,
+            options.Server.OpenCodeNamespace, options.Server.OpenCodeNamespaceOverrides);
     }
 
     public static async Task<int> SyncOnceAsync(GlueOptions options, CancellationToken cancellationToken)

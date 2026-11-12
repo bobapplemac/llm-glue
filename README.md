@@ -107,6 +107,11 @@ Model export can be filtered at two boundaries. Agent `exclude_models` patterns
 prevent matching inventory from leaving that host. Server `model_pattern` rules
 retain diagnostic visibility while omitting matches from generated catalogs.
 
+OpenCode models appear under the concise `llm-glue` provider namespace by
+default. Servers can change `opencode_namespace` or use ordered
+`[[server.opencode_namespace_overrides]]` rules to place selected provider
+instances in separate namespaces; internal LiteLLM aliases remain stable.
+
 ## Security
 
 The HTTP server defaults to loopback. Bearer authentication is mandatory on

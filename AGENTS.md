@@ -21,6 +21,10 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
   never remove another controller's provider keys. The default built-in
   `opencode` deny policy follows the same rule: preserve identical operator-owned
   statements and every unrelated policy, and remove only an owned statement.
+- OpenCode sources aggregate into the configurable `llm-glue` namespace by
+  default. Namespace overrides use exact provider/instance identity and first
+  match wins. Never invent unstable suffixes: duplicate model IDs or multiple
+  direct endpoints in one namespace must fail with an actionable split request.
 - Generated artifacts must be deterministic. LiteLLM YAML remains credential-free;
   authenticated OpenCode artifacts embed the configured inference key by default
   under ADR 0017. Never put real credentials in fixtures, logs, diagnostics, or

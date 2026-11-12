@@ -47,7 +47,7 @@ public sealed class GenerationTests
         using var json = JsonDocument.Parse(artifact.Content);
         using var expected = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "fixtures", "golden", "opencode-central.json")));
         Assert.True(JsonElement.DeepEquals(expected.RootElement, json.RootElement));
-        var provider = json.RootElement.GetProperty("providers").GetProperty("llm-glue-llama-cpp-lab");
+        var provider = json.RootElement.GetProperty("providers").GetProperty("llm-glue");
         Assert.Equal("https://litellm.example.test/v1", provider.GetProperty("settings").GetProperty("baseURL").GetString());
         Assert.Equal("test-inference-key", provider.GetProperty("settings").GetProperty("apiKey").GetString());
         Assert.False(provider.TryGetProperty("env", out _));
@@ -83,7 +83,7 @@ public sealed class GenerationTests
         var artifact = await new OpenCodeGenerator(new Uri("https://litellm.example.test"), embedInferenceApiKey: false)
             .GenerateAsync(Snapshot(), TestContext.Current.CancellationToken);
         using var json = JsonDocument.Parse(artifact.Content);
-        var provider = json.RootElement.GetProperty("providers").GetProperty("llm-glue-llama-cpp-lab");
+        var provider = json.RootElement.GetProperty("providers").GetProperty("llm-glue");
         Assert.Equal("{env:LLM_GLUE_INFERENCE_API_KEY}", provider.GetProperty("settings").GetProperty("apiKey").GetString());
         Assert.Equal("LLM_GLUE_INFERENCE_API_KEY", provider.GetProperty("env")[0].GetString());
     }
@@ -115,7 +115,7 @@ public sealed class GenerationTests
             snapshot,
             TestContext.Current.CancellationToken);
         using var json = JsonDocument.Parse(artifact.Content);
-        var capabilities = json.RootElement.GetProperty("providers").GetProperty("llm-glue-llama-cpp-lab")
+        var capabilities = json.RootElement.GetProperty("providers").GetProperty("llm-glue")
             .GetProperty("models").GetProperty("qwen-model").GetProperty("capabilities");
         Assert.False(capabilities.TryGetProperty("input", out _));
         Assert.False(capabilities.TryGetProperty("output", out _));
@@ -124,6 +124,76 @@ public sealed class GenerationTests
 
         var liteLlm = Encoding.UTF8.GetString((await new LiteLlmGenerator().GenerateAsync(snapshot, TestContext.Current.CancellationToken)).Content);
         Assert.Contains("llama-cpp-lab-qwen-model", liteLlm, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AggregatesSourcesIntoDefaultNamespaceAndSupportsOrderedOverrides()
+    {
+        var first = Qualified();
+        var second = Qualified() with
+        {
+            Identity = Qualified().Identity with
+            {
+                ProviderId = "ollama",
+                InstanceId = "workstation",
+                ModelId = "other-model",
+                DisplayName = "Other Model",
+                Route = "other-model",
+                SourceEndpoint = "http://127.0.0.1:11434"
+            }
+        };
+        var snapshot = DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [first, second]);
+
+        var aggregated = await new OpenCodeGenerator(new Uri("https://litellm.example.test"), "test-key")
+            .GenerateAsync(snapshot, TestContext.Current.CancellationToken);
+        using (var json = JsonDocument.Parse(aggregated.Content))
+        {
+            var providers = json.RootElement.GetProperty("providers");
+            var provider = Assert.Single(providers.EnumerateObject());
+            Assert.Equal("llm-glue", provider.Name);
+            Assert.Equal(2, provider.Value.GetProperty("models").EnumerateObject().Count());
+        }
+
+        var split = await new OpenCodeGenerator(
+                new Uri("https://litellm.example.test"),
+                "test-key",
+                defaultNamespace: "models",
+                namespaceOverrides: [new("workstation", "ollama", "workstation"), new("ignored", "ollama", null)])
+            .GenerateAsync(snapshot, TestContext.Current.CancellationToken);
+        using var splitJson = JsonDocument.Parse(split.Content);
+        Assert.Equal(["models", "workstation"], splitJson.RootElement.GetProperty("providers").EnumerateObject().Select(x => x.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task RejectsDuplicateModelIdsWithinOneNamespace()
+    {
+        var duplicate = Qualified() with
+        {
+            Identity = Qualified().Identity with { ProviderId = "ollama", InstanceId = "other", Route = "other-route" }
+        };
+        var generator = new OpenCodeGenerator(new Uri("https://litellm.example.test"), "test-key");
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => generator.GenerateAsync(
+            DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [Qualified(), duplicate]), TestContext.Current.CancellationToken).AsTask());
+        Assert.Contains("duplicate model IDs", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RequiresNamespaceSplitForMultipleDirectEndpoints()
+    {
+        var other = Qualified() with
+        {
+            Identity = Qualified().Identity with
+            {
+                ProviderId = "ollama",
+                InstanceId = "workstation",
+                ModelId = "other-model",
+                Route = "other-model",
+                SourceEndpoint = "http://127.0.0.1:11434"
+            }
+        };
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new OpenCodeGenerator().GenerateAsync(
+            DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [Qualified(), other]), TestContext.Current.CancellationToken).AsTask());
+        Assert.Contains("multiple direct provider endpoints", error.Message, StringComparison.Ordinal);
     }
 
     public static DiscoverySnapshot Snapshot() => DiscoverySnapshot.Create(DateTimeOffset.UnixEpoch, [Qualified()]);

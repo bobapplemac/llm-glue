@@ -148,7 +148,9 @@ static OpenCodeGenerator CreateOpenCodeGenerator(GlueOptions options) => new(
     options.Server.EmbedOpenCodeInferenceApiKey
         ? ResolveSecret(options.Server.OpenCodeInferenceApiKey, options.Server.OpenCodeInferenceApiKeyEnvironment, "OpenCode inference API key")
         : null,
-    options.Server.EmbedOpenCodeInferenceApiKey);
+    options.Server.EmbedOpenCodeInferenceApiKey,
+    options.Server.OpenCodeNamespace,
+    options.Server.OpenCodeNamespaceOverrides);
 
 static void AddAgent(IServiceCollection services, GlueOptions options)
 {

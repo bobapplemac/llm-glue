@@ -1,5 +1,24 @@
 # Progress
 
+## Post-r4 concise OpenCode namespaces
+
+- OpenCode artifacts now aggregate every published provider/instance source into
+  the configurable `server.opencode_namespace`, defaulting to `llm-glue`. Normal
+  OpenCode/Paseo selections therefore read `llm-glue/model` instead of repeating
+  provider and instance provenance in the visible provider key.
+- Ordered `[[server.opencode_namespace_overrides]]` rules split exact provider or
+  instance sources into other namespaces. First match wins; multiple sources may
+  intentionally share one namespace.
+- Stable, collision-safe LiteLLM aliases remain internal OpenCode `modelID`
+  values. Duplicate model IDs in one namespace and multiple direct endpoints in
+  one namespace fail closed with an explicit split diagnostic.
+- Existing source-scoped ownership removes the prior verbose managed provider on
+  the next apply. Operator providers remain untouched; multiple LLM Glue
+  controllers targeting one file must configure distinct namespaces.
+- Build succeeds with zero warnings. All 142 automated tests pass, including
+  default aggregation, explicit source splitting, duplicate-ID rejection,
+  configuration validation, and existing ownership migration.
+
 ## Post-r4 authenticated OpenCode credential provisioning
 
 - Central servers now embed their configured LiteLLM client key in authenticated
