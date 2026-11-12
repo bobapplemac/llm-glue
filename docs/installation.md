@@ -182,7 +182,10 @@ Without `--config`, lookup order is executable-adjacent `llm-glue.conf`, then
 `llm-glue.toml`, followed by the same filenames in `/etc/llm-glue` on Linux or
 `%ProgramData%\LLMGlue` on Windows. `/etc/llm-glue.conf` and
 `/etc/llm-glue.toml` remain legacy Linux fallbacks. Run `llm-glue --help` without
-a configuration file to see the complete command list.
+a configuration file to see the complete command list. The generated
+[CLI reference](cli-reference.md) documents every command and parameter. The
+generated [TOML reference](configuration-reference.md) documents every accepted
+setting, its type, default or requirement, and purpose.
 
 `server.state_directory` controls durable catalog/artifact storage and resolves
 relative to the sidecar directory. The service identity must be able to create

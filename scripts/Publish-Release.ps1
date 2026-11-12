@@ -51,6 +51,9 @@ if ($CheckOnly) { return }
 
 & dotnet test (Join-Path $root 'LlmGlue.slnx') -c Release
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+& dotnet (Join-Path $root 'src/LlmGlue/bin/Release/net10.0/llm-glue.dll') docs generate --output (Join-Path $root 'docs') --check
+if ($LASTEXITCODE -ne 0) { throw 'Generated reference documentation is stale.' }
+if ((Invoke-Git status --porcelain=v1 --untracked-files=all)) { throw 'Build or generated reference documentation changed the worktree.' }
 foreach ($rid in 'linux-x64','win-x64') {
     $publish = Join-Path $root "$OutputDirectory/publish/$rid"
     & dotnet publish (Join-Path $root 'src/LlmGlue/LlmGlue.csproj') -c Release -r $rid --self-contained true -p:PublishSingleFile=true -p:DebugType=None -p:AssemblyVersion=1.0.0.0 "-p:FileVersion=1.$Revision.0.0" "-p:InformationalVersion=r$Revision+$ReleaseHead" "-p:Version=1.$Revision.0" -o $publish

@@ -1,5 +1,6 @@
 using Tomlyn;
 using Tomlyn.Model;
+using LlmGlue.Core.Documentation;
 
 namespace LlmGlue.Core.Configuration;
 
@@ -18,13 +19,13 @@ public static class TomlConfigLoader
         try { root = TomlSerializer.Deserialize<TomlTable>(text) ?? throw new ConfigurationException("Configuration is empty."); }
         catch (Exception ex) when (ex is not ConfigurationException)
         { throw new ConfigurationException($"Invalid TOML in '{fullPath}': {ex.Message}"); }
-        CheckKeys(root, "root", "roles", "agent", "server", "client", "logging");
+        CheckKeys(root, "root");
         var roles = RequiredTable(root, "roles");
-        CheckKeys(roles, "roles", "agent", "server", "client");
+        CheckKeys(roles, "roles");
         var roleOptions = new RoleOptions(Bool(roles, "agent", false), Bool(roles, "server", false), Bool(roles, "client", false));
 
         var agent = OptionalTable(root, "agent");
-        CheckKeys(agent, "agent", "providers", "exclude_models", "submit_to", "write_token_environment", "write_token", "discovery_interval_seconds", "removal_grace_seconds");
+        CheckKeys(agent, "agent");
         var providers = TableArray(agent, "providers").Select(ReadProvider).ToArray();
         var excludeModels = StringArray(agent, "exclude_models").ToArray();
         if (excludeModels.Any(string.IsNullOrWhiteSpace)) throw new ConfigurationException("agent.exclude_models cannot contain empty patterns.");
@@ -41,7 +42,7 @@ public static class TomlConfigLoader
             PositiveInt(agent, "removal_grace_seconds", 600));
 
         var server = OptionalTable(root, "server");
-        CheckKeys(server, "server", "listen", "opencode_inference_url", "embed_opencode_inference_api_key", "opencode_inference_api_key_environment", "opencode_inference_api_key", "opencode_namespace", "opencode_namespace_overrides", "litellm_namespace", "read_token_environment", "write_token_environment", "read_token", "write_token", "acknowledge_insecure_remote_http", "exclusions", "state_directory", "artifact_retention");
+        CheckKeys(server, "server");
         var openCodeInferenceUrl = OptionalString(server, "opencode_inference_url");
         var openCodeNamespace = String(server, "opencode_namespace", "llm-glue");
         ValidateOpenCodeNamespace(openCodeNamespace, "server.opencode_namespace");
@@ -66,7 +67,7 @@ public static class TomlConfigLoader
         ValidateListen(serverOptions);
 
         var client = OptionalTable(root, "client");
-        CheckKeys(client, "client", "source", "token_environment", "token", "poll_interval_seconds", "targets");
+        CheckKeys(client, "client");
         var source = OptionalString(client, "source");
         var tokenEnvironment = OptionalString(client, "token_environment");
         var token = OptionalString(client, "token");
@@ -76,7 +77,7 @@ public static class TomlConfigLoader
             throw new ConfigurationException("A Server with a LiteLLM target requires server.opencode_inference_url so remote OpenCode artifacts route through LiteLLM instead of private provider endpoints.");
 
         var logging = OptionalTable(root, "logging");
-        CheckKeys(logging, "logging", "level", "file", "archive_size_mb", "retention");
+        CheckKeys(logging, "logging");
         var level = String(logging, "level", "Information");
         if (level is not ("Trace" or "Debug" or "Information" or "Warning" or "Error" or "Critical")) throw new ConfigurationException("logging.level is invalid.");
         var loggingOptions = new LoggingOptions(level, String(logging, "file", "logs/llm-glue.log"), PositiveInt(logging, "archive_size_mb", 10), PositiveInt(logging, "retention", 7));
@@ -109,7 +110,7 @@ public static class TomlConfigLoader
 
     private static OpenCodeNamespaceOverrideOptions ReadOpenCodeNamespaceOverride(TomlTable table)
     {
-        CheckKeys(table, "server.opencode_namespace_overrides", "namespace", "provider_id", "instance_id");
+        CheckKeys(table, "server.opencode_namespace_overrides");
         var value = new OpenCodeNamespaceOverrideOptions(
             RequiredString(table, "namespace"),
             OptionalString(table, "provider_id"),
@@ -168,7 +169,7 @@ public static class TomlConfigLoader
 
     private static ExclusionRuleOptions ReadExclusion(TomlTable table)
     {
-        CheckKeys(table, "server.exclusions", "provider_id", "instance_id", "model_id", "display_name", "provider_model", "model_pattern");
+        CheckKeys(table, "server.exclusions");
         var rule = new ExclusionRuleOptions(
             OptionalString(table, "provider_id"),
             OptionalString(table, "instance_id"),
@@ -183,7 +184,7 @@ public static class TomlConfigLoader
 
     private static ProviderOptions ReadProvider(TomlTable table)
     {
-        CheckKeys(table, "agent.providers", "type", "name", "url", "model_directories", "model_path_mappings", "inspect_gguf", "hash_model_files", "probe_mode", "probe_timeout_seconds", "discovery_timeout_seconds");
+        CheckKeys(table, "agent.providers");
         var type = RequiredString(table, "type");
         if (type is not ("ollama" or "llama.cpp")) throw new ConfigurationException($"Unsupported provider type '{type}'.");
         var directories = StringArray(table, "model_directories");
@@ -220,7 +221,7 @@ public static class TomlConfigLoader
 
     private static TargetOptions ReadTarget(TomlTable table)
     {
-        CheckKeys(table, "client.targets", "type", "path", "primary_config_path", "service_name", "health_url", "deny_builtin_opencode_provider");
+        CheckKeys(table, "client.targets");
         var type = RequiredString(table, "type");
         if (type is not ("opencode" or "litellm")) throw new ConfigurationException($"Unsupported target type '{type}'.");
         var primary = OptionalString(table, "primary_config_path");
@@ -266,9 +267,10 @@ public static class TomlConfigLoader
         if (!string.IsNullOrEmpty(uri.UserInfo)) throw new ConfigurationException($"'{field}' cannot contain user information; configure credentials through the supported secret source.");
         return uri;
     }
-    private static void CheckKeys(TomlTable table, string scope, params string[] allowed)
+    private static void CheckKeys(TomlTable table, string scope)
     {
-        var set = allowed.ToHashSet(StringComparer.Ordinal);
+        var set = ReferenceDocumentation.AllowedKeys(scope);
+        if (set.Count == 0) throw new InvalidOperationException($"No configuration reference metadata exists for scope '{scope}'.");
         var unknown = table.Keys.Where(x => !set.Contains(x)).Order(StringComparer.Ordinal).ToArray();
         if (unknown.Length != 0) throw new ConfigurationException($"Unknown setting(s) in {scope}: {string.Join(", ", unknown)}.");
     }

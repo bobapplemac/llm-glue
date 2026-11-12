@@ -5,6 +5,8 @@
     <RootNamespace>LlmGlue</RootNamespace>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <GenerateReferenceDocs Condition="'$(GenerateReferenceDocs)' == ''">true</GenerateReferenceDocs>
+    <ReferenceDocsOutput>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../../docs'))</ReferenceDocsOutput>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LlmGlue.Core/LlmGlue.Core.csproj" />
@@ -13,4 +15,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
     <PackageReference Include="NLog.Extensions.Logging" Version="6.2.2" />
   </ItemGroup>
+  <Target Name="GenerateReferenceDocumentation" AfterTargets="Build"
+          Condition="'$(GenerateReferenceDocs)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(RuntimeIdentifier)' == ''">
+    <Exec Command="&quot;$(TargetDir)$(AssemblyName)$(ExecutableExtension)&quot; docs generate --output &quot;$(ReferenceDocsOutput)&quot;" />
+  </Target>
 </Project>

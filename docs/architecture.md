@@ -186,6 +186,13 @@ or submission; server exclusion patterns retain diagnostics while filtering
 generated artifacts.
 Relative data paths resolve against the selected config directory.
 
+The typed configuration catalog in `ReferenceDocumentation` is also the source
+of truth for accepted keys: TOML validation derives each scope's allow-list from
+it. The same catalog generates `docs/configuration-reference.md`. A parallel CLI
+catalog generates both built-in help and `docs/cli-reference.md`. This makes
+missing setting documentation and stale hand-maintained usage text build-time
+concerns instead of release-time archaeology; see ADR 0020.
+
 ## Operations and release
 
 The executable hosts under Windows Service or systemd using official .NET 10

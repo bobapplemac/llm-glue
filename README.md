@@ -65,7 +65,13 @@ dotnet test
 
 Operator documentation: [installation](docs/installation.md),
 [troubleshooting](docs/troubleshooting.md), [security](docs/security.md), and
-[release process](docs/releasing.md).
+[release process](docs/releasing.md). Complete generated references cover every
+[CLI command and parameter](docs/cli-reference.md) and every accepted
+[TOML setting](docs/configuration-reference.md).
+
+The reference pages are generated from typed catalogs in the source. A normal
+`dotnet build` refreshes them; `make docs` regenerates explicitly, and
+`make docs-check` fails when committed output is stale.
 
 Validated starting configurations are available in [`examples`](examples). The
 all-in-one example discovers local Ollama and targets the system OpenCode file;

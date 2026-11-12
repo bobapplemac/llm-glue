@@ -26,6 +26,13 @@ if (args.FirstOrDefault() == "help" || args.Any(argument => argument is "--help"
     return;
 }
 
+if (args.Take(2).SequenceEqual(["docs", "generate"]))
+{
+    var output = Option(args, "--output") ?? Path.Combine(Environment.CurrentDirectory, "docs");
+    Environment.ExitCode = ReferenceDocumentWriter.Generate(output, args.Contains("--check", StringComparer.Ordinal));
+    return;
+}
+
 if (args.Take(2).SequenceEqual(["update", "activate-staged"]))
 {
     if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("The staged update activator is Linux-only.");
@@ -236,6 +243,11 @@ static string RequiredOption(string[] values, string name)
     return index >= 0 && index + 1 < values.Length
         ? values[index + 1]
         : throw new ConfigurationException($"Missing internal update option {name}.");
+}
+static string? Option(string[] values, string name)
+{
+    var index = Array.IndexOf(values, name);
+    return index >= 0 && index + 1 < values.Length ? values[index + 1] : null;
 }
 static Uri? OptionalUri(string[] values, string name)
 {

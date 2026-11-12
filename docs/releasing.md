@@ -99,6 +99,9 @@ checksums, and a commit-linked manifest. They fetch and compare the remote again
 immediately before publication. They never commit, push normal commits, rewrite
 tags, force-push, or clean the worktree. A partial remote failure is reported for
 manual recovery; existing remote state is never automatically deleted.
+The build regenerates the CLI and TOML references from source. Both guarded
+publishers then run the generator in check mode and reject any resulting
+worktree change, so stale generated documentation cannot enter a release.
 
 Release properties map rN to stable AssemblyVersion `1.0.0.0`, revision-tracking
 FileVersion `1.N.0.0`, package version `1.N.0`, and runtime product identity `rN`.

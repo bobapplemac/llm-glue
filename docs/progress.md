@@ -1,5 +1,20 @@
 # Progress
 
+## Post-r4 generated operator references
+
+- Typed source catalogs now describe every CLI command/parameter and every
+  accepted TOML key, including type, default or requirement, and purpose.
+- TOML unknown-key validation uses the configuration catalog directly; built-in
+  help and both Markdown references are generated from the corresponding source
+  catalogs.
+- Normal builds refresh `docs/cli-reference.md` and
+  `docs/configuration-reference.md`. `llm-glue docs generate --check`, Make
+  targets, automated tests, and both guarded publishers detect drift.
+- ADR 0020 records the source-of-truth and cross-RID build decision. The Release
+  build passes with zero warnings/errors; all 148 automated tests pass. Generator
+  check mode, all help output, PowerShell parsing, Bash syntax, and whitespace
+  validation also pass.
+
 ## Post-r4 Server-scoped LiteLLM aliases
 
 - LiteLLM aliases now use `server.litellm_namespace` plus the model ID instead of

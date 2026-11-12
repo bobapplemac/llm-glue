@@ -40,6 +40,9 @@ latest="${latest:-0}"
 
 echo "preflight passed for $tag at $local_head"
 ((check_only)) && exit 0
+dotnet test LlmGlue.slnx -c Release
+dotnet src/LlmGlue/bin/Release/net10.0/llm-glue.dll docs generate --output docs --check
+[[ -z "$(git status --porcelain=v1 --untracked-files=all)" ]] || { echo "build or generated reference documentation changed the worktree" >&2; exit 1; }
 LLM_GLUE_OFFICIAL_RELEASE_BUILD=1 make package REVISION="$revision"
 [[ -x "artifacts/publish/linux-x64/llm-glue" && -f "artifacts/publish/win-x64/llm-glue.exe" ]] || { echo "required publish outputs are missing" >&2; exit 1; }
 git fetch --prune

@@ -49,6 +49,10 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
 - Add or update tests with every behavioral change. Mark live-environment tests
   separately from fixture/mock tests.
 - Update durable documentation and `docs/progress.md` at each milestone.
+- CLI and TOML references are generated from
+  `ReferenceDocumentation.cs`; update that typed catalog with parser behavior,
+  never hand-edit `docs/cli-reference.md` or `docs/configuration-reference.md`.
+  A normal build regenerates them and `make docs-check` verifies drift.
 - Every release revision requires explicit user authorization. Do not publish
   through an unguarded path or modify inference services outside an explicitly
   configured local target.

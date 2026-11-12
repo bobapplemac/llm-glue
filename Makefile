@@ -19,7 +19,7 @@ PACKAGE_VERSION := 1.$(REVISION).0
 endif
 VERSION_ARGS := -p:AssemblyVersion=$(ASSEMBLY_VERSION) -p:FileVersion=$(FILE_VERSION) -p:InformationalVersion=r$(REVISION) -p:Version=$(PACKAGE_VERSION)
 
-.PHONY: help restore build test test-litellm clean version-policy publish-linux publish-windows package release-check release
+.PHONY: help restore build docs docs-check test test-litellm clean version-policy publish-linux publish-windows package release-check release
 
 help: ## Show this help and configurable variables
 	@awk 'BEGIN {FS = ":.*## "; printf "LLM Glue r0 build\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2} END {printf "\nVariables: CONFIG=%s RID=%s OUT=%s REVISION=%s DRY_RUN=%s PYTHON=%s OPENCODE=%s\n", "$(CONFIG)", "$(RID)", "$(OUT)", "$(REVISION)", "$(DRY_RUN)", "$(PYTHON)", "$(OPENCODE)"}' $(MAKEFILE_LIST)
@@ -29,6 +29,12 @@ restore: ## Restore pinned .NET dependencies
 
 build: ## Build the solution with warnings as errors
 	dotnet build LlmGlue.slnx -c $(CONFIG) --no-restore
+
+docs: build ## Regenerate CLI and TOML reference documentation
+	dotnet src/LlmGlue/bin/$(CONFIG)/net10.0/llm-glue.dll docs generate --output docs
+
+docs-check: build ## Verify generated CLI and TOML references are current
+	dotnet src/LlmGlue/bin/$(CONFIG)/net10.0/llm-glue.dll docs generate --output docs --check
 
 test: ## Run all automated tests
 	dotnet test LlmGlue.slnx -c $(CONFIG) --no-restore --verbosity minimal
