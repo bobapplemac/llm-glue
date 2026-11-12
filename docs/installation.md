@@ -24,9 +24,15 @@ and keeps the previous executable as `.rollback`.
 LLM_GLUE_INSTALL_DIR=$HOME/.local/lib/llm-glue ./install.sh
 ```
 
-Interactive installation offers `remote-client`, `standalone-ollama`, and
-`central-llama`. It asks only for the URLs, secrets, provider/target paths, and
-optional service registration needed by that mode. Server URLs include the
+Interactive installation offers `remote-client`, `standalone-ollama`,
+`central-llama`, and `custom`. The first three are topology shortcuts. `custom`
+accepts any non-empty combination of Agent, Server, and Client roles. When Agent
+is selected it suggests locally detected Ollama and llama.cpp integrations and
+accepts a comma-separated provider list; when Client is selected it does the same
+for OpenCode and LiteLLM targets. Detection is advisory and conservative, and
+the operator always confirms or overrides the list and paths. The installer asks
+only for URLs, secrets, provider/target paths, and optional service registration
+needed by the selected roles. Server URLs include the
 nonstandard default port, for example `https://catalog.example:8765`. The central mode configures
 llama.cpp discovery, authenticated Server publication, and the owned LiteLLM
 include; it never edits the operator's primary LiteLLM YAML. Central mode also
@@ -54,7 +60,8 @@ when intentionally migrating. Existing `.conf` or `.toml` sidecars are validated
 and preserved without creating a competing filename.
 
 Headless PowerShell installs use `-NonInteractive` with the corresponding named
-parameters. `central-llama` requires `-InferenceApiKey` by default; use
+parameters. Custom installs use `-Mode custom`, `-Roles`, `-AgentProviders`, and
+`-ClientTargets`; the latter two accept arrays. `central-llama` requires `-InferenceApiKey` by default; use
 `-DoNotEmbedInferenceApiKey` only for separately provisioned client environments.
 The ordinary `remote-client` flow asks only for the LLM Glue URL and read token.
 For compatibility with an opt-out server, explicitly passing `-InferenceApiKey`
@@ -75,6 +82,15 @@ Headless Linux installs set `LLM_GLUE_NONINTERACTIVE=1`,
 `LLM_GLUE_CONFIG_PATH` override destinations. Linux service installs otherwise
 use `/opt/llm-glue` and `/etc/llm-glue.conf`; foreground installs remain
 user-writable.
+
+For a custom headless Linux install, set `LLM_GLUE_MODE=custom`, comma-separated
+`LLM_GLUE_ROLES`, and the applicable comma-separated
+`LLM_GLUE_AGENT_PROVIDERS` and `LLM_GLUE_CLIENT_TARGETS`. Supported values are
+`agent`, `server`, `client`; `ollama`, `llama.cpp`; and `opencode`, `litellm`.
+The singular `LLM_GLUE_AGENT_PROVIDER` and `LLM_GLUE_CLIENT_TARGET` names remain
+compatibility aliases for one selection. A remote Agent uses the write token; a
+remote Client uses the read token. Co-located roles omit remote source URLs and
+share the Server's generated credentials.
 
 The checksum-verified staged executable and candidate configuration are validated
 before copying anything into the final location. Existing configuration is

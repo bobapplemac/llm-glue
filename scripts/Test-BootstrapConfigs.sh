@@ -44,6 +44,29 @@ grep -Fq 'type = "litellm"' "$tmp/central-llama/llm-glue.conf"
 grep -Fq 'opencode_inference_url = "http://litellm.test:4000"' "$tmp/central-llama/llm-glue.conf"
 grep -Fq 'opencode_inference_api_key = "test-inference"' "$tmp/central-llama/llm-glue.conf"
 
+for role_set in agent server client agent,server agent,client server,client agent,server,client; do
+  name="${role_set//,/-}"
+  destination="$tmp/custom-$name"
+  env LLM_GLUE_MODE=custom LLM_GLUE_ROLES="$role_set" LLM_GLUE_AGENT_PROVIDERS=ollama LLM_GLUE_CLIENT_TARGETS=opencode \
+    LLM_GLUE_SERVER_URL=https://catalog.example:8765 LLM_GLUE_SERVER_TOKEN=test-read LLM_GLUE_WRITE_TOKEN=test-write LLM_GLUE_READ_TOKEN=test-read \
+    LLM_GLUE_INFERENCE_API_KEY=test-inference LLM_GLUE_LITELLM_URL=http://litellm.test:4000 LLM_GLUE_INSTALL_DIR="$destination" "$root/install.sh"
+  "$destination/llm-glue" config validate --config "$destination/llm-glue.conf"
+  for role in agent server client; do
+    expected=false
+    [[ ",$role_set," == *",$role,"* ]] && expected=true
+    grep -Fq "$role = $expected" "$destination/llm-glue.conf"
+  done
+done
+
+multi="$tmp/custom-multi"
+env LLM_GLUE_MODE=custom LLM_GLUE_ROLES=agent,server,client LLM_GLUE_AGENT_PROVIDERS=ollama,llama.cpp LLM_GLUE_CLIENT_TARGETS=opencode,litellm \
+  LLM_GLUE_GENERATE_API_KEYS=1 LLM_GLUE_INFERENCE_API_KEY=test-inference LLM_GLUE_LITELLM_URL=http://litellm.test:4000 \
+  LLM_GLUE_MODEL_DIRECTORY="$tmp/models" LLM_GLUE_OPENCODE_PATH="$tmp/multi-opencode.jsonc" LLM_GLUE_LITELLM_GENERATED="$tmp/multi-generated.yaml" \
+  LLM_GLUE_LITELLM_PRIMARY="$tmp/multi-litellm.yaml" LLM_GLUE_INSTALL_DIR="$multi" "$root/install.sh"
+"$multi/llm-glue" config validate --config "$multi/llm-glue.conf"
+[[ "$(grep -c '^\[\[agent.providers\]\]$' "$multi/llm-glue.conf")" == 2 ]]
+[[ "$(grep -c '^\[\[client.targets\]\]$' "$multi/llm-glue.conf")" == 2 ]]
+
 cp -- "$tmp/release/SHA256SUMS" "$tmp/release/SHA256SUMS.valid"
 sed -E 's/^[0-9a-f]{64}/0000000000000000000000000000000000000000000000000000000000000000/' "$tmp/release/SHA256SUMS.valid" > "$tmp/release/SHA256SUMS"
 if env LLM_GLUE_MODE=standalone-ollama LLM_GLUE_INSTALL_DIR="$tmp/checksum-rejection" LLM_GLUE_OLLAMA_URL=http://127.0.0.1:11434 LLM_GLUE_OPENCODE_PATH="$tmp/rejected.json" "$root/install.sh"; then

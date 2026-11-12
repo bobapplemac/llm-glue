@@ -70,6 +70,40 @@ try {
     if (-not (Select-String -Quiet -SimpleMatch 'type = "litellm"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central LiteLLM target was not generated.' }
     if (-not (Select-String -Quiet -SimpleMatch 'opencode_inference_url = "http://litellm.test:4000"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central OpenCode route does not use LiteLLM.' }
     if (-not (Select-String -Quiet -SimpleMatch 'opencode_inference_api_key = "test-inference"' (Join-Path $central 'llm-glue.conf'))) { throw 'Central server did not receive the inference key for authenticated artifact embedding.' }
+
+    foreach ($roleSet in @('agent','server','client','agent,server','agent,client','server,client','agent,server,client')) {
+        $selectedRoles = @($roleSet -split ',')
+        $custom = Join-Path $temporary ("custom-" + ($selectedRoles -join '-'))
+        $arguments = @{
+            NonInteractive = $true
+            Mode = 'custom'
+            Roles = $selectedRoles
+            InstallDirectory = $custom
+            ServerUrl = 'https://catalog.example:8765'
+            ServerToken = 'test-read'
+            WriteToken = 'test-write'
+            ReadToken = 'test-read'
+            InferenceApiKey = 'test-inference'
+            LiteLlmUrl = 'http://litellm.test:4000'
+            AgentProviders = @('ollama')
+            ClientTargets = @('opencode')
+            OpenCodePath = (Join-Path $temporary 'custom-opencode.jsonc')
+        }
+        & $installer @arguments
+        & (Join-Path $custom 'llm-glue.exe') config validate --config (Join-Path $custom 'llm-glue.conf')
+        $customText = Get-Content -LiteralPath (Join-Path $custom 'llm-glue.conf') -Raw
+        foreach ($role in 'agent','server','client') {
+            $expected = if ($selectedRoles -contains $role) { 'true' } else { 'false' }
+            if ($customText -notmatch "(?m)^$role = $expected\r?$") { throw "Custom role matrix generated the wrong $role value for $roleSet." }
+        }
+    }
+
+    $multi = Join-Path $temporary 'custom-multi'
+    & $installer -NonInteractive -Mode custom -Roles agent,server,client -AgentProviders ollama,llama.cpp -ClientTargets opencode,litellm -InstallDirectory $multi -GenerateApiKeys -InferenceApiKey test-inference -LiteLlmUrl http://litellm.test:4000 -ModelDirectory (Join-Path $temporary 'models') -OpenCodePath (Join-Path $temporary 'multi-opencode.jsonc') -LiteLlmGeneratedPath (Join-Path $temporary 'multi-generated.yaml') -LiteLlmPrimaryPath (Join-Path $temporary 'multi-litellm.yaml')
+    & (Join-Path $multi 'llm-glue.exe') config validate --config (Join-Path $multi 'llm-glue.conf')
+    $multiText = Get-Content -LiteralPath (Join-Path $multi 'llm-glue.conf') -Raw
+    if (($multiText | Select-String -AllMatches -Pattern '\[\[agent\.providers\]\]').Matches.Count -ne 2) { throw 'Custom bootstrap did not generate both selected Agent providers.' }
+    if (($multiText | Select-String -AllMatches -Pattern '\[\[client\.targets\]\]').Matches.Count -ne 2) { throw 'Custom bootstrap did not generate both selected Client targets.' }
     Write-Host 'PowerShell bootstrap configuration matrix passed.'
 } finally {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Recurse -Force }

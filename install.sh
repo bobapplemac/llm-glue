@@ -4,6 +4,9 @@ set -euo pipefail
 repo="bobapplemac/llm-glue"
 install_service="${LLM_GLUE_INSTALL_SERVICE:-0}"
 mode="${LLM_GLUE_MODE:-remote-client}"
+roles="${LLM_GLUE_ROLES:-}"
+agent_providers="${LLM_GLUE_AGENT_PROVIDERS:-${LLM_GLUE_AGENT_PROVIDER:-}}"
+client_targets="${LLM_GLUE_CLIENT_TARGETS:-${LLM_GLUE_CLIENT_TARGET:-}}"
 server_url="${LLM_GLUE_SERVER_URL:-https://replace-with-your-server:8765}"
 server_token="${LLM_GLUE_SERVER_TOKEN:-}"
 inference_api_key="${LLM_GLUE_INFERENCE_API_KEY:-}"
@@ -57,6 +60,34 @@ prompt_secret() {
   printf '%s' "$answer"
 }
 
+has_role() {
+  [[ ",$roles," == *",$1,"* ]]
+}
+
+has_csv_value() {
+  [[ ",$1," == *",$2,"* ]]
+}
+
+detect_agent_providers() {
+  local detected=''
+  if command -v ollama >/dev/null 2>&1 || curl --silent --fail --max-time 1 http://127.0.0.1:11434/api/version >/dev/null 2>&1; then detected=ollama; fi
+  if [[ -f /opt/llama-cpp/router/models.ini ]] || curl --silent --fail --max-time 1 http://127.0.0.1:8081/health >/dev/null 2>&1; then
+    [[ -z "$detected" ]] || detected+=,
+    detected+=llama.cpp
+  fi
+  printf '%s' "${detected:-ollama}"
+}
+
+detect_client_targets() {
+  local detected=''
+  if command -v opencode >/dev/null 2>&1 || [[ -d /etc/opencode ]]; then detected=opencode; fi
+  if [[ -f /opt/litellm/config.yaml ]] || systemctl list-unit-files 'litellm*.service' --no-legend 2>/dev/null | grep -q .; then
+    [[ -z "$detected" ]] || detected+=,
+    detected+=litellm
+  fi
+  printf '%s' "${detected:-opencode}"
+}
+
 toml_escape() {
   local value="$1"
   value="${value//\\/\\\\}"
@@ -83,7 +114,7 @@ toml_string_array() {
 }
 
 if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
-  mode="$(prompt 'Installation mode [remote-client/standalone-ollama/central-llama]' "$mode")"
+  mode="$(prompt 'Installation profile [remote-client/standalone-ollama/central-llama/custom]' "$mode")"
   case "$mode" in
     remote-client)
       server_url="$(prompt 'LLM Glue server URL' "$server_url")"
@@ -115,6 +146,56 @@ if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
       if [[ "$embed_inference_api_key" == 1 ]]; then inference_api_key="$(prompt_secret 'LiteLLM API key to embed in authenticated OpenCode artifacts')"; fi
       litellm_health="$(prompt 'LiteLLM health URL' "$litellm_health")"
       ;;
+    custom)
+      roles="$(prompt 'Enabled roles, comma separated [agent/server/client]' "${roles:-agent,server,client}")"
+      roles="${roles//[[:space:]]/}"
+      if has_role agent; then
+        [[ -n "$agent_providers" ]] || agent_providers="$(detect_agent_providers)"
+        agent_providers="$(prompt 'Agent providers, comma separated [ollama/llama.cpp]' "$agent_providers")"
+        agent_providers="${agent_providers//[[:space:]]/}"
+        if has_csv_value "$agent_providers" ollama; then
+          ollama_url="$(prompt 'Ollama URL' "$ollama_url")"
+        fi
+        if has_csv_value "$agent_providers" llama.cpp; then
+          llama_url="$(prompt 'llama.cpp URL' "$llama_url")"
+          model_directory="$(prompt 'GGUF model directory' "$model_directory")"
+        fi
+      fi
+      if ! has_role server && { has_role agent || has_role client; }; then
+        server_url="$(prompt 'Remote LLM Glue server URL' "$server_url")"
+        if has_role agent; then write_token="$(prompt_secret 'Remote Server write token')"; fi
+        if has_role client; then server_token="$(prompt_secret 'Remote Server read token')"; fi
+        trusted_server_public_key_sha256="$(prompt 'Pinned Server public-key SHA-256 (blank accepts any self-signed certificate)' "$trusted_server_public_key_sha256")"
+        [[ -z "$trusted_server_public_key_sha256" ]] || allow_invalid_server_certificate=0
+      fi
+      if has_role server; then
+        listen_url="$(prompt 'LLM Glue listen URL' "$listen_url")"
+        tls_server_names="$(prompt 'TLS/SNI server names, comma separated' "$tls_server_names")"
+        printf 'Auto-generate 24-byte read/write API keys? [Y/n]: ' > /dev/tty
+        read -r answer < /dev/tty || true
+        [[ "$answer" =~ ^[Nn]$ ]] || generate_api_keys=1
+        if [[ "$generate_api_keys" != 1 ]]; then
+          read_token="$(prompt_secret 'Remote client read token')"
+          write_token="$(prompt_secret 'Remote Agent write token')"
+        fi
+        litellm_url="$(prompt 'Externally reachable LiteLLM URL for generated OpenCode routes' "$litellm_url")"
+        if [[ "$embed_inference_api_key" == 1 ]]; then inference_api_key="$(prompt_secret 'LiteLLM API key to embed in authenticated OpenCode artifacts')"; fi
+      fi
+      if has_role client; then
+        [[ -n "$client_targets" ]] || client_targets="$(detect_client_targets)"
+        client_targets="$(prompt 'Client targets, comma separated [opencode/litellm]' "$client_targets")"
+        client_targets="${client_targets//[[:space:]]/}"
+        if has_csv_value "$client_targets" opencode; then
+          opencode_path="$(prompt 'OpenCode system config path' "$opencode_path")"
+        fi
+        if has_csv_value "$client_targets" litellm; then
+          litellm_primary="$(prompt 'LiteLLM primary config path' "$litellm_primary")"
+          litellm_generated="$(prompt 'LLM Glue LiteLLM include path' "$litellm_generated")"
+          litellm_service="$(prompt 'LiteLLM systemd service' "$litellm_service")"
+          litellm_health="$(prompt 'LiteLLM health URL' "$litellm_health")"
+        fi
+      fi
+      ;;
     *) echo 'invalid installation mode' >&2; exit 2 ;;
   esac
   printf 'Register the systemd service? [y/N]: ' > /dev/tty
@@ -122,12 +203,26 @@ if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
   [[ "$answer" =~ ^[Yy]$ ]] && install_service=1
 fi
 
-if [[ "$mode" == central-llama && "$generate_api_keys" == 1 ]]; then
+if [[ "$mode" == remote-client ]]; then roles=client; fi
+if [[ "$mode" == standalone-ollama || "$mode" == central-llama ]]; then roles=agent,server,client; fi
+roles="${roles//[[:space:]]/}"
+[[ -n "$roles" ]] || { echo 'at least one role must be enabled' >&2; exit 2; }
+IFS=',' read -ra selected_roles <<< "$roles"
+for selected_role in "${selected_roles[@]}"; do
+  [[ "$selected_role" == agent || "$selected_role" == server || "$selected_role" == client ]] || { echo "invalid role: $selected_role" >&2; exit 2; }
+done
+for required_role in agent server client; do
+  count=0
+  for selected_role in "${selected_roles[@]}"; do [[ "$selected_role" == "$required_role" ]] && count=$((count+1)); done
+  ((count <= 1)) || { echo "duplicate role: $required_role" >&2; exit 2; }
+done
+
+if { [[ "$mode" == central-llama ]] || [[ "$mode" == custom ]] && has_role server; } && [[ "$generate_api_keys" == 1 ]]; then
   [[ -n "$read_token" ]] || read_token="$(random_hex_24)"
   [[ -n "$write_token" ]] || write_token="$(random_hex_24)"
 fi
 
-[[ "$mode" == remote-client || "$mode" == standalone-ollama || "$mode" == central-llama ]] || { echo 'LLM_GLUE_MODE must be remote-client, standalone-ollama, or central-llama' >&2; exit 2; }
+[[ "$mode" == remote-client || "$mode" == standalone-ollama || "$mode" == central-llama || "$mode" == custom ]] || { echo 'LLM_GLUE_MODE must be remote-client, standalone-ollama, central-llama, or custom' >&2; exit 2; }
 if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" == 1 && "$mode" == remote-client && "$server_url" == https://replace-with-your-server:8765 ]]; then
   echo 'Noninteractive remote-client installation requires LLM_GLUE_SERVER_URL.' >&2
   exit 2
@@ -150,6 +245,38 @@ fi
 if [[ "$mode" == central-llama && "$embed_inference_api_key" == 1 && -z "$inference_api_key" ]]; then
   echo 'central-llama requires LLM_GLUE_INFERENCE_API_KEY by default. Set LLM_GLUE_EMBED_INFERENCE_API_KEY=0 only when every OpenCode process receives that environment variable separately.' >&2
   exit 2
+fi
+if [[ "$mode" == custom ]]; then
+  if has_role agent; then
+    agent_providers="${agent_providers//[[:space:]]/}"
+    [[ -n "$agent_providers" ]] || { echo 'custom Agent requires LLM_GLUE_AGENT_PROVIDERS.' >&2; exit 2; }
+    IFS=',' read -ra selected_providers <<< "$agent_providers"
+    for agent_provider in "${selected_providers[@]}"; do [[ "$agent_provider" == ollama || "$agent_provider" == llama.cpp ]] || { echo "invalid Agent provider: $agent_provider" >&2; exit 2; }; done
+    for supported_provider in ollama llama.cpp; do
+      count=0
+      for agent_provider in "${selected_providers[@]}"; do [[ "$agent_provider" == "$supported_provider" ]] && count=$((count+1)); done
+      ((count <= 1)) || { echo "duplicate Agent provider: $supported_provider" >&2; exit 2; }
+    done
+  fi
+  if has_role client; then
+    client_targets="${client_targets//[[:space:]]/}"
+    [[ -n "$client_targets" ]] || { echo 'custom Client requires LLM_GLUE_CLIENT_TARGETS.' >&2; exit 2; }
+    IFS=',' read -ra selected_targets <<< "$client_targets"
+    for client_target in "${selected_targets[@]}"; do [[ "$client_target" == opencode || "$client_target" == litellm ]] || { echo "invalid Client target: $client_target" >&2; exit 2; }; done
+    for supported_target in opencode litellm; do
+      count=0
+      for client_target in "${selected_targets[@]}"; do [[ "$client_target" == "$supported_target" ]] && count=$((count+1)); done
+      ((count <= 1)) || { echo "duplicate Client target: $supported_target" >&2; exit 2; }
+    done
+  fi
+  if ! has_role server && { has_role agent || has_role client; } && [[ "$server_url" == https://replace-with-your-server:8765 ]]; then
+    echo 'custom remote Agent/Client roles require LLM_GLUE_SERVER_URL.' >&2; exit 2
+  fi
+  if ! has_role server && has_role agent && [[ -z "$write_token" ]]; then echo 'custom remote Agent requires LLM_GLUE_WRITE_TOKEN.' >&2; exit 2; fi
+  if ! has_role server && has_role client && [[ -z "$server_token" ]]; then echo 'custom remote Client requires LLM_GLUE_SERVER_TOKEN.' >&2; exit 2; fi
+  if has_role server && [[ -z "$read_token" || -z "$write_token" ]]; then echo 'custom Server requires read/write tokens or LLM_GLUE_GENERATE_API_KEYS=1.' >&2; exit 2; fi
+  if has_role server && [[ "$litellm_url" == http://replace-with-your-litellm:4000 ]]; then echo 'custom Server requires LLM_GLUE_LITELLM_URL.' >&2; exit 2; fi
+  if has_role server && [[ "$embed_inference_api_key" == 1 && -z "$inference_api_key" ]]; then echo 'custom Server requires LLM_GLUE_INFERENCE_API_KEY by default.' >&2; exit 2; fi
 fi
 
 if [[ -n "${LLM_GLUE_INSTALL_DIR:-}" ]]; then install_dir="$LLM_GLUE_INSTALL_DIR"; elif [[ "$install_service" == 1 ]]; then install_dir="/opt/llm-glue"; else install_dir="$HOME/.local/lib/llm-glue"; fi
@@ -182,7 +309,7 @@ elif [[ "$mode" == standalone-ollama ]]; then
   state_path="state"; log_path="logs/llm-glue.log"
   if [[ "$install_service" == 1 ]]; then state_path="/var/lib/llm-glue"; log_path="/var/log/llm-glue/llm-glue.log"; fi
   printf '%s\n' '[roles]' 'agent = true' 'server = true' 'client = true' '' '[[agent.providers]]' 'name = "local-ollama"' 'type = "ollama"' "url = \"$(toml_escape "$ollama_url")\"" '' '[server]' 'listen = "https://127.0.0.1:8765"' 'tls_auto_generate = true' 'tls_server_names = ["localhost"]' "state_directory = \"$state_path\"" '' '[client]' '' '[[client.targets]]' 'type = "opencode"' "path = \"$(toml_escape "$opencode_path")\"" '' '[logging]' "file = \"$log_path\"" > "$candidate"
-else
+elif [[ "$mode" == central-llama ]]; then
   [[ "$listen_url" =~ :([0-9]+)(/.*)?$ ]] || { echo 'LLM_GLUE_LISTEN_URL must include an explicit port' >&2; exit 2; }
   {
     printf '%s\n' '[roles]' 'agent = true' 'server = true' 'client = true' '' '[[agent.providers]]' 'name = "local-llama"' 'type = "llama.cpp"' "url = \"$(toml_escape "$llama_url")\"" "model_directories = [\"$(toml_escape "$model_directory")\"]" 'inspect_gguf = true' 'hash_model_files = false' 'probe_mode = "loaded-only"' '' '[server]' "listen = \"$(toml_escape "$listen_url")\"" "opencode_inference_url = \"$(toml_escape "$litellm_url")\""
@@ -190,6 +317,58 @@ else
     printf '%s\n' 'tls_auto_generate = true'
     printf 'tls_server_names = '; toml_string_array "$tls_server_names"; printf '\n'
     printf '%s\n' "read_token = \"$(toml_escape "$read_token")\"" "write_token = \"$(toml_escape "$write_token")\"" 'state_directory = "/var/lib/llm-glue"' '' '[client]' "token = \"$(toml_escape "$read_token")\"" '' '[[client.targets]]' 'type = "litellm"' "path = \"$(toml_escape "$litellm_generated")\"" "primary_config_path = \"$(toml_escape "$litellm_primary")\"" "service_name = \"$(toml_escape "$litellm_service")\"" "health_url = \"$(toml_escape "$litellm_health")\"" '' '[logging]' 'file = "/var/log/llm-glue/llm-glue.log"'
+  } > "$candidate"
+else
+  agent_enabled=false; server_enabled=false; client_enabled=false
+  has_role agent && agent_enabled=true
+  has_role server && server_enabled=true
+  has_role client && client_enabled=true
+  state_path="state"; log_path="logs/llm-glue.log"
+  if [[ "$install_service" == 1 ]]; then state_path="/var/lib/llm-glue"; log_path="/var/log/llm-glue/llm-glue.log"; fi
+  {
+    printf '%s\n' '[roles]' "agent = $agent_enabled" "server = $server_enabled" "client = $client_enabled"
+    if has_role agent; then
+      if ! has_role server; then
+        printf '%s\n' '' '[agent]' "submit_to = \"$(toml_escape "$server_url")\"" "write_token = \"$(toml_escape "$write_token")\""
+        if [[ -n "$trusted_server_public_key_sha256" ]]; then printf 'trusted_server_public_key_sha256 = "%s"\n' "$(toml_escape "$trusted_server_public_key_sha256")"; else printf 'allow_invalid_server_certificate = %s\n' "$([[ "$allow_invalid_server_certificate" == 1 ]] && echo true || echo false)"; fi
+      fi
+      IFS=',' read -ra selected_providers <<< "$agent_providers"
+      for agent_provider in "${selected_providers[@]}"; do
+        printf '%s\n' '' '[[agent.providers]]' "name = \"local-$([[ "$agent_provider" == ollama ]] && echo ollama || echo llama)\"" "type = \"$agent_provider\""
+        if [[ "$agent_provider" == ollama ]]; then
+          printf 'url = "%s"\n' "$(toml_escape "$ollama_url")"
+        else
+          printf 'url = "%s"\nmodel_directories = ["%s"]\n' "$(toml_escape "$llama_url")" "$(toml_escape "$model_directory")"
+          printf '%s\n' 'inspect_gguf = true' 'hash_model_files = false' 'probe_mode = "loaded-only"'
+        fi
+      done
+    fi
+    if has_role server; then
+      printf '%s\n' '' '[server]' "listen = \"$(toml_escape "$listen_url")\"" "opencode_inference_url = \"$(toml_escape "$litellm_url")\""
+      if [[ "$embed_inference_api_key" == 1 ]]; then printf 'embed_opencode_inference_api_key = true\nopencode_inference_api_key = "%s"\n' "$(toml_escape "$inference_api_key")"; else printf '%s\n' 'embed_opencode_inference_api_key = false'; fi
+      printf '%s\n' 'tls_auto_generate = true'
+      printf 'tls_server_names = '; toml_string_array "$tls_server_names"; printf '\n'
+      printf '%s\n' "read_token = \"$(toml_escape "$read_token")\"" "write_token = \"$(toml_escape "$write_token")\"" "state_directory = \"$(toml_escape "$state_path")\""
+    fi
+    if has_role client; then
+      printf '%s\n' '' '[client]'
+      if has_role server; then
+        printf 'token = "%s"\n' "$(toml_escape "$read_token")"
+      else
+        printf 'source = "%s"\ntoken = "%s"\n' "$(toml_escape "$server_url")" "$(toml_escape "$server_token")"
+        if [[ -n "$trusted_server_public_key_sha256" ]]; then printf 'trusted_server_public_key_sha256 = "%s"\n' "$(toml_escape "$trusted_server_public_key_sha256")"; else printf 'allow_invalid_server_certificate = %s\n' "$([[ "$allow_invalid_server_certificate" == 1 ]] && echo true || echo false)"; fi
+      fi
+      IFS=',' read -ra selected_targets <<< "$client_targets"
+      for client_target in "${selected_targets[@]}"; do
+        printf '%s\n' '' '[[client.targets]]' "type = \"$client_target\""
+        if [[ "$client_target" == opencode ]]; then
+          printf 'path = "%s"\n' "$(toml_escape "$opencode_path")"
+        else
+          printf 'path = "%s"\nprimary_config_path = "%s"\nservice_name = "%s"\nhealth_url = "%s"\n' "$(toml_escape "$litellm_generated")" "$(toml_escape "$litellm_primary")" "$(toml_escape "$litellm_service")" "$(toml_escape "$litellm_health")"
+        fi
+      done
+    fi
+    printf '%s\n' '' '[logging]' "file = \"$(toml_escape "$log_path")\""
   } > "$candidate"
 fi
 chmod 0600 "$candidate"

@@ -1,5 +1,20 @@
 # Progress
 
+## Post-r6 composable bootstrap topology
+
+- Both bootstrap installers retain the three established deployment presets and
+  add a `custom` profile for all seven non-empty Agent/Server/Client role
+  combinations.
+- Custom Agent setup supports simultaneous Ollama and llama.cpp providers;
+  custom Client setup supports simultaneous OpenCode and LiteLLM targets.
+  Interactive setup conservatively detects standard local installations and
+  presents the detected comma-separated list for confirmation or override.
+- Headless setup exposes plural provider/target lists while retaining the prior
+  singular environment variables as one-selection compatibility aliases.
+- The PowerShell and Bash mocked bootstrap matrices validate every role
+  combination plus dual-provider/dual-target generation with candidate TOML
+  validation.
+
 ## Post-r5 native HTTPS and self-signed provisioning
 
 - Kestrel now supports file-only PFX/P12 or PEM/CRT-plus-key TLS and defaults to
