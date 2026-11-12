@@ -61,8 +61,8 @@ All three capabilities are optional and composable, including `agent,server,clie
 10. Recover from outages, partial writes, invalid configs, stale discovery and reload failures without deleting functional configuration.
 11. Do not expose secrets through diagnostic logs or unauthenticated endpoints. Authenticated OpenCode artifacts embed the configured LiteLLM client key by default for single-token client provisioning; LiteLLM artifacts remain credential-free and a server opt-out restores client environment substitution.
 12. Support existing OpenCode/Paseo user settings without clobbering unrelated configuration.
-13. Be relocatable: executable and its single sidecar configuration may be moved together to any writable directory without reinstalling program dependencies or relying on a canonical application directory.
-14. Support self-installation and uninstallation of the Windows service or systemd unit, plus foreground long-running console mode and ordinary CLI commands.
+13. Use one canonical, system-wide installation per host. Setup and uninstall require elevation; the registered service runs under its fixed least-privilege identity rather than Administrator/root.
+14. Support binary-owned setup, regular uninstall, and clean uninstall of the Windows service or systemd unit, plus foreground diagnostic mode and ordinary CLI commands.
 15. Support GitHub Releases-based, opt-in self-update with integrity verification, rollback and safe service restarts.
 16. Default to exposing every discovered model, while allowing server-side exclusion by exact model ID, name, provider or scoped matching rule.
 
@@ -241,16 +241,16 @@ Ship self-contained, single-file publishes for `linux-x64` and `win-x64` where .
 ### 8.1 Path and sidecar requirements
 
 - Default config resolution: explicitly supplied `--config` path; otherwise `llm-glue.conf` then `llm-glue.toml` beside the executable, then the same names in the platform canonical configuration folder. On Linux retain `/etc/llm-glue.conf` and `/etc/llm-glue.toml` as legacy fallbacks. Define precedence and report the selected path in `doctor`.
-- Windows bootstrap defaults new service installations to `%ProgramData%\LLMGlue` and non-service installations to `%LOCALAPPDATA%\LLMGlue`; explicit install paths and detected legacy installations are preserved rather than silently migrated.
+- Windows installs the executable under `%ProgramFiles%\LLM Glue` and configuration/state/logs under `%ProgramData%\LLMGlue`. Linux uses `/opt/llm-glue`, `/etc/llm-glue`, `/var/lib/llm-glue`, and `/var/log/llm-glue`.
 - No mandatory working-directory assumption. Resolve relative data/log paths against the configuration directory (or explicitly documented configurable base), not an arbitrary current working directory.
 - Keep all persistent state (cache, downloaded revision history, logs) in configurable locations. Do not silently write into the executable directory when it is read-only.
-- Copying the executable and configuration to another location or machine is a supported workflow. Machine-specific secrets/paths may require reconfiguration, but binaries have no install-location dependency.
-- Self-installed services refer to the actual resolved executable and config paths. If users relocate them after service registration, provide `service reinstall`/`service repair` commands rather than pretending service metadata follows automatically.
+- User-local, portable, and arbitrarily relocated installations are not supported product paths. The bootstrap may stage a verified temporary binary only to invoke canonical setup.
+- Self-installed services always refer to canonical executable/config paths. Repair restores that canonical registration.
 
 ### 8.2 CLI, foreground and service lifecycle
 
 - `run` foreground mode hosts enabled Agent/Server/Client until Ctrl+C/SIGTERM; prints useful console diagnostics.
-- `service install`, `service uninstall`, `service start`, `service stop`, and `service status` act locally with explicit elevation when required. Uninstall must preserve sidecar config and user data by default; no broad recursive deletion.
+- `setup`, `service install`/repair, and uninstall require elevation. Regular uninstall removes service/binary and reconciles owned generated target state while preserving sidecar/state/logs. `uninstall --clean` removes every recorded owned resource and the fixed Linux account, failing closed around unproven operator-owned references.
 - Installation and uninstallation must be idempotent and report exact modified service/unit paths. Windows uses SCM; Linux uses systemd; use standard .NET hosting integrations where appropriate.
 - Regular administrative CLI commands (status, discovery, configuration diagnostics, sync) must not require a background service if they can operate read-only.
 
@@ -258,9 +258,9 @@ Ship self-contained, single-file publishes for `linux-x64` and `win-x64` where .
 
 - Repository root includes `install.sh` and `install.ps1`, designed for `curl ... | bash` and `irm ... | iex` usage, but documentation must explicitly explain the trust implications and provide a safer download/inspect/run alternative.
 - Choose appropriate OS/architecture, fetch the latest stable GitHub Release with pinned repository identity, verify release assets via published SHA-256 checksums and preferably cryptographic release provenance/signature, and reject failed verification.
-- Offer a sensible writable install directory; allow override. Ask which roles to enable and whether to register a service. Prompt for required initial server URL/token and target/provider paths only when necessary.
+- Bootstrap scripts contain no product orchestration: select/download/verify/extract the stable platform asset and invoke `llm-glue setup`. The binary asks which roles to enable and prompts for required server, provider, and target values only when necessary.
 - Server installation can generate independent read/write API keys using 24 cryptographically random bytes per key. Generated secrets are written only to the protected sidecar and are never logged.
-- Elevate via `sudo`/UAC only for the operations that require elevation; avoid executing arbitrary network-fetched content as root/admin before validation. Fail with clear instructions when noninteractive elevation is impossible.
+- Require root/elevated Administrator for canonical setup and uninstall, but retain the fixed least-privilege service identity. Avoid executing arbitrary network-fetched content as root/admin before checksum verification.
 - Never silently overwrite existing configuration, run a destructive migration or erase stored credentials. Re-runs are idempotent/upgrades with backup.
 
 ### 8.4 Self-update
@@ -370,9 +370,9 @@ Deploy all three roles on Debian labhost03 and remote Client on Windows; deploy 
 
 ### M5 — Release hardening
 
-Produce MIT-licensed `rN`-versioned self-contained binaries (with distinct stable-major .NET `AssemblyVersion` and revision-tracking `FileVersion`), executable bootstrap installers (`install.sh`, `install.ps1`), Linux Makefile with `make help` and guarded GitHub release target, equivalent Windows `scripts/Publish-Release.ps1`, actual Windows service/systemd self-install and uninstall, portable sidecar config behavior, console and rolling-file logs, GitHub Releases self-update/rollback, onboarding guides, troubleshooting/doctor commands, security defaults, architecture ADRs, developer docs, reproducible CI/release workflow and a v2 roadmap.
+Produce MIT-licensed `rN`-versioned self-contained binaries (with distinct stable-major .NET `AssemblyVersion` and revision-tracking `FileVersion`), thin checksum-verifying bootstrap launchers (`install.sh`, `install.ps1`), Linux Makefile with `make help` and guarded GitHub release target, equivalent Windows `scripts/Publish-Release.ps1`, binary-owned canonical Windows/systemd setup and regular/clean uninstall, console and rolling-file logs, GitHub Releases self-update/rollback, onboarding guides, troubleshooting/doctor commands, security defaults, architecture ADRs, developer docs, reproducible CI/release workflow and a v2 roadmap.
 
-**Gate:** A new user can bootstrap, service-install, move/reconfigure, update, rollback and uninstall safely on both platforms; configure both supported paths without editing per-model configuration. Linux `make help`/build/test and Windows release-script dry-runs work; clean-and-pushed Git preflights correctly permit publication, and dirty/divergent/unpushed states fail closed without creating remote releases. CI and live acceptance suites pass; documented limitations are accurate.
+**Gate:** A new user can bootstrap, canonically configure/install, repair/reconfigure, update, rollback, regularly uninstall, and clean-uninstall safely on both platforms; configure both supported paths without editing per-model configuration. Linux `make help`/build/test and Windows release-script dry-runs work; clean-and-pushed Git preflights correctly permit publication, and dirty/divergent/unpushed states fail closed without creating remote releases. CI and live acceptance suites pass; documented limitations are accurate.
 
 ## 12. Codex implementation instructions
 

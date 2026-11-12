@@ -53,6 +53,21 @@ if (args.Take(2).SequenceEqual(["update", "activate-staged"]))
     return;
 }
 
+if (args.Take(2).SequenceEqual(["uninstall", "finalize-windows"]))
+{
+    var deletes = args.Select((value, index) => (value, index)).Where(x => x.value == "--delete" && x.index + 1 < args.Length).Select(x => args[x.index + 1]).ToArray();
+    Environment.ExitCode = await UninstallManager.FinalizeWindowsAsync(
+        int.Parse(RequiredOption(args, "--wait-process-id"), System.Globalization.CultureInfo.InvariantCulture), deletes, CancellationToken.None);
+    return;
+}
+
+if (args.FirstOrDefault() == "setup")
+{
+    var setupExecutable = Environment.ProcessPath ?? throw new InvalidOperationException("Cannot determine executable path.");
+    Environment.ExitCode = await SetupManager.ExecuteAsync(args.Skip(1).ToArray(), setupExecutable, CancellationToken.None);
+    return;
+}
+
 var explicitIndex = Array.IndexOf(args, "--config");
 var configArgument = explicitIndex < 0 ? null : args.ElementAtOrDefault(explicitIndex + 1);
 var executablePath = Environment.ProcessPath ?? throw new InvalidOperationException("Cannot determine executable path.");
@@ -77,6 +92,13 @@ if (args.FirstOrDefault() == "service")
 {
     var action = args.ElementAtOrDefault(1) ?? "status";
     Environment.ExitCode = await ServiceManager.ExecuteAsync(action, executablePath, options, CancellationToken.None, args.Contains("--dry-run", StringComparer.Ordinal));
+    return;
+}
+
+if (args.FirstOrDefault() == "uninstall")
+{
+    Environment.ExitCode = await UninstallManager.ExecuteAsync(options, executablePath,
+        args.Contains("--clean", StringComparer.Ordinal), args.Contains("--dry-run", StringComparer.Ordinal), CancellationToken.None);
     return;
 }
 

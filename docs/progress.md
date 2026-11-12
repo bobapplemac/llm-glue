@@ -1,5 +1,22 @@
 # Progress
 
+## Post-r6 binary-owned lifecycle
+
+- ADR 0021 replaces duplicated bootstrap orchestration and user-local/portable
+  installation with an elevated, binary-owned, canonical system lifecycle.
+- `llm-glue setup` now routes before configuration loading, composes all roles,
+  providers, and targets, generates protected TOML and 24-byte tokens, installs
+  to canonical Windows/Linux paths, and registers/starts the least-privileged
+  service. Dry-run does not require elevation.
+- Binary-owned `uninstall` and `uninstall --clean` are under qualification.
+  OpenCode cleanup uses its source-scoped ownership state; LiteLLM regular
+  cleanup activates an empty generated model list. Clean removal of LiteLLM
+  scaffolding remains gated on recording ownership of primary-config and Compose
+  references so operator files cannot be damaged.
+- The automated suite currently passes 169 tests. The bootstrap scripts remain
+  temporarily full-featured until a setup-capable release is published; only
+  then can `main` safely switch them to download/verify/launch wrappers.
+
 ## Post-r6 composable bootstrap topology
 
 - Both interactive bootstrap installers lead with Agent/Server/Client selection

@@ -22,6 +22,44 @@ Show help without loading configuration.
 
 No command-specific parameters.
 
+## `setup`
+
+Interactively detect integrations, generate protected system configuration, install the canonical binary, and register/start the system service without loading an existing configuration.
+
+| Parameter | Description |
+|---|---|
+| `--roles LIST` | Comma-separated agent, server, and/or client roles. |
+| `--providers LIST` | Comma-separated ollama and/or llama.cpp Agent providers. |
+| `--targets LIST` | Comma-separated opencode and/or litellm Client targets. |
+| `--server-url URI` | Remote Server URL for Agent/Client roles when Server is not co-located. |
+| `--read-token TOKEN` | Remote Client read token, or explicit local Server read token. |
+| `--write-token TOKEN` | Remote Agent write token, or explicit local Server write token. |
+| `--server-public-key-sha256 HASH` | Pin a remote Server SubjectPublicKeyInfo SHA-256 instead of accepting any self-signed certificate. |
+| `--ollama-url URI` | Ollama API base URL. |
+| `--llama-url URI` | llama.cpp API/router base URL. |
+| `--model-directory PATH` | Host-visible allowlisted GGUF directory for llama.cpp inspection. |
+| `--listen URI` | Server listener; defaults to https://0.0.0.0:8765 during setup. |
+| `--tls-server-names LIST` | Comma-separated exact/wildcard SNI names and self-signed certificate SANs. |
+| `--litellm-url URI` | Client-reachable LiteLLM URL embedded in generated OpenCode routes. |
+| `--inference-api-key TOKEN` | LiteLLM key embedded in authenticated OpenCode artifacts. |
+| `--opencode-path PATH` | System OpenCode JSONC destination. |
+| `--litellm-generated-path PATH` | Dedicated LLM Glue LiteLLM model-list destination. |
+| `--litellm-primary-path PATH` | Operator-owned LiteLLM primary YAML containing the managed include. |
+| `--litellm-service NAME` | Allowlisted service restarted after generated LiteLLM changes. |
+| `--litellm-health-url URI` | Post-activation LiteLLM health endpoint. |
+| `--non-interactive` | Use supplied options and defaults without prompting. |
+| `--dry-run` | Print canonical installation intent without writing files or services. |
+| `--replace-config` | Explicitly replace an existing canonical sidecar. |
+
+## `uninstall`
+
+Stop and remove the system service and binary, reconcile owned OpenCode entries, and empty managed LiteLLM routes while preserving configuration, state, and logs.
+
+| Parameter | Description |
+|---|---|
+| `--clean` | Also remove owned configuration, state, logs, certificates, update staging, and the fixed Linux service account; fail closed around operator-owned integration references. |
+| `--dry-run` | Print the exact uninstall scope without changing the system. |
+
 ## `status`
 
 Fetch and print Server catalog status.
