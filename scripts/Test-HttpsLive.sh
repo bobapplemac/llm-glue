@@ -28,4 +28,12 @@ client="$temporary/client.conf"
 printf '%s\n' '[roles]' 'agent=false' 'server=false' 'client=true' '[client]' \
   "source=\"https://localhost:$port\"" "trusted_server_public_key_sha256=\"$pin\"" > "$client"
 "$binary" status --config "$client" >/dev/null
-echo "Linux HTTPS live test passed; public-key SHA-256 $pin"
+"$binary" tls validate --config "$server" >/dev/null
+"$binary" tls reload --config "$server" >/dev/null
+"$binary" tls regenerate --config "$server" >/dev/null
+replacement_pin="$($binary doctor --config "$server" | sed -n 's/^Server TLS public-key SHA-256: //p')"
+[[ "$replacement_pin" =~ ^[0-9a-f]{64}$ && "$replacement_pin" != "$pin" ]] || { echo 'TLS regeneration did not rotate the public key' >&2; exit 1; }
+printf '%s\n' '[roles]' 'agent=false' 'server=false' 'client=true' '[client]' \
+  "source=\"https://localhost:$port\"" "trusted_server_public_key_sha256=\"$replacement_pin\"" > "$client"
+"$binary" status --config "$client" >/dev/null
+echo "Linux HTTPS live test passed; rotated public-key SHA-256 $pin -> $replacement_pin"

@@ -40,6 +40,26 @@ Check configured secret sources, providers, and target paths.
 
 No command-specific parameters.
 
+## `tls validate`
+
+Load and validate the configured certificate, private key, validity, Server Authentication usage, and chain without changing the running Server.
+
+No command-specific parameters.
+
+## `tls reload`
+
+Ask the local running Server to validate and adopt the certificate files for new TLS connections without restarting.
+
+No command-specific parameters.
+
+## `tls regenerate`
+
+Ask the local running Server to transactionally replace its current certificate with a new 30-year self-signed certificate and adopt it immediately.
+
+| Parameter | Description |
+|---|---|
+| `--force` | Allow replacement when the current certificate is not self-signed. |
+
 ## `config validate`
 
 Parse and validate the selected TOML configuration.

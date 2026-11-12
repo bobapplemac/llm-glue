@@ -43,3 +43,11 @@ the same key does not. Accept-any mode does not prevent active interception and
 must be documented accordingly. Windows imports a file key into a process-owned
 cryptographic key container because Schannel cannot serve ephemeral private keys;
 the certificate itself is not installed in a certificate store.
+
+Certificate changes are explicit rather than watched automatically. `tls
+validate` checks files without mutating the running process; authenticated local
+`tls reload` swaps a validated certificate context for new TLS connections; and
+`tls regenerate` creates and adopts a new self-signed certificate. Failed loads
+leave the prior in-memory certificate active. Retired contexts remain alive until
+shutdown so concurrent handshakes cannot observe disposed key material. External
+automation such as ACME should install files, validate them, then call reload.

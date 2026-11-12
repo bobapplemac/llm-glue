@@ -13,6 +13,8 @@ using LlmGlue.Core.Security;
 using Microsoft.Extensions.Hosting.Systemd;
 using Microsoft.Extensions.Hosting.WindowsServices;
 using System.Net;
+using System.Net.Security;
+using System.Security.Authentication;
 using NLog.Config;
 using NLog.Extensions.Logging;
 using NLog.Targets;
@@ -79,6 +81,9 @@ if (args.FirstOrDefault() == "service")
 }
 
 if (args.FirstOrDefault() == "doctor") { Environment.ExitCode = await CliCommands.DoctorAsync(options, CancellationToken.None); return; }
+if (args.Take(2).SequenceEqual(["tls", "validate"])) { Environment.ExitCode = CliCommands.ValidateTls(options); return; }
+if (args.Take(2).SequenceEqual(["tls", "reload"])) { Environment.ExitCode = await CliCommands.ReloadTlsAsync(options, CancellationToken.None); return; }
+if (args.Take(2).SequenceEqual(["tls", "regenerate"])) { Environment.ExitCode = await CliCommands.RegenerateTlsAsync(options, args.Contains("--force", StringComparer.Ordinal), CancellationToken.None); return; }
 if (args.FirstOrDefault() == "discover") { Environment.ExitCode = await CliCommands.DiscoverAsync(options, CancellationToken.None); return; }
 if (args.Take(2).SequenceEqual(["config", "preview"])) { Environment.ExitCode = await CliCommands.PreviewAsync(options, args.ElementAtOrDefault(2) ?? "opencode", CancellationToken.None); return; }
 if (args.Take(2).SequenceEqual(["sync", "--once"])) { Environment.ExitCode = await CliCommands.SyncOnceAsync(options, CancellationToken.None); return; }
@@ -108,7 +113,7 @@ if (args.Take(2).SequenceEqual(["update", "rollback"]))
 if (options.Roles.Server)
 {
     using var serverTls = options.Server.Listen.Scheme == Uri.UriSchemeHttps
-        ? ServerTlsCertificateManager.LoadOrCreate(options)
+        ? new ReloadableServerTlsCertificate(options)
         : null;
     var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = OperationalDirectory(options) });
     ConfigureLogging(builder.Logging, options);
@@ -118,23 +123,28 @@ if (options.Roles.Server)
         server.Limits.MaxRequestBodySize = 4 * 1024 * 1024;
         if (serverTls is not null)
         {
-            void ConfigureHttps(Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions listen) => listen.UseHttps(https =>
-            {
-                https.ServerCertificate = serverTls.Certificate;
-                if (options.Server.TlsServerNames.Count != 0)
-                    https.ServerCertificateSelector = (_, name) =>
-                        (name?.Equals("localhost", StringComparison.OrdinalIgnoreCase) == true
-                            || ServerTlsCertificateManager.MatchesServerName(options.Server.TlsServerNames, name))
-                            ? serverTls.Certificate
-                            : null;
-            });
+            void ConfigureHttps(Microsoft.AspNetCore.Server.Kestrel.Core.ListenOptions listen) => listen.UseHttps(
+                (_, hello, state, _) =>
+                {
+                    var holder = state as ReloadableServerTlsCertificate
+                        ?? throw new InvalidOperationException("TLS certificate state is unavailable.");
+                    var selected = holder.Select(hello.ServerName);
+                    return selected is null
+                        ? ValueTask.FromException<SslServerAuthenticationOptions>(new AuthenticationException("The requested SNI name is not configured."))
+                        : ValueTask.FromResult(new SslServerAuthenticationOptions { ServerCertificateContext = selected.CertificateContext });
+                }, serverTls);
             var host = options.Server.Listen.Host;
             if (host is "0.0.0.0" or "::" or "[::]" or "*" or "+") server.ListenAnyIP(options.Server.Listen.Port, ConfigureHttps);
             else if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)) server.ListenLocalhost(options.Server.Listen.Port, ConfigureHttps);
-            else if (IPAddress.TryParse(host, out var address)) server.Listen(address, options.Server.Listen.Port, ConfigureHttps);
+            else if (IPAddress.TryParse(host, out var address))
+            {
+                server.Listen(address, options.Server.Listen.Port, ConfigureHttps);
+                if (!IPAddress.IsLoopback(address)) server.ListenLocalhost(options.Server.Listen.Port, ConfigureHttps);
+            }
             else server.ListenAnyIP(options.Server.Listen.Port, ConfigureHttps);
         }
     });
+    if (serverTls is not null) builder.Services.AddSingleton(serverTls);
     AddServer(builder.Services, options);
     builder.Services.AddWindowsService(service => service.ServiceName = "LLMGlue");
     builder.Services.AddSystemd();
@@ -146,7 +156,7 @@ if (options.Roles.Server)
     app.MapGlueApi();
     app.Logger.LogInformation("Starting LLM Glue {Revision}", ProductInfo.Revision);
     if (serverTls is not null)
-        app.Logger.LogInformation("HTTPS certificate {CertificatePath}; public-key SHA-256 {PublicKeySha256}", serverTls.CertificatePath, serverTls.PublicKeySha256);
+        app.Logger.LogInformation("HTTPS certificate {CertificatePath}; public-key SHA-256 {PublicKeySha256}", serverTls.Current.CertificatePath, serverTls.Current.PublicKeySha256);
     await app.RunAsync();
 }
 else
@@ -248,8 +258,9 @@ static void AddDiscoveryAdapters(IServiceCollection services, GlueOptions option
 static void AddClient(IServiceCollection services, GlueOptions options)
 {
     var source = EffectiveClientSource(options);
-    var trustedPublicKey = EffectiveClientPin(options);
-    var sourceClient = TlsHttpClientFactory.Create(source, TimeSpan.FromSeconds(30), options.Client.AllowInvalidServerCertificate, trustedPublicKey);
+    var localHttps = options.Client.Source is null && options.Server.Listen.Scheme == Uri.UriSchemeHttps;
+    var trustedPublicKey = localHttps ? null : options.Client.TrustedServerPublicKeySha256;
+    var sourceClient = TlsHttpClientFactory.Create(source, TimeSpan.FromSeconds(30), localHttps || options.Client.AllowInvalidServerCertificate, trustedPublicKey);
     var targets = CliCommands.CreateTargets(options);
     var token = ResolveSecret(options.Client.Token, options.Client.TokenEnvironment, "Client token");
     services.AddSingleton(new ArtifactSyncClient(sourceClient, targets, token));
@@ -264,14 +275,6 @@ static Uri EffectiveClientSource(GlueOptions options)
     if (builder.Scheme == Uri.UriSchemeHttps) builder.Host = "localhost";
     else if (builder.Host is "0.0.0.0" or "::" or "[::]" or "*" or "+") builder.Host = "127.0.0.1";
     return builder.Uri;
-}
-
-static string? EffectiveClientPin(GlueOptions options)
-{
-    if (options.Client.TrustedServerPublicKeySha256 is not null) return options.Client.TrustedServerPublicKeySha256;
-    if (options.Client.Source is not null || options.Server.Listen.Scheme != Uri.UriSchemeHttps) return null;
-    using var certificate = ServerTlsCertificateManager.LoadOrCreate(options);
-    return certificate.PublicKeySha256;
 }
 
 static Uri EnsureTrailingSlash(Uri value) => value.AbsoluteUri.EndsWith("/", StringComparison.Ordinal) ? value : new Uri(value.AbsoluteUri + "/", UriKind.Absolute);

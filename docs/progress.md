@@ -18,9 +18,17 @@
   30-year validity, configuration validation, and pin logic have automated
   coverage. The self-contained Linux build passed live HTTPS health and pinned
   status retrieval under WSL; systemd qualification remains pending.
-- Release builds complete with zero warnings/errors and all 157 automated tests
+- Release builds complete with zero warnings/errors and all 161 automated tests
   pass. Both self-contained RIDs and the PowerShell/Bash mocked bootstrap
   matrices pass, including random 24-byte API keys and generated TLS settings.
+- Explicit `tls validate`, `tls reload`, and guarded `tls regenerate` operations
+  now support zero-restart certificate activation. Reload is an authenticated
+  local Server operation; failures retain the active context, and PEM full-chain
+  files are presented for publicly trusted deployments. No certificate watcher
+  is enabled; ACME automation can invoke validate and reload after file updates.
+  Self-contained Windows and Linux live workflows both passed validate, no-op
+  reload, regeneration, key rotation, and pinned reconnection without a process
+  restart.
 
 ## Post-r4 generated operator references
 

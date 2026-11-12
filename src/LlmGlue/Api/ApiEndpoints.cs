@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Net.Http.Headers;
 
 namespace LlmGlue.Api;
@@ -30,7 +31,44 @@ public static class ApiEndpoints
                 return Results.Conflict(new { error = "stale_inventory" });
             return Results.Accepted(value: new { revision = canonical.ContentHash });
         });
+        api.MapPost("/tls/reload", (HttpContext context, IServiceProvider services) => TlsOperation(context, services, regenerate: false, force: false));
+        api.MapPost("/tls/regenerate", (bool force, HttpContext context, IServiceProvider services) => TlsOperation(context, services, regenerate: true, force));
         return endpoints;
+    }
+
+    private static IResult TlsOperation(HttpContext context, IServiceProvider services, bool regenerate, bool force)
+    {
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("LlmGlue.TlsManagement");
+        if (context.Connection.RemoteIpAddress is not { } address || !IPAddress.IsLoopback(address))
+        {
+            logger.LogWarning("Rejected non-loopback TLS management request from {RemoteAddress}", context.Connection.RemoteIpAddress);
+            return Results.Json(new { error = "local_only" }, statusCode: StatusCodes.Status403Forbidden);
+        }
+        var authentication = services.GetRequiredService<ApiAuthenticationOptions>();
+        if (!string.IsNullOrEmpty(authentication.WriteToken)
+            && !ApiAuthenticationMiddleware.TryBearer(context.Request.Headers.Authorization, authentication.WriteToken))
+            return Results.Json(new { error = "unauthorized" }, statusCode: StatusCodes.Status401Unauthorized);
+        var tls = services.GetService<LlmGlue.Security.ReloadableServerTlsCertificate>();
+        if (tls is null) return Results.BadRequest(new { error = "https_not_enabled" });
+        try
+        {
+            var result = regenerate ? tls.Regenerate(force) : tls.Reload();
+            logger.LogInformation(
+                "TLS certificate {Operation}; changed={Changed}; certificate SHA-256 {PreviousCertificateSha256} -> {CertificateSha256}; public-key SHA-256 {PreviousPublicKeySha256} -> {PublicKeySha256}",
+                regenerate ? "regenerated" : "reloaded", result.Changed, result.PreviousCertificateSha256, result.CertificateSha256,
+                result.PreviousPublicKeySha256, result.PublicKeySha256);
+            return Results.Ok(result);
+        }
+        catch (LlmGlue.Core.Configuration.ConfigurationException ex)
+        {
+            logger.LogWarning("TLS certificate operation rejected: {Error}", ex.Message);
+            return Results.BadRequest(new { error = "invalid_tls_material", detail = ex.Message });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        {
+            logger.LogWarning("TLS certificate operation failed: {Error}", ex.Message);
+            return Results.Json(new { error = "tls_material_update_failed", detail = ex.Message }, statusCode: StatusCodes.Status409Conflict);
+        }
     }
 
     private static IResult Artifact(string target, ApiState state, HttpContext context)

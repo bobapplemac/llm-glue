@@ -99,6 +99,63 @@ public static class CliCommands
         return failures == 0 ? 0 : 1;
     }
 
+    public static int ValidateTls(GlueOptions options)
+    {
+        RequireHttpsServer(options);
+        using var tls = ServerTlsCertificateManager.LoadExisting(options);
+        PrintTlsCertificate("TLS certificate is valid", tls);
+        return 0;
+    }
+
+    public static Task<int> ReloadTlsAsync(GlueOptions options, CancellationToken cancellationToken) =>
+        InvokeTlsOperationAsync(options, "api/v1/tls/reload", cancellationToken);
+
+    public static Task<int> RegenerateTlsAsync(GlueOptions options, bool force, CancellationToken cancellationToken) =>
+        InvokeTlsOperationAsync(options, $"api/v1/tls/regenerate?force={force.ToString().ToLowerInvariant()}", cancellationToken);
+
+    private static async Task<int> InvokeTlsOperationAsync(GlueOptions options, string path, CancellationToken cancellationToken)
+    {
+        RequireHttpsServer(options);
+        var source = LocalServerSource(options);
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(source, path));
+        var token = SecretResolver.Resolve(options.Server.WriteToken, options.Server.WriteTokenEnvironment);
+        if (options.Server.WriteTokenEnvironment is not null && string.IsNullOrEmpty(token))
+            throw new ConfigurationException("Server write token environment source is configured but unavailable.");
+        if (!string.IsNullOrEmpty(token)) request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        using var http = TlsHttpClientFactory.Create(null, TimeSpan.FromSeconds(30), allowInvalidCertificate: true, trustedPublicKeySha256: null);
+        using var response = await http.SendAsync(request, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            Console.Error.WriteLine($"TLS operation failed: HTTP {(int)response.StatusCode} {body}");
+            return 1;
+        }
+        var result = JsonSerializer.Deserialize<ServerTlsReloadResult>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+            ?? throw new InvalidOperationException("Server returned an empty TLS operation result.");
+        Console.WriteLine(result.Changed ? "TLS certificate reloaded." : "TLS certificate was already current.");
+        Console.WriteLine($"Certificate SHA-256: {result.CertificateSha256}");
+        Console.WriteLine($"Public-key SHA-256: {result.PublicKeySha256}");
+        if (!string.Equals(result.PreviousPublicKeySha256, result.PublicKeySha256, StringComparison.Ordinal))
+            Console.WriteLine($"Previous public-key SHA-256: {result.PreviousPublicKeySha256}");
+        Console.WriteLine($"Validity: {result.NotBefore:O} through {result.NotAfter:O}");
+        return 0;
+    }
+
+    private static void RequireHttpsServer(GlueOptions options)
+    {
+        if (!options.Roles.Server) throw new ConfigurationException("TLS certificate commands require the Server role.");
+        if (options.Server.Listen.Scheme != Uri.UriSchemeHttps) throw new ConfigurationException("TLS certificate commands require an HTTPS server.listen URI.");
+    }
+
+    private static void PrintTlsCertificate(string heading, ServerTlsCertificate tls)
+    {
+        Console.WriteLine($"{heading}: {tls.CertificatePath}");
+        Console.WriteLine($"Certificate SHA-256: {tls.CertificateSha256}");
+        Console.WriteLine($"Public-key SHA-256: {tls.PublicKeySha256}");
+        Console.WriteLine($"Subject: {tls.Certificate.Subject}");
+        Console.WriteLine($"Validity: {tls.Certificate.NotBefore:O} through {tls.Certificate.NotAfter:O}");
+    }
+
     public static async Task<int> DiscoverAsync(GlueOptions options, CancellationToken cancellationToken)
     {
         var snapshot = await DiscoverSnapshotAsync(options, cancellationToken);
@@ -207,6 +264,11 @@ public static class CliCommands
         var builder = new UriBuilder(options.Server.Listen);
         if (builder.Scheme == Uri.UriSchemeHttps) builder.Host = "localhost";
         else if (builder.Host is "0.0.0.0" or "::" or "[::]" or "*" or "+") builder.Host = "127.0.0.1";
+        return builder.Uri;
+    }
+    private static Uri LocalServerSource(GlueOptions options)
+    {
+        var builder = new UriBuilder(options.Server.Listen) { Host = "localhost" };
         return builder.Uri;
     }
     private static HttpClient CreateServerClient(GlueOptions options, Uri? baseAddress, TimeSpan timeout)

@@ -11,6 +11,11 @@ pin failed, and an IP handshake outside the configured SNI list was refused.
 The self-contained Linux build also passed live Kestrel HTTPS health and pinned
 status retrieval under WSL. Password-protected PFX loading is fixture-qualified;
 Linux systemd and cross-machine remote-Agent qualification remain pending.
+The current self-contained Windows and Linux builds additionally passed explicit
+certificate validation, no-op reload, transactional self-signed regeneration,
+and pinned reconnection to the rotated key without restarting Kestrel. PEM
+full-chain loading is automated-fixture qualified. External ACME integration is
+not bundled; an ACME deploy hook can call `tls validate` and `tls reload`.
 
 | Integration | Version | Evidence | Result |
 |---|---:|---|---|

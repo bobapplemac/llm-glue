@@ -39,6 +39,9 @@ relevant ADRs, and `docs/compatibility.md` before changing behavior.
   certificate-store lookup. Preserve existing key material, keep auto-generated
   private keys restricted, and scope invalid-certificate/SPKI-pin policy only to
   the configured remote LLM Glue Server connection.
+- Certificate activation is explicit: validate complete leaf/key/chain material,
+  retain the active context on failure, and use the local-only write-authorized
+  reload/regeneration boundary. Do not add an automatic certificate file watcher.
 - Agent model exclusions are a pre-export boundary; excluded inventory must not
   be submitted upstream. Server exclusions retain diagnostic visibility while
   filtering generated artifacts. Exact and wildcard semantics must not be

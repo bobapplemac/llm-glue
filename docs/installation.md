@@ -115,6 +115,33 @@ never selects certificates from an operating-system certificate store. Exact,
 unmatched handshakes. `localhost` remains reserved for local service health and
 colocated Client operations even when it is not listed.
 
+Certificate files are not watched. After an operator or ACME client replaces
+them, validate and activate them without restarting the service:
+
+```text
+llm-glue tls validate --config /etc/llm-glue/llm-glue.conf
+llm-glue tls reload --config /etc/llm-glue/llm-glue.conf
+```
+
+`tls reload` talks to the local running Server, uses its configured write token
+when required, and changes only new TLS connections. A failed validation leaves
+the previous in-memory certificate active. PEM certificate files may contain a
+leaf followed by intermediate certificates; the complete chain is presented.
+An external deploy hook must leave the replacement files readable by the
+`llm-glue` service identity (or LocalService on Windows); validation as root does
+not prove that the running service can open them.
+
+To replace the current self-signed material and immediately adopt a fresh
+30-year certificate:
+
+```text
+llm-glue tls regenerate --config /etc/llm-glue/llm-glue.conf
+```
+
+Replacement of a non-self-signed certificate requires `--force`. Regeneration
+normally changes the public-key SHA-256 identifier, so update every pinned Agent
+and Client afterward.
+
 Remote Clients and Agent-only hosts should preferably copy the identifier from
 Server `doctor` output:
 

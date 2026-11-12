@@ -194,6 +194,16 @@ exact/wildcard SNI names become certificate SANs and reject unmatched handshakes
 connections use platform validation, an explicit SHA-256 SubjectPublicKeyInfo
 pin, or an explicit accept-any policy. See ADR 0021.
 
+TLS certificate activation is explicit and does not use a file watcher. The
+running Server owns an atomic certificate-context reference selected for each new
+TLS connection. An authenticated local reload validates the leaf, key, validity,
+Server Authentication EKU, and PEM/PFX chain before swapping that reference;
+failed validation retains the prior context. Existing TLS connections continue
+normally, while new connections receive the replacement certificate.
+An HTTPS listener pinned to a concrete non-loopback IP also binds a loopback-only
+management endpoint on the same port so health, update, and TLS lifecycle commands
+do not depend on routing through the external interface.
+
 The typed configuration catalog in `ReferenceDocumentation` is also the source
 of truth for accepted keys: TOML validation derives each scope's allow-list from
 it. The same catalog generates `docs/configuration-reference.md`. A parallel CLI

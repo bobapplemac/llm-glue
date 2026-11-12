@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using LlmGlue.Api;
 using LlmGlue.Core.Abstractions;
 using LlmGlue.Core.Generation;
+using LlmGlue.Core.Configuration;
+using LlmGlue.Security;
 using LlmGlue.Observability;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -159,6 +161,44 @@ public sealed class ApiIntegrationTests
             Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
         }
         finally { await app.StopAsync(TestContext.Current.CancellationToken); }
+    }
+
+    [Fact]
+    public async Task TlsReloadRequiresConfiguredWriteTokenEvenOnLoopback()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"llm-glue-api-tls-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var config = Path.Combine(directory, "llm-glue.conf");
+        File.WriteAllText(config, "[roles]\nagent=false\nserver=true\nclient=false\n");
+        using var tls = new ReloadableServerTlsCertificate(TomlConfigLoader.Load(config));
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Services.AddSingleton(tls);
+        builder.Services.AddSingleton<IConfigurationGenerator, OpenCodeGenerator>();
+        builder.Services.AddSingleton(new ArtifactStore());
+        builder.Services.AddSingleton<ApiState>();
+        builder.Services.AddSingleton(new ApiAuthenticationOptions("read-secret", "write-secret", AllowUnauthenticatedLoopback: true));
+        var app = builder.Build();
+        app.UseMiddleware<ApiAuthenticationMiddleware>();
+        app.MapGlueApi();
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+            using var client = new HttpClient { BaseAddress = new Uri(address) };
+            using var denied = await client.PostAsync("api/v1/tls/reload", null, TestContext.Current.CancellationToken);
+            var deniedBody = await denied.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            Assert.True(denied.StatusCode == HttpStatusCode.Unauthorized, $"Expected 401 but received {(int)denied.StatusCode}: {deniedBody}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/tls/reload");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "write-secret");
+            using var allowed = await client.SendAsync(request, TestContext.Current.CancellationToken);
+            Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+        }
+        finally
+        {
+            await app.StopAsync(TestContext.Current.CancellationToken);
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static GeneratedArtifact GenerationHelpersForTest(string value)

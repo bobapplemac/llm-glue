@@ -1,4 +1,6 @@
 using System.Net.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using LlmGlue.Core.Configuration;
 using LlmGlue.Core.Security;
 using LlmGlue.Security;
@@ -110,6 +112,90 @@ public sealed class TlsTests
             """);
         try { Assert.Contains("mutually exclusive", Assert.Throws<ConfigurationException>(() => TomlConfigLoader.Load(path)).Message); }
         finally { Directory.Delete(Path.GetDirectoryName(path)!, recursive: true); }
+    }
+
+    [Fact]
+    public void RegeneratesAndSwapsCertificateWithoutDiscardingActiveState()
+    {
+        var directory = CreateDirectory();
+        var config = Path.Combine(directory, "llm-glue.conf");
+        File.WriteAllText(config, "[roles]\nagent=false\nserver=true\nclient=false\n");
+        try
+        {
+            var options = TomlConfigLoader.Load(config);
+            using var holder = new ReloadableServerTlsCertificate(options);
+            var original = holder.Current.PublicKeySha256;
+            var result = holder.Regenerate(force: false);
+            Assert.True(result.Changed);
+            Assert.Equal(original, result.PreviousPublicKeySha256);
+            Assert.NotEqual(original, result.PublicKeySha256);
+            Assert.Equal(result.PublicKeySha256, holder.Current.PublicKeySha256);
+            Assert.Same(holder.Current, holder.Select("localhost"));
+            using var disk = ServerTlsCertificateManager.LoadExisting(options);
+            Assert.Equal(result.PublicKeySha256, disk.PublicKeySha256);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
+    public void FailedReloadKeepsPreviouslyActiveCertificate()
+    {
+        var directory = CreateDirectory();
+        var config = Path.Combine(directory, "llm-glue.conf");
+        File.WriteAllText(config, "[roles]\nagent=false\nserver=true\nclient=false\n");
+        try
+        {
+            var options = TomlConfigLoader.Load(config);
+            using var holder = new ReloadableServerTlsCertificate(options);
+            var original = holder.Current.PublicKeySha256;
+            var certificate = File.ReadAllBytes(holder.Current.CertificatePath);
+            try
+            {
+                File.WriteAllText(holder.Current.CertificatePath, "not a certificate");
+                Assert.Throws<ConfigurationException>(() => holder.Reload());
+                Assert.Equal(original, holder.Current.PublicKeySha256);
+            }
+            finally { File.WriteAllBytes(holder.Current.CertificatePath, certificate); }
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Fact]
+    public void PemCertificateLoadsAdditionalChainCertificates()
+    {
+        var directory = CreateDirectory();
+        var certificatePath = Path.Combine(directory, "server.crt");
+        var keyPath = Path.Combine(directory, "server.key");
+        var config = Path.Combine(directory, "llm-glue.conf");
+        try
+        {
+            using var rootKey = RSA.Create(2048);
+            var rootRequest = new CertificateRequest("CN=Test Root", rootKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            rootRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+            using var root = rootRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+            using var leafKey = RSA.Create(2048);
+            var leafRequest = new CertificateRequest("CN=localhost", leafKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            leafRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+            leafRequest.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension([new Oid("1.3.6.1.5.5.7.3.1")], true));
+            var serial = RandomNumberGenerator.GetBytes(16);
+            using var leaf = leafRequest.Create(root, DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow.AddMonths(1), serial);
+            File.WriteAllText(certificatePath, leaf.ExportCertificatePem() + "\n" + root.ExportCertificatePem());
+            File.WriteAllText(keyPath, leafKey.ExportPkcs8PrivateKeyPem());
+            File.WriteAllText(config, $$"""
+                [roles]
+                agent = false
+                server = true
+                client = false
+                [server]
+                tls_auto_generate = false
+                tls_certificate_path = "{{certificatePath.Replace("\\", "/", StringComparison.Ordinal)}}"
+                tls_private_key_path = "{{keyPath.Replace("\\", "/", StringComparison.Ordinal)}}"
+                """);
+            using var loaded = ServerTlsCertificateManager.LoadExisting(TomlConfigLoader.Load(config));
+            Assert.Single(loaded.Chain);
+            Assert.NotNull(loaded.CertificateContext);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
     }
 
     private static string CreateDirectory()
