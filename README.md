@@ -81,9 +81,10 @@ Agent-only host submitting inventory with a separate write credential.
 
 The root bootstrap scripts install a checksum-verified stable release and can
 configure a remote OpenCode client, standalone Ollama/OpenCode host, or central
-llama.cpp/LiteLLM host. A `custom` profile independently selects any non-empty
-combination of Agent, Server, and Client roles. Its Agent provider and Client
-target prompts support multiple selections and conservatively suggest locally
+llama.cpp/LiteLLM host. Interactive setup begins with any non-empty combination
+of Agent, Server, and Client roles; it does not present provider implementations
+as deployment modes. Later Agent-provider and Client-target prompts support
+multiple selections and conservatively suggest locally
 detected Ollama, llama.cpp, OpenCode, and LiteLLM integrations before allowing
 an override. They validate the candidate sidecar before installation, preserve
 an existing sidecar, and retain the previous executable for rollback.

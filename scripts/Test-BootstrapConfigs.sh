@@ -15,6 +15,9 @@ printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' 'url="${!#}"' 'out=""' '
 chmod +x "$tmp/bin/curl"
 export PATH="$tmp/bin:$PATH" MOCK_RELEASE="$tmp/release" LLM_GLUE_NONINTERACTIVE=1
 
+! grep -Fq 'Installation profile' "$root/install.sh"
+grep -Fq 'Enabled roles, comma separated [agent/server/client]' "$root/install.sh"
+
 run_mode() {
   local mode="$1" destination="$tmp/$1"
   shift

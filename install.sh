@@ -75,7 +75,7 @@ detect_agent_providers() {
     [[ -z "$detected" ]] || detected+=,
     detected+=llama.cpp
   fi
-  printf '%s' "${detected:-ollama}"
+  printf '%s' "$detected"
 }
 
 detect_client_targets() {
@@ -85,7 +85,7 @@ detect_client_targets() {
     [[ -z "$detected" ]] || detected+=,
     detected+=litellm
   fi
-  printf '%s' "${detected:-opencode}"
+  printf '%s' "$detected"
 }
 
 toml_escape() {
@@ -114,7 +114,17 @@ toml_string_array() {
 }
 
 if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
-  mode="$(prompt 'Installation profile [remote-client/standalone-ollama/central-llama/custom]' "$mode")"
+  detected_agent_providers="$(detect_agent_providers)"
+  detected_client_targets="$(detect_client_targets)"
+  default_roles=client
+  if [[ -n "$detected_agent_providers" && -n "$detected_client_targets" ]]; then default_roles=agent,server,client
+  elif [[ -n "$detected_agent_providers" ]]; then default_roles=agent
+  fi
+  roles="$(prompt 'Enabled roles, comma separated [agent/server/client]' "${roles:-$default_roles}")"
+  roles="${roles//[[:space:]]/}"
+  [[ -n "$agent_providers" ]] || agent_providers="$detected_agent_providers"
+  [[ -n "$client_targets" ]] || client_targets="$detected_client_targets"
+  mode=custom
   case "$mode" in
     remote-client)
       server_url="$(prompt 'LLM Glue server URL' "$server_url")"
@@ -147,10 +157,8 @@ if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
       litellm_health="$(prompt 'LiteLLM health URL' "$litellm_health")"
       ;;
     custom)
-      roles="$(prompt 'Enabled roles, comma separated [agent/server/client]' "${roles:-agent,server,client}")"
-      roles="${roles//[[:space:]]/}"
       if has_role agent; then
-        [[ -n "$agent_providers" ]] || agent_providers="$(detect_agent_providers)"
+        [[ -n "$agent_providers" ]] || agent_providers=ollama
         agent_providers="$(prompt 'Agent providers, comma separated [ollama/llama.cpp]' "$agent_providers")"
         agent_providers="${agent_providers//[[:space:]]/}"
         if has_csv_value "$agent_providers" ollama; then
@@ -182,7 +190,7 @@ if [[ "${LLM_GLUE_NONINTERACTIVE:-0}" != 1 && -r /dev/tty ]]; then
         if [[ "$embed_inference_api_key" == 1 ]]; then inference_api_key="$(prompt_secret 'LiteLLM API key to embed in authenticated OpenCode artifacts')"; fi
       fi
       if has_role client; then
-        [[ -n "$client_targets" ]] || client_targets="$(detect_client_targets)"
+        [[ -n "$client_targets" ]] || client_targets=opencode
         client_targets="$(prompt 'Client targets, comma separated [opencode/litellm]' "$client_targets")"
         client_targets="${client_targets//[[:space:]]/}"
         if has_csv_value "$client_targets" opencode; then

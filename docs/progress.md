@@ -2,9 +2,11 @@
 
 ## Post-r6 composable bootstrap topology
 
-- Both bootstrap installers retain the three established deployment presets and
-  add a `custom` profile for all seven non-empty Agent/Server/Client role
-  combinations.
+- Both interactive bootstrap installers lead with Agent/Server/Client selection
+  and support all seven non-empty combinations; provider implementations are
+  configured only after Agent is selected, and managed endpoint implementations
+  only after Client is selected. The three prior profile names remain headless
+  compatibility aliases rather than interactive product concepts.
 - Custom Agent setup supports simultaneous Ollama and llama.cpp providers;
   custom Client setup supports simultaneous OpenCode and LiteLLM targets.
   Interactive setup conservatively detects standard local installations and

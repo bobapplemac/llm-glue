@@ -28,6 +28,8 @@ try {
 
     $installer = Join-Path $root 'install.ps1'
     $installerSource = Get-Content -LiteralPath $installer -Raw
+    if ($installerSource -match 'Installation profile') { throw 'Windows interactive bootstrap still exposes implementation-specific topology profiles.' }
+    if ($installerSource -notmatch 'Enabled roles, comma separated \[agent/server/client\]') { throw 'Windows interactive bootstrap does not lead with composable roles.' }
     if ($installerSource -notmatch '(?s)service install --config \$config.*service start --config \$config') { throw 'Windows service bootstrap does not install and start in sequence.' }
     if ($installerSource -match "LiteLLM inference API key for OpenCode/Paseo") { throw 'Windows remote-client bootstrap still prompts for a separately provisioned inference key.' }
     if ($installerSource -match "\[string\]\`$InstallDirectory\s*=\s*\(Join-Path\s+\`$env:LOCALAPPDATA") { throw 'Windows bootstrap still hard-codes the per-user install directory as its parameter default.' }

@@ -24,10 +24,10 @@ and keeps the previous executable as `.rollback`.
 LLM_GLUE_INSTALL_DIR=$HOME/.local/lib/llm-glue ./install.sh
 ```
 
-Interactive installation offers `remote-client`, `standalone-ollama`,
-`central-llama`, and `custom`. The first three are topology shortcuts. `custom`
-accepts any non-empty combination of Agent, Server, and Client roles. When Agent
-is selected it suggests locally detected Ollama and llama.cpp integrations and
+Interactive installation begins by asking for any non-empty combination of
+Agent, Server, and Client roles. Provider and target implementations are not
+presented as deployment modes. When Agent is selected, the next prompt suggests
+locally detected Ollama and llama.cpp integrations and
 accepts a comma-separated provider list; when Client is selected it does the same
 for OpenCode and LiteLLM targets. Detection is advisory and conservative, and
 the operator always confirms or overrides the list and paths. The installer asks
@@ -60,7 +60,7 @@ when intentionally migrating. Existing `.conf` or `.toml` sidecars are validated
 and preserved without creating a competing filename.
 
 Headless PowerShell installs use `-NonInteractive` with the corresponding named
-parameters. Custom installs use `-Mode custom`, `-Roles`, `-AgentProviders`, and
+parameters. Composable installs use `-Mode custom`, `-Roles`, `-AgentProviders`, and
 `-ClientTargets`; the latter two accept arrays. `central-llama` requires `-InferenceApiKey` by default; use
 `-DoNotEmbedInferenceApiKey` only for separately provisioned client environments.
 The ordinary `remote-client` flow asks only for the LLM Glue URL and read token.
@@ -91,6 +91,9 @@ The singular `LLM_GLUE_AGENT_PROVIDER` and `LLM_GLUE_CLIENT_TARGET` names remain
 compatibility aliases for one selection. A remote Agent uses the write token; a
 remote Client uses the read token. Co-located roles omit remote source URLs and
 share the Server's generated credentials.
+The older `remote-client`, `standalone-ollama`, and `central-llama` names remain
+headless compatibility shortcuts only; new automation should express roles,
+providers, and targets independently.
 
 The checksum-verified staged executable and candidate configuration are validated
 before copying anything into the final location. Existing configuration is

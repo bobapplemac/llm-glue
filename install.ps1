@@ -41,19 +41,23 @@ function Find-AgentProviders {
     $found = [Collections.Generic.List[string]]::new()
     if ((Get-Command ollama -ErrorAction SilentlyContinue) -or (Test-Path 'C:\Program Files\Ollama\ollama.exe')) { $found.Add('ollama') }
     if ((Test-Path 'C:\llama.cpp\models.ini') -or (Test-Path 'C:\ProgramData\llama.cpp\models.ini')) { $found.Add('llama.cpp') }
-    if ($found.Count -eq 0) { $found.Add('ollama') }
     return $found.ToArray()
 }
 function Find-ClientTargets {
     $found = [Collections.Generic.List[string]]::new()
     if ((Get-Command opencode -ErrorAction SilentlyContinue) -or (Test-Path 'C:\ProgramData\opencode')) { $found.Add('opencode') }
     if ((Test-Path $LiteLlmPrimaryPath) -or (Get-Service -Name '*litellm*' -ErrorAction SilentlyContinue)) { $found.Add('litellm') }
-    if ($found.Count -eq 0) { $found.Add('opencode') }
     return $found.ToArray()
 }
 if (-not $NonInteractive) {
-    $answer = Read-Host "Installation profile [remote-client/standalone-ollama/central-llama/custom] ($Mode)"
-    if ($answer) { if ($answer -notin 'remote-client','standalone-ollama','central-llama','custom') { throw 'Invalid installation mode.' }; $Mode = $answer }
+    $detectedProviders = @(Find-AgentProviders)
+    $detectedTargets = @(Find-ClientTargets)
+    $defaultRoles = if ($detectedProviders.Count -and $detectedTargets.Count) { 'agent,server,client' } elseif ($detectedProviders.Count) { 'agent' } else { 'client' }
+    $answer = Read-Host "Enabled roles, comma separated [agent/server/client] ($defaultRoles)"
+    $Roles = @(($(if ($answer) { $answer } else { $defaultRoles }) -split ',') | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
+    if (-not $AgentProviders.Count) { $AgentProviders = $detectedProviders }
+    if (-not $ClientTargets.Count) { $ClientTargets = $detectedTargets }
+    $Mode = 'custom'
     if ($Mode -eq 'remote-client') {
         $answer = Read-Host "LLM Glue server URL ($ServerUrl)"; if ($answer) { $ServerUrl = $answer }
         $secret = Read-Host 'Server read token (leave blank to use LLM_GLUE_READ_TOKEN at runtime)' -AsSecureString
@@ -87,13 +91,10 @@ if (-not $NonInteractive) {
         }
         $answer = Read-Host "LiteLLM health URL ($LiteLlmHealthUrl)"; if ($answer) { $LiteLlmHealthUrl = $answer }
     } else {
-        $defaultRoles = if ($Roles.Count) { $Roles -join ',' } else { 'agent,server,client' }
-        $answer = Read-Host "Enabled roles, comma separated [agent/server/client] ($defaultRoles)"
-        $Roles = @(($(if ($answer) { $answer } else { $defaultRoles }) -split ',') | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
         if ($Roles.Count -eq 0 -or @($Roles | Where-Object { $_ -notin 'agent','server','client' }).Count) { throw 'Invalid role selection.' }
         if (($Roles | Sort-Object -Unique).Count -ne $Roles.Count) { throw 'Duplicate roles are not allowed.' }
         if (Test-Role agent) {
-            if (-not $AgentProviders.Count) { $AgentProviders = @(Find-AgentProviders) }
+            if (-not $AgentProviders.Count) { $AgentProviders = @('ollama') }
             $defaultProviders = $AgentProviders -join ','
             $answer = Read-Host "Agent providers, comma separated [ollama/llama.cpp] ($defaultProviders)"
             if ($answer) { $AgentProviders = @($answer -split ',' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ }) }
@@ -125,7 +126,7 @@ if (-not $NonInteractive) {
             if (-not $DoNotEmbedInferenceApiKey) { $secret = Read-Host 'LiteLLM API key to embed in authenticated OpenCode artifacts' -AsSecureString; if ($secret.Length) { $InferenceApiKey = [Net.NetworkCredential]::new('', $secret).Password } }
         }
         if (Test-Role client) {
-            if (-not $ClientTargets.Count) { $ClientTargets = @(Find-ClientTargets) }
+            if (-not $ClientTargets.Count) { $ClientTargets = @('opencode') }
             $defaultTargets = $ClientTargets -join ','
             $answer = Read-Host "Client targets, comma separated [opencode/litellm] ($defaultTargets)"
             if ($answer) { $ClientTargets = @($answer -split ',' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ }) }
